@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { SCRIPTS } from './data/scripts'
+import { SCRIPTS } from './data/scripts' 
 
 const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',blueBright:'#3d8bff',green:'#b8ff3c',white:'#ffffff',gray:'#8a9ab5',lightText:'#c8d4e8',card:'rgba(255,255,255,0.05)',border:'rgba(255,255,255,0.08)',red:'#ff6b6b',yellow:'#ffc947',orange:'#ff9f43' }
 const fH = "'Barlow Condensed', sans-serif"
