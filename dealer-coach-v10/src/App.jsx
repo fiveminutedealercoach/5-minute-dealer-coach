@@ -1117,7 +1117,7 @@ CRITICAL RULES:
 - Sound like a real person. Use contractions. Show emotion. Vary your tone.
 - 2-3 sentences max. Spoken language only.
 - Never use the salesperson name.
-- Only add [CLOSE_EARNED] after exchange 2 if the rep gave genuine empathy + specific value + direct ask.\n\n${${difficulty !== 'medium' ? 'DIFFICULTY MODIFIER: Customer is on ' + difficulty + ' mode.' : ''}` ? 'DIFFICULTY MODIFIER: '+diffNote : ''}\`
+- Only add [CLOSE_EARNED] after exchange 2 if the rep gave genuine empathy + specific value + direct ask.\n\n${difficulty !== 'medium' ? 'DIFFICULTY MODIFIER: Customer is on ' + difficulty + ' mode.' : ''}`
 
       const convoMessages = []
       let isFirst = true
