@@ -1,8 +1,13 @@
 // Cloudflare Pages Function — Dealer data sync via Supabase
-// Replaces Cloudflare KV with Supabase Postgres
 
 const SUPABASE_URL = 'https://zthgswndbgekoboknpae.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_8siqgy2GXbukkL_F4fUzzg_nX1O0BxX'
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
 
 const sb = async (path, method='GET', body=null) => {
   const opts = {
@@ -24,12 +29,20 @@ const sb = async (path, method='GET', body=null) => {
   return text ? JSON.parse(text) : []
 }
 
-export async function onRequestPost(context) {
+export async function onRequest(context) {
   const { request, env } = context
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: cors })
+  }
+
+  // Only allow POST
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...cors }
+    })
   }
 
   const ok = (data) => new Response(JSON.stringify(data), {
@@ -48,13 +61,11 @@ export async function onRequestPost(context) {
       const { dealerName, dept } = data
       const code = dealerId.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12)
 
-      // Check if exists
       const existing = await sb(`/dealers?code=eq.${code}&select=code`)
       if (existing.length > 0) {
         return ok({ success: true, code, exists: true })
       }
 
-      // Create dealer
       await sb('/dealers', 'POST', {
         code,
         name: dealerName,
@@ -63,7 +74,6 @@ export async function onRequestPost(context) {
         reps: []
       })
 
-      // Add to dealer index
       await sb('/dealer_index', 'POST', {
         code,
         name: dealerName,
@@ -105,7 +115,6 @@ export async function onRequestPost(context) {
         data: data
       })
 
-      // Update last_active in dealer_index
       await sb(`/dealer_index?code=eq.${code}`, 'PATCH', {
         last_active: Date.now()
       })
@@ -186,15 +195,3 @@ export async function onRequestPost(context) {
     return err(e.message)
   }
 }
-
-export async function onRequestOptions() {
-  return new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    }
-  })
-}
-
-
