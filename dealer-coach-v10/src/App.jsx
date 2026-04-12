@@ -839,55 +839,74 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     // SALES  -  5 personas covering all 6 sales categories
     {id:'dave', name:'Dave', emoji:'📱', dept:'sales', gender:'male',
      cats:['Handling Objections & Value Selling','Sales Tactics for Higher Gross','Mindset & Gross Awareness','Add-Ons & After-Sale'],
-     desc:"Did 3 hours on TrueCar last night. Has screenshots.",
-     tone:'aggressive', escalation:"Cites exact competing prices. Gets louder when challenged.",
-     opener:()=>`I spent three hours on TrueCar last night and I found this exact car listed for two thousand two hundred less at Riverside Auto. I have the screenshot right here.`},
+     desc:"44 years old. Spent 3 hours on TrueCar last night and proud of it. Bought his last car at a dealer and felt ripped off on the trade. Uses the word 'look' when frustrated. Gets louder when ignored. Softens if the rep respects his research instead of dismissing it — he just wants to feel smart, not cheated.",
+     tone:'aggressive and price-focused', escalation:"Cites exact dollar figures. Repeats them louder. Says things like 'look, I already told you' and 'I did my homework'.",
+     phrases:["Look, I already showed you the number.", "I'm not here to negotiate against myself.", "Just tell me if you can match it or not."],
+     softens:"when the rep acknowledges his research was legitimate and pivots to what the dealer offers that TrueCar can't",
+     opener:()=>`Look — I spent three hours on TrueCar last night. Three hours. I found this exact car listed for twenty-two hundred less at Riverside Auto. I have the screenshot right here. So before we go any further, are you going to match that price or not?`},
     {id:'linda', name:'Linda', emoji:'🛡', dept:'sales', gender:'female',
      cats:['Handling Objections & Value Selling','Mindset & Gross Awareness'],
-     desc:"Got burned at her last dealership. Polite but a wall.",
-     tone:'guarded', escalation:"Becomes more withdrawn if pushed. Responds to empathy.",
-     opener:()=>`I want to be upfront  -  the last time I bought a car I felt really pressured and I ended up regretting it. I need to take my time on this.`},
+     desc:"38 years old. Bought a car three years ago and felt manipulated the whole time. She regrets it. Now she comes in with her guard up — polite on the surface but walls up underneath. She shuts down when she feels pressured. She opens up only when she genuinely feels heard, not just handled.",
+     tone:'polite but emotionally guarded', escalation:"Gets quieter and more vague. Says things like 'I just need more time' and 'I'm not sure this is the right day for this'.",
+     phrases:["I just need to think about it.", "I don't want to feel rushed.", "Last time I did this I really regretted it."],
+     softens:"when the rep slows down, asks what happened before, and genuinely validates her experience without immediately pivoting to a pitch",
+     opener:()=>`I want to be upfront with you — the last time I bought a car I felt really pressured and I ended up with something I wasn't sure about. So I need you to know I'm going to take my time here. I'm not in a rush and I don't want to feel like I am.`},
     {id:'mike', name:'Mike', emoji:'💰', dept:'sales', gender:'male',
      cats:['Menu Selling & Finance','Sales Tactics for Higher Gross'],
-     desc:"Only cares about the monthly number. Ignores total cost.",
-     tone:'impatient', escalation:"Repeats his payment number louder. Dismisses value talk.",
-     opener:()=>`Look, I don't care about the sticker price or any of that. All I want to know is my monthly payment. Keep it under four-fifty and we have a deal.`},
+     desc:"52 years old. Has bought six cars in his life and every time he walks in with one number in his head — the monthly payment. He doesn't care about total cost, interest rate, or term length. If the payment fits his budget he's happy. Gets impatient fast when people talk about anything other than the number.",
+     tone:'impatient and payment-obsessed', escalation:"Cuts off value talk. Repeats his payment number. Says 'I don't care about any of that — just tell me the payment'.",
+     phrases:["What's the payment?", "I don't care about the price, I care about the payment.", "Just keep it under four-fifty and we're done here."],
+     softens:"when the rep acknowledges the payment concern first, shows him a real number on paper, then explains why the structure works in his favor",
+     opener:()=>`Let me save us both some time. I don't care about the sticker price, the MSRP, or any of that. All I want to know is my monthly payment. Keep it under four hundred and fifty dollars and we have a deal today. Can you do that or not?`},
     {id:'gary', name:'Gary', emoji:'🚛', dept:'sales', gender:'male',
      cats:['Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
-     desc:"Convinced his trade is worth more than it is. Has a firm number.",
-     tone:'stubborn', escalation:"Brings up sentimental value and what he paid originally.",
-     opener:()=>`I've had this truck for six years and taken great care of it. My neighbor sold his for twelve thousand last month. I'm not taking less than ten for mine.`},
+     desc:"59 years old. Has had his truck for six years and babied it. He's emotionally attached. He's not just talking about money — he's talking about his identity. He knows what he paid for it new and that number is stuck in his head. He's heard dealer lowball stories and is convinced they're happening to him right now.",
+     tone:'stubborn and emotionally attached', escalation:"Brings up what he paid new, what his neighbor got, the condition of the truck. Takes it personally if the number is challenged.",
+     phrases:["I know what this truck is worth.", "My neighbor just sold his for twelve.", "I've taken care of this thing better than most people take care of their kids."],
+     softens:"when the rep acknowledges the emotional value of the truck, explains the market with real data, and offers to walk through the numbers transparently",
+     opener:()=>`I've had this truck for six years and I've taken care of it better than most people take care of their kids. My neighbor sold his — same year, way more miles — for twelve thousand last month. I'm not taking a penny less than ten for mine. So what are we working with?`},
     {id:'carol', name:'Carol', emoji:'👥', dept:'sales', gender:'female',
      cats:['Add-Ons & After-Sale','Menu Selling & Finance','Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
-     desc:"Questions every add-on. Thinks she can get it cheaper elsewhere.",
-     tone:"warm but skeptical", escalation:"Compares each item to online prices.",
-     opener:()=>`I love the car but I think a lot of these extras are things I could add later or honestly get cheaper somewhere else.`},
-    // SERVICE  -  5 personas covering all 6 service categories
+     desc:"46 years old. Smart shopper. She loves the car but the minute extras get added she pulls out her phone. She's not cheap — she just hates feeling like she's being upsold. She's bought things from dealers before and later found them cheaper online and felt foolish. She won't let that happen again.",
+     tone:'warm but analytically skeptical', escalation:"Compares each item to Amazon or online pricing out loud. Gets cooler in tone. Says 'I can probably get this for half that online'.",
+     phrases:["I can get that cheaper online.", "I'll just add it later.", "I don't want to pay for something I don't need right now."],
+     softens:"when the rep explains the bundled pricing advantage, what the dealer warranty covers that aftermarket doesn't, and asks which items actually matter to her life",
+     opener:()=>`I love the car, I really do. But I have to be honest — every time I've added stuff at the dealer I've found it cheaper online a week later and felt like an idiot. So before you go through all of this, I need to understand why I should buy these things here instead of just adding them later myself.`},
     {id:'frank', name:'Frank', emoji:'⏳', dept:'service', gender:'male',
      cats:['Selling the Menu & Recommended Services','MPI Conversion','Mindset & Customer-Pay Focus'],
-     desc:"Car has been fine for years. Skeptical of every recommendation.",
-     tone:'skeptical', escalation:"Questions whether the work is really necessary right now.",
-     opener:()=>`That car has a hundred and forty thousand miles on it and I have never had a problem. Every time I come in here you find something new that supposedly needs fixing.`},
+     desc:"67 years old. Has driven the same car for nine years without a major breakdown and he considers that proof that he's doing something right. He's deeply skeptical of service recommendations because he believes dealers always find something to charge for. He's not rude — he's just seen it too many times.",
+     tone:'flat skeptical, slow to trust', escalation:"Challenges every recommendation. Says things like 'that's funny because it was fine last time' and 'how do I know this is actually necessary'.",
+     phrases:["It's been running fine.", "Every time I come in here there's a new list.", "How do I know you're not just making work?"],
+     softens:"when the rep shows him the actual inspection evidence, explains what happens if it's ignored, and gives him the choice — not pressure",
+     opener:()=>`That car has got a hundred and forty thousand miles on it and I have never — not once — been stranded on the side of the road. You know why? Because I don't fix things that aren't broken. Every single time I come in here there's a new list of things that supposedly need attention. So before we start, tell me honestly — what on here actually can't wait?`},
     {id:'barbara', name:'Barbara', emoji:'💸', dept:'service', gender:'female',
      cats:['Handling Objections & Price Pushback','Selling Specific Services'],
-     desc:"Sticker shock every visit. Compares to her cousin's shop.",
-     tone:'shocked', escalation:"Calls her cousin mid-conversation for a second opinion.",
-     opener:()=>`Seven hundred and forty dollars? I called my cousin's shop this morning and he said he could do the same job for three hundred and fifty. How do you justify that kind of difference?`},
+     desc:"51 years old. She came in expecting two hundred dollars and heard seven hundred and forty. She's not angry — she's genuinely shocked and confused. Her cousin owns a small shop and she calls him for a reality check on everything. She's not trying to be difficult — she genuinely doesn't understand the price difference and needs it explained clearly.",
+     tone:'shocked and openly comparing prices', escalation:"Picks up the phone to call her cousin. Reads the estimate line by line out loud questioning each item.",
+     phrases:["My cousin said he'd do it for half that.", "Can you explain why it costs this much?", "I wasn't expecting this at all."],
+     softens:"when the rep breaks down exactly what is included, explains OEM parts vs aftermarket, and acknowledges the shock without being defensive",
+     opener:()=>`Seven hundred and forty dollars? I — I wasn't expecting that at all. I called my cousin this morning before I came in — he has his own shop — and he said the same job would run about three hundred and fifty at his place. I'm not trying to be difficult but I need you to help me understand where that difference is coming from.`},
     {id:'ray', name:'Ray', emoji:'🏪', dept:'service', gender:'male',
      cats:['Handling Objections & Price Pushback','Selling Specific Services','Mindset & Customer-Pay Focus'],
-     desc:"Loyal to his independent mechanic for fifteen years.",
-     tone:'loyal', escalation:"Defends his mechanic personally. Responds to warranty/OEM argument.",
-     opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never done me wrong and his prices are always better.`},
+     desc:"61 years old. Tony at the shop on Fifth has been doing his cars for fifteen years. This isn't just about price — it's loyalty. He feels like going to the dealer would be a betrayal. He also genuinely believes Tony does better work. He'll listen but his default answer is no unless the rep gives him a reason that Tony literally cannot match.",
+     tone:'loyal and mildly defensive', escalation:"Gets more personal about Tony. Says 'he knows my car', 'he's never let me down', 'I trust him more than I trust a dealership'.",
+     phrases:["Tony has never done me wrong.", "He knows my car inside and out.", "It's not just about price — it's about trust."],
+     softens:"when the rep acknowledges Tony's value but explains what the dealer offers that a small independent shop genuinely cannot — factory diagnostics, OEM parts, warranty on the work",
+     opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never — not once — let me down. And his prices are always better than what I see here. I'll be honest with you — the only reason I came in today is because of the recall notice. Otherwise I'd have just gone to Tony. So make your case.`},
     {id:'susan', name:'Susan', emoji:'📞', dept:'service', gender:'female',
      cats:['Phone Ups & Appointment Setting','MPI Conversion','Selling the Menu & Recommended Services','Mindset & Customer-Pay Focus'],
-     desc:"Will not approve anything without calling her husband.",
-     tone:'polite but hesitant', escalation:"Goes quiet and reaches for her phone.",
-     opener:()=>`Before I approve any of this I really need to call my husband. He handles everything mechanical and I do not want to agree to something he would have questions about.`},
+     desc:"44 years old. Her husband handles everything mechanical — that's just how their household works. She's not helpless — she's actually quite capable — but she's learned the hard way that approving something big without checking with him creates friction at home. She's polite and apologetic but her hands feel tied.",
+     tone:'polite and genuinely hesitant', escalation:"Reaches for her phone. Says 'I really do need to call him' and 'I just don't want to approve something he'd have questions about'.",
+     phrases:["I just need to call my husband real quick.", "He handles all of this — it's just how we do things.", "I don't want to approve something he'd have questions about."],
+     softens:"when the rep acknowledges her situation, offers to write everything up clearly so she can discuss it, and asks what time works for a follow-up — no pressure",
+     opener:()=>`Before I can approve any of this I really need to run it by my husband. I know that might be frustrating to hear but he handles everything mechanical and the last time I approved a big repair without checking he had a lot of questions and I just — I'd rather take ten minutes and call him. Is that okay?`},
     {id:'tom', name:'Tom', emoji:'⌛', dept:'service', gender:'male',
      cats:['Mindset & Customer-Pay Focus','Selling the Menu & Recommended Services','MPI Conversion','Selling Specific Services','Phone Ups & Appointment Setting'],
-     desc:"Always defers. Nothing is ever urgent enough today.",
-     tone:'casual dismissive', escalation:"Has a reason why now is never the right time.",
-     opener:()=>`The car is driving just fine right now. Money is tight this month. I will bring it back in a few weeks when things settle down.`},
+     desc:"37 years old. Money is tight right now. He's not irresponsible — he's stretched. He keeps telling himself he'll deal with things next month and next month keeps moving. He knows deep down the car probably needs attention but the timing is never right. He responds to urgency only when it's about safety or cost — not general maintenance.",
+     tone:'casually avoidant', escalation:"Has a specific reason for every deferral. Next month, bonus coming, wife's car just needed work too. Always a reason.",
+     phrases:["It's driving fine right now.", "I'll bring it back next month.", "Can this wait? I just had a lot of expenses this month."],
+     softens:"when the rep gets specific about what breaks if this is ignored and what it will cost — compared to what it costs to fix now. Real numbers. Real consequences.",
+     opener:()=>`Look, the car is driving fine. I know there's stuff on that list but money is genuinely tight right now — my wife's car just needed four hundred dollars worth of work two weeks ago and I just — I can't do everything at once. Which of these things is actually going to leave me stranded if I wait another month?`},
   ]
 
   // Match persona  -  category aligned + gender alternates by script ID
@@ -1097,27 +1116,49 @@ One coaching whisper:`}],
 
       // ── Build proper messages array — NOT a concatenated string ──
       // This is how the Claude API is designed to work for conversation
-      const systemPrompt = `You are ${persona.name}, a real customer at a car dealership.
+      const diffMod = difficulty === 'easy'
+        ? 'This customer is tired of shopping and genuinely wants to find a reason to say yes. They are open to being helped. Small wins soften them quickly.'
+        : difficulty === 'hard'
+        ? 'This customer has been burned before and is highly resistant. They challenge everything. They need multiple earned moments before they budge. Be tougher than usual.'
+        : ''
 
-YOUR CHARACTER:
-- Personality: ${persona.tone}
-- Backstory: ${persona.desc}
-- When pushed: ${persona.escalation}
+      const exchangeNum = updatedLive.filter(t => t.role === 'rep').length
+      const arcNote = exchangeNum <= 1
+        ? 'You are in full defensive mode. Hold your position completely. Do not budge at all.'
+        : exchangeNum === 2
+        ? 'You are still skeptical but something they said might have landed. Stay firm but show one small crack — a question or a slight pause in your resistance.'
+        : exchangeNum === 3
+        ? 'You are testing the rep now. Are they credible or just reciting a script? React to whether they actually addressed YOUR specific concern or just gave a generic answer.'
+        : exchangeNum === 4
+        ? 'If they have genuinely addressed your concern with something specific, you are starting to consider it. If they have been generic, you are disengaging.'
+        : 'This is your decision point. Either they earned it and you signal you are ready to move forward, or you firmly but politely disengage.'
 
-THE OBJECTION YOU HAVE: ${activeS.objection.replace(/"/g,"")}
+      const systemPrompt = `You are ${persona.name}. You are a real person at a dealership — not an actor playing a role.
 
-HOW TO RESPOND:
-- Exchange 1-2: Hold your position firmly. You have heard sales pitches before.
-- Exchange 3: Acknowledge if they said something genuinely good, but stay cautious.
-- Exchange 4: Soften IF they directly addressed your concern with something specific.
-- Exchange 5: Either agree or firmly disengage.
+WHO YOU ARE:
+${persona.desc}
 
-CRITICAL RULES:
-- React to what was SPECIFICALLY just said. Never repeat yourself word for word.
-- Sound like a real person. Use contractions. Show emotion. Vary your tone.
-- 2-3 sentences max. Spoken language only.
-- Never use the salesperson name.
-- Only add [CLOSE_EARNED] after exchange 2 if the rep gave genuine empathy + specific value + direct ask.\n\n${difficulty !== 'medium' ? 'DIFFICULTY MODIFIER: Customer is ' + (difficulty === 'easy' ? 'in a good mood and open to being helped' : 'very resistant, skeptical and hard to convince. Push back harder.') : ''}`
+YOUR SPEECH PATTERNS:
+${persona.phrases ? persona.phrases.map(p => `- Say things like: "${p}"`).join('\n') : `- Speak naturally with contractions and emotion.`}
+
+WHAT SOFTENS YOU:
+${persona.softens || 'Genuine empathy combined with specific value — not generic reassurance.'}
+
+THE CONCERN ON YOUR MIND RIGHT NOW:
+${activeS.objection.replace(/"/g,'')}
+
+WHERE YOU ARE EMOTIONALLY RIGHT NOW (Exchange ${exchangeNum + 1}):
+${arcNote}
+
+YOUR RULES:
+- React to EXACTLY what was just said. If they said something specific, respond to that specific thing. If they were generic, call it out.
+- Never repeat your previous response word for word. Build on the conversation.
+- 2-3 sentences maximum. Spoken language only — no lists, no formal language.
+- Use your own name naturally if it fits (e.g. "Look, I'm telling you..." not "As Dave I feel...").
+- Show emotion. Real people get frustrated, curious, surprised. Let that come through.
+- Never use the salesperson's name.
+- Only add [CLOSE_EARNED] at exchange 3 or later, and ONLY if the rep gave you: genuine acknowledgment of your specific concern + a concrete value point that actually addressed it + a direct closing question. All three. Not two out of three.
+${diffMod ? '\nDIFFICULTY NOTE: ' + diffMod : ''}`
 
       const convoMessages = []
       let isFirst = true
@@ -1151,15 +1192,11 @@ CRITICAL RULES:
         setSpeaking(true)
         speak(clean, () => {
           setSpeaking(false)
-          setRecording(false)
-          recordingRef.current = false
           if (closeEarned) {
             endLiveDrill(activeS, liveTranscriptRef.current)
           } else {
             setLiveStatus('Your turn  -  speak your response')
-            setTranscript('')
-            accumulatedRef.current = ''
-            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 800)
+            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
           }
         }, pVoice)
       }
@@ -1272,7 +1309,9 @@ CRITICAL RULES:
     setLiveStatus('Getting into character...')
 
     // Use persona's pre-written opener — rich, natural, character-specific
-    const fallbackOpener = getOpener(script.id)
+    const fallbackOpener = (typeof persona.opener === 'function')
+      ? persona.opener()
+      : script.objection.replace(/"/g, '')
     
     // Show screen immediately with fallback - no waiting on API
     const first = [{ role: 'customer', text: fallbackOpener }]
@@ -1393,21 +1432,16 @@ COMMON MISTAKE (earns D or F): ${activeS.mistake}
 MODEL WORD TRACK (what A looks like): "${activeS.script}"
 FOLLOW-UP CLOSE: "${activeS.followup}"
 
-MATHEMATICAL SCORING  -  score each step 0 to 4. BE STRICT:
-- ACKNOWLEDGE (0-4): 0=ignored or immediately pitched, 1=rushed past with "I understand", 2=generic acknowledgment, 3=mirrored their exact words, 4=mirrored exact words AND validated their emotion specifically
-- CLARIFY (0-4): 0=no question asked, 1=vague "tell me more", 2=weak diagnostic attempt, 3=one sharp diagnostic question that uncovers the real concern, 4=question that reframes the entire objection
-- RESPOND (0-4): 0=generic pitch or defensive, 1=mentioned value but not specific, 2=decent pivot to dealership benefit, 3=specific advantage tied to their concern, 4=directly connects model word track language to their exact stated concern
-- ADVANCE (0-4): 0=no close attempt at all, 1=weak "does that make sense?", 2=soft "what do you think?", 3=direct yes/no question, 4=decisive commitment question that forces a decision
+MATHEMATICAL SCORING  -  score each step 0 to 4:
+- ACKNOWLEDGE (0-4): 0=ignored, 1=rushed past, 2=generic, 3=good mirror, 4=exact words + validated emotion
+- CLARIFY (0-4): 0=none, 1=vague, 2=attempted but weak, 3=one clear diagnostic question, 4=precise diagnosis that reframes the objection
+- RESPOND (0-4): 0=generic/defensive, 1=some value, 2=decent pivot, 3=specific dealership advantage, 4=connects directly to customer's stated concern
+- ADVANCE (0-4): 0=no close, 1=weak/open ended, 2=soft close, 3=direct yes/no question, 4=decisive commitment question that requires an answer
 
 GRADE FROM MATH:
 - 14-16 = A+, 12-13 = A, 10-11 = B+, 8-9 = B, 6-7 = C+, 4-5 = C, 2-3 = D, 0-1 = F
 
-STRICT RULES:
-- A short generic response (under 2 sentences, no specifics) = maximum score of C
-- If they made the common mistake (${activeS.mistake.substring(0,60)}...) cap at D regardless
-- If they never asked a question, CLARIFY = 0
-- If they never attempted a close, ADVANCE = 0
-- Compare EVERY response directly to the model word track — generic gets penalized
+IMPORTANT: If they made the common mistake (${activeS.mistake.substring(0,60)}...)  -  cap the grade at D regardless of other scores.
 
 RETURN ONLY valid JSON:
 {"ack_score":3,"clar_score":2,"resp_score":3,"adv_score":1,"total":9,"score":"B","score_detail":"B  -  [one sharp sentence about overall performance]","acknowledge":"[specific  -  quote their words, say what worked or failed]","clarify":"[did they diagnose or just pitch? be specific]","respond":"[compare their pivot to the model  -  generic vs specific]","advance":"[did they close decisively? exact feedback]","improvement":"[complete word-for-word script tailored to ${persona.name} and this objection  -  min 3 sentences, all 4 ACRA steps]"}`
