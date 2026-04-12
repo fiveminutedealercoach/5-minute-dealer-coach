@@ -1117,7 +1117,7 @@ CRITICAL RULES:
 - Sound like a real person. Use contractions. Show emotion. Vary your tone.
 - 2-3 sentences max. Spoken language only.
 - Never use the salesperson name.
-- Only add [CLOSE_EARNED] after exchange 2 if the rep gave genuine empathy + specific value + direct ask.\n\n${difficulty !== 'medium' ? 'DIFFICULTY MODIFIER: Customer is on ' + difficulty + ' mode.' : ''}`
+- Only add [CLOSE_EARNED] after exchange 2 if the rep gave genuine empathy + specific value + direct ask.\n\n${difficulty !== 'medium' ? 'DIFFICULTY MODIFIER: Customer is ' + (difficulty === 'easy' ? 'in a good mood and open to being helped' : 'very resistant, skeptical and hard to convince. Push back harder.') : ''}`
 
       const convoMessages = []
       let isFirst = true
@@ -1151,11 +1151,15 @@ CRITICAL RULES:
         setSpeaking(true)
         speak(clean, () => {
           setSpeaking(false)
+          setRecording(false)
+          recordingRef.current = false
           if (closeEarned) {
             endLiveDrill(activeS, liveTranscriptRef.current)
           } else {
             setLiveStatus('Your turn  -  speak your response')
-            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
+            setTranscript('')
+            accumulatedRef.current = ''
+            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 800)
           }
         }, pVoice)
       }
@@ -1268,9 +1272,7 @@ CRITICAL RULES:
     setLiveStatus('Getting into character...')
 
     // Use persona's pre-written opener — rich, natural, character-specific
-    const fallbackOpener = (typeof persona.opener === 'function')
-      ? persona.opener()
-      : script.objection.replace(/"/g, '')
+    const fallbackOpener = getOpener(script.id)
     
     // Show screen immediately with fallback - no waiting on API
     const first = [{ role: 'customer', text: fallbackOpener }]
@@ -1391,16 +1393,21 @@ COMMON MISTAKE (earns D or F): ${activeS.mistake}
 MODEL WORD TRACK (what A looks like): "${activeS.script}"
 FOLLOW-UP CLOSE: "${activeS.followup}"
 
-MATHEMATICAL SCORING  -  score each step 0 to 4:
-- ACKNOWLEDGE (0-4): 0=ignored, 1=rushed past, 2=generic, 3=good mirror, 4=exact words + validated emotion
-- CLARIFY (0-4): 0=none, 1=vague, 2=attempted but weak, 3=one clear diagnostic question, 4=precise diagnosis that reframes the objection
-- RESPOND (0-4): 0=generic/defensive, 1=some value, 2=decent pivot, 3=specific dealership advantage, 4=connects directly to customer's stated concern
-- ADVANCE (0-4): 0=no close, 1=weak/open ended, 2=soft close, 3=direct yes/no question, 4=decisive commitment question that requires an answer
+MATHEMATICAL SCORING  -  score each step 0 to 4. BE STRICT:
+- ACKNOWLEDGE (0-4): 0=ignored or immediately pitched, 1=rushed past with "I understand", 2=generic acknowledgment, 3=mirrored their exact words, 4=mirrored exact words AND validated their emotion specifically
+- CLARIFY (0-4): 0=no question asked, 1=vague "tell me more", 2=weak diagnostic attempt, 3=one sharp diagnostic question that uncovers the real concern, 4=question that reframes the entire objection
+- RESPOND (0-4): 0=generic pitch or defensive, 1=mentioned value but not specific, 2=decent pivot to dealership benefit, 3=specific advantage tied to their concern, 4=directly connects model word track language to their exact stated concern
+- ADVANCE (0-4): 0=no close attempt at all, 1=weak "does that make sense?", 2=soft "what do you think?", 3=direct yes/no question, 4=decisive commitment question that forces a decision
 
 GRADE FROM MATH:
 - 14-16 = A+, 12-13 = A, 10-11 = B+, 8-9 = B, 6-7 = C+, 4-5 = C, 2-3 = D, 0-1 = F
 
-IMPORTANT: If they made the common mistake (${activeS.mistake.substring(0,60)}...)  -  cap the grade at D regardless of other scores.
+STRICT RULES:
+- A short generic response (under 2 sentences, no specifics) = maximum score of C
+- If they made the common mistake (${activeS.mistake.substring(0,60)}...) cap at D regardless
+- If they never asked a question, CLARIFY = 0
+- If they never attempted a close, ADVANCE = 0
+- Compare EVERY response directly to the model word track — generic gets penalized
 
 RETURN ONLY valid JSON:
 {"ack_score":3,"clar_score":2,"resp_score":3,"adv_score":1,"total":9,"score":"B","score_detail":"B  -  [one sharp sentence about overall performance]","acknowledge":"[specific  -  quote their words, say what worked or failed]","clarify":"[did they diagnose or just pitch? be specific]","respond":"[compare their pivot to the model  -  generic vs specific]","advance":"[did they close decisively? exact feedback]","improvement":"[complete word-for-word script tailored to ${persona.name} and this objection  -  min 3 sentences, all 4 ACRA steps]"}`
