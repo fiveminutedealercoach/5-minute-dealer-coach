@@ -1133,32 +1133,39 @@ One coaching whisper:`}],
         ? 'If they have genuinely addressed your concern with something specific, you are starting to consider it. If they have been generic, you are disengaging.'
         : 'This is your decision point. Either they earned it and you signal you are ready to move forward, or you firmly but politely disengage.'
 
-      const systemPrompt = `You are ${persona.name}. You are a real person at a dealership — not an actor playing a role.
+      const systemPrompt = `You are ${persona.name}. You are a real person at a dealership — not an actor, not a chatbot.
 
 WHO YOU ARE:
 ${persona.desc}
 
-YOUR SPEECH PATTERNS:
-${persona.phrases ? persona.phrases.map(p => `- Say things like: "${p}"`).join('\n') : `- Speak naturally with contractions and emotion.`}
+YOUR SPEECH PATTERNS — use these naturally:
+${persona.phrases ? persona.phrases.map(p => `"${p}"`).join(', ') : 'Speak naturally with contractions and emotion.'}
 
-WHAT SOFTENS YOU:
+WHAT MAKES YOU SOFTEN:
 ${persona.softens || 'Genuine empathy combined with specific value — not generic reassurance.'}
 
-THE CONCERN ON YOUR MIND RIGHT NOW:
+YOUR CORE CONCERN:
 ${activeS.objection.replace(/"/g,'')}
 
-WHERE YOU ARE EMOTIONALLY RIGHT NOW (Exchange ${exchangeNum + 1}):
+YOUR EMOTIONAL STATE RIGHT NOW (Exchange ${exchangeNum + 1} of 5):
 ${arcNote}
 
-YOUR RULES:
-- React to EXACTLY what was just said. If they said something specific, respond to that specific thing. If they were generic, call it out.
-- Never repeat your previous response word for word. Build on the conversation.
-- 2-3 sentences maximum. Spoken language only — no lists, no formal language.
-- Use your own name naturally if it fits (e.g. "Look, I'm telling you..." not "As Dave I feel...").
-- Show emotion. Real people get frustrated, curious, surprised. Let that come through.
+HOW TO HANDLE WHAT THE REP JUST SAID:
+- If they asked you a direct question: ANSWER IT honestly and naturally before returning to your concern. Real people answer questions. Ignoring a question is unnatural.
+- If they said something specific that actually addresses your concern: acknowledge it genuinely — "okay, that's actually a fair point" — then add your remaining hesitation.
+- If they gave you a generic response or sales pitch: push back with a specific follow-up. "That sounds like something you say to everyone."
+- If they mentioned something earlier in the conversation: reference it. "You said earlier that... so what does that mean for my situation?"
+- Around exchange 3: ask the rep ONE genuine question of your own. Real customers get curious. "Okay but how does that actually work?" or "What happens if it breaks in year two?"
+- Show physical reactions through language: "Hang on, let me think about that." / "Actually, wait." / "Okay hold on."
+
+CONVERSATION RULES:
+- React to EXACTLY what was just said — not a generic version of the objection.
+- Never repeat your previous response word for word. This conversation is building.
+- 2-3 sentences maximum. Spoken language only. No bullet points, no lists.
+- Show real emotion — frustration, curiosity, surprise, skepticism. Let it come through.
 - Never use the salesperson's name.
-- Only add [CLOSE_EARNED] at exchange 3 or later, and ONLY if the rep gave you: genuine acknowledgment of your specific concern + a concrete value point that actually addressed it + a direct closing question. All three. Not two out of three.
-${diffMod ? '\nDIFFICULTY NOTE: ' + diffMod : ''}`
+- Only add [CLOSE_EARNED] at exchange 3 or later, ONLY if the rep gave ALL THREE: genuine acknowledgment of your specific concern + concrete specific value that addressed it + a direct closing question. Two out of three is not enough.
+${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
 
       const convoMessages = []
       let isFirst = true
@@ -1308,36 +1315,35 @@ ${diffMod ? '\nDIFFICULTY NOTE: ' + diffMod : ''}`
     accumulatedRef.current = ''
     setLiveStatus('Getting into character...')
 
-    // Use persona's pre-written opener — rich, natural, character-specific
-    const fallbackOpener = (typeof persona.opener === 'function')
-      ? persona.opener()
-      : script.objection.replace(/"/g, '')
-    
-    // Show screen immediately with fallback - no waiting on API
-    const first = [{ role: 'customer', text: fallbackOpener }]
+    // Always use the script-specific objection as the opener
+    // Persona character comes through in their voice + AI responses, not the opener
+    const scriptOpener = getOpener(script.id)
+
+    // Show screen immediately
+    const first = [{ role: 'customer', text: scriptOpener }]
     setLiveTranscript(first)
     liveTranscriptRef.current = first
-    setAiText(fallbackOpener)
+    setAiText(scriptOpener)
     setLivePhase('live')
     setLiveStatus('Listen to the customer...')
 
-    // Speak fallback opener immediately
+    // Speak opener immediately
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
-    speak(fallbackOpener, () => {
+    speak(scriptOpener, () => {
       setSpeaking(false)
       setLiveStatus('Your turn  -  speak your response')
       setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
     }, pVoice)
 
-    // Simultaneously try to get AI opener (will be used for exchange 2+ if opener already spoken)
+    // Try to get AI-enhanced opener for next time (non-blocking)
     try {
       const res = await fetch('/ai-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: 'You are ' + persona.name + '. ' + persona.tone + '. You just walked into a dealership and you have something on your mind.\n\nYour concern: ' + script.objection.replace(/"/g,'') + '\n\nSay what is on your mind naturally - like a real person walking in, not an actor. 1-2 sentences spoken out loud.',
-          messages: [{ role: 'user', content: 'Walk in and say what is on your mind:' }],
+          system: 'You are ' + persona.name + '. ' + persona.desc.substring(0,120) + '\n\nRephrase this objection in your own natural voice as if you just walked into a dealership: "' + script.objection.replace(/"/g,'') + '"\n\nKeep the same meaning. Sound like a real person. 1-2 sentences only.',
+          messages: [{ role: 'user', content: 'Say it in your voice:' }],
           max_tokens: 80
         })
       })
@@ -1538,8 +1544,17 @@ RETURN ONLY valid JSON:
         setDrillHistory(h => ({...h, [String(activeS.id)]: prev}))
       } catch {}
     }
+    const cachedScript = activeS
+    const cachedPersonaId = activePersId
     onLog({dept:activeS.dept,script:activeS.objection.replace(/"/g,''),result,notes:'Voice drill  -  AI coached',type:'voice'})
-    setPhase('list'); setActiveS(null); stopSpeaking()
+    // Don't clear activeS — keep it so Drill Again buttons work
+    setPhase('feedback_done')
+    stopSpeaking()
+    // Store cached refs for drill again buttons
+    if(cachedScript) {
+      setActiveS(cachedScript)
+      setActivePersId(cachedPersonaId)
+    }
   }
 
   const gradeColor = s => s?.startsWith('A')?C.green:s?.startsWith('B')?C.blueBright:(s?.startsWith('D')||s==='F')?C.red:C.yellow
@@ -1678,8 +1693,26 @@ RETURN ONLY valid JSON:
         }} style={{width:'100%',background:modelSpeaking?'rgba(255,107,107,0.15)':'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.25)',color:modelSpeaking?C.red:C.green,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>
           {modelSpeaking ? '⏹ Stop' : '🔊 Hear Model Script Read Aloud'}
         </button>
-        <button onClick={()=>launch(activeS,activePersId)} style={{width:'100%',background:'rgba(26,107,255,0.15)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>🔁 Drill Again  -  Same Persona</button>
-        <button onClick={()=>launch(activeS,null)} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>🎲 New Persona  -  Same Script</button>
+        <button onClick={()=>{
+          const s = activeS; const pid = activePersId
+          setFeedback(null); setPhase('drill')
+          setExchange(0); setAllTranscripts([]); setTranscript('')
+          setConfidenceFlags([]); setCloseEarnedFlag(false)
+          setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+          setLivePhase('connecting')
+          setTimeout(()=>startLiveDrill(s, PERSONAS.find(p=>p.id===pid)||getPersonaForScript(s)), 150)
+        }} style={{width:'100%',background:'rgba(26,107,255,0.15)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>🔁 Drill Again  -  Same Persona</button>
+        <button onClick={()=>{
+          const s = activeS
+          setFeedback(null); setPhase('drill')
+          setExchange(0); setAllTranscripts([]); setTranscript('')
+          setConfidenceFlags([]); setCloseEarnedFlag(false)
+          setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+          const newP = getPersonaForScript(s)
+          setActivePersId(newP.id)
+          setLivePhase('connecting')
+          setTimeout(()=>startLiveDrill(s, newP), 150)
+        }} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>🎲 New Persona  -  Same Script</button>
       </div>
     )
   }
