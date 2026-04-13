@@ -28,7 +28,7 @@ const scoreLabel = r => r==='won'?'✓ Won':r==='progress'?'◑ Progress':'↺ P
 const SCOLS = [C.green,C.blue,C.yellow,'#ff6bbb',C.blueBright]
 const STEPS = [
   {icon:'🏆',label:'Win From Yesterday',desc:'Open with one specific win from yesterday. Name the rep, the script, the result.',time:30},
-  {icon:'📋',label:'Script of the Day',desc:"Read today's script aloud — fully, with energy. Every rep follows along.",time:60},
+  {icon:'📋',label:'Script of the Day',desc:"Read today's script aloud  -  fully, with energy. Every rep follows along.",time:60},
   {icon:'🎭',label:'Live Drill',desc:'Manager plays the customer. One rep handles it live. No notes. Real pressure.',time:90},
   {icon:'🎯',label:'One Coaching Note',desc:'One specific thing to improve. Not a lecture. One clear, actionable note.',time:60},
   {icon:'🔒',label:'Commit & Close',desc:'Each rep commits out loud to using this script today.',time:60},
@@ -36,9 +36,9 @@ const STEPS = [
 const TOTAL_H = 300
 const STEP_STARTS = [0,30,90,180,240]
 
-const SALES_SCHED=[{day:'MON',label:'Sales — Price / Discount Objection',id:6},{day:'TUE',label:'Sales — Payment or Commitment Objection',id:9},{day:'WED',label:'Sales — Trade-In & Used Car Objections',id:19},{day:'THU',label:'Sales — Finance & Add-On Objections',id:14},{day:'FRI',label:'Weekly Review — What Worked?',id:null}]
-const SVC_SCHED=[{day:'MON',label:'Service — Deferred Maintenance Objections',id:42},{day:'TUE',label:'Service — Price & Estimate Pushback',id:44},{day:'WED',label:'Service — MPI Conversion',id:52},{day:'THU',label:'Service — Competitive / Outside Shop',id:43},{day:'FRI',label:'Weekly Review — What Worked?',id:null}]
-const BOTH_SCHED=[{day:'MON',label:'Sales — Price / Discount Objection',id:6},{day:'TUE',label:'Service — Deferred Maintenance',id:42},{day:'WED',label:'Sales — Payment Objection',id:9},{day:'THU',label:'Service — Price Pushback',id:44},{day:'FRI',label:'Weekly Review — What Worked?',id:null}]
+const SALES_SCHED=[{day:'MON',label:'Sales  -  Price / Discount Objection',id:6},{day:'TUE',label:'Sales  -  Payment or Commitment Objection',id:9},{day:'WED',label:'Sales  -  Trade-In & Used Car Objections',id:19},{day:'THU',label:'Sales  -  Finance & Add-On Objections',id:14},{day:'FRI',label:'Weekly Review  -  What Worked?',id:null}]
+const SVC_SCHED=[{day:'MON',label:'Service  -  Deferred Maintenance Objections',id:42},{day:'TUE',label:'Service  -  Price & Estimate Pushback',id:44},{day:'WED',label:'Service  -  MPI Conversion',id:52},{day:'THU',label:'Service  -  Competitive / Outside Shop',id:43},{day:'FRI',label:'Weekly Review  -  What Worked?',id:null}]
+const BOTH_SCHED=[{day:'MON',label:'Sales  -  Price / Discount Objection',id:6},{day:'TUE',label:'Service  -  Deferred Maintenance',id:42},{day:'WED',label:'Sales  -  Payment Objection',id:9},{day:'THU',label:'Service  -  Price Pushback',id:44},{day:'FRI',label:'Weekly Review  -  What Worked?',id:null}]
 const getSched = dept => dept==='sales'?SALES_SCHED:dept==='service'?SVC_SCHED:BOTH_SCHED
 
 // ── Hip welcome messages ──────────────────────────────────────
@@ -78,7 +78,7 @@ const speakEL = async (text, onDone, voiceOpts={}) => {
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     elAudio = new Audio(url)
-    elAudio.onended = () => { URL.revokeObjectURL(url); onDone && onDone() }
+    elAudio.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
     elAudio.onerror  = () => { speakBrowser(text, onDone) }
     await elAudio.play()
   } catch { speakBrowser(text, onDone) }
@@ -100,10 +100,23 @@ const stopSpeaking = () => {
   if (elAudio) { try { elAudio.pause() } catch {} elAudio = null }
   try { window.speechSynthesis?.cancel() } catch {}
 }
+const playBeep = (freq=880, dur=0.12, vol=0.25) => {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)()
+    const osc = ctx.createOscillator(); const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.value = freq; osc.type = 'sine'
+    gain.gain.setValueAtTime(vol, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur + 0.01)
+  } catch {}
+}
+const playTurnCue = () => playBeep(660, 0.08, 0.2)  // gentle cue — your turn
+
 // speak with optional persona voice options
 const speak = (text, onDone, voiceOpts={}) => speakEL(text, onDone, voiceOpts)
 
-// Get voice options for a persona — adjusts stability/style to vary personality
+// Get voice options for a persona  -  adjusts stability/style to vary personality
 const getPersonaVoiceOpts = (persona) => {
   // Each persona has a unique ElevenLabs voice ID + tuned voice settings
   const profiles = {
@@ -237,7 +250,7 @@ function ScriptCard({script,mode='full',defaultOpen=false}) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ONBOARDING — All 6 roles on BOTH create AND join screens
+// ONBOARDING  -  All 6 roles on BOTH create AND join screens
 // ══════════════════════════════════════════════════════════════
 const ALL_ROLES = [
   {id:'gm',      icon:'⭐',label:'General Manager'},
@@ -352,7 +365,7 @@ function Onboarding({onDone}) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// HOME — Live calendar date, name in header, huddle preload
+// HOME  -  Live calendar date, name in header, huddle preload
 // ══════════════════════════════════════════════════════════════
 function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNow,schedule,onScheduleChange,welcomeMsg}) {
   const role   = dealer?.role||'sales_rep'
@@ -396,7 +409,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
   const todayRow = sched[schedIdx]
   const todayScript = todayRow?.id ? SCRIPTS.find(s=>s.id===todayRow.id) : null
 
-  // AI Recommendations — managers use KV team data, reps use personal results
+  // AI Recommendations  -  managers use KV team data, reps use personal results
   const recSource = isMgr ? teamActs : results
   const objScores = {}
   recSource.forEach(r=>{
@@ -425,29 +438,70 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
             <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1}}>5-MINUTE <span style={{color:C.green}}>DEALER COACH</span></div>
             <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginTop:2}}>COMMAND CENTER</div>
             {dealer?.dealerName&&<div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginTop:2}}>{dealer.dealerName}</div>}
-            {/* Dynamic daily motivator — real data + tactical tip */}
-            <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
-              {isMgr ? (
-                <div style={{fontSize:12,color:C.lightText,lineHeight:1.5}}>
-                  {teamKPI?.totalDrills>0
-                    ? <span>Team at <span style={{color:C.green,fontWeight:700}}>{teamKPI.winRate}% win rate</span> · {teamKPI.voiceDrills} voice drills · {teamKPI.weekHuddles} huddles this week</span>
-                    : <span style={{color:C.gray}}>Run your first huddle to start tracking team progress.</span>
-                  }
+            {/* ── Team Momentum Interpreter ── */}
+            {(()=>{
+              // Read signals and produce ONE sentence of meaning
+              const drills   = teamKPI?.voiceDrills || results.length || 0
+              const winRate  = teamKPI?.winRate || 0
+              const huddles  = teamKPI?.weekHuddles || 0
+              const streakN  = streak?.count || 0
+              const prevWR   = teamKPI?.prevWinRate || 0  // optional if tracked
+              const daysSinceAny = 0  // placeholder
+
+              let msg = ''
+              let color = C.gray
+              let icon  = '📊'
+
+              if(isMgr){
+                if(!teamKPI || drills===0){
+                  msg   = 'No activity yet this week  -  run a huddle to get your team started.'
+                  color = C.gray; icon = '💤'
+                } else if(winRate>=70){
+                  msg   = `Team is closing at ${winRate}%  -  elite territory. Keep the pressure on and don't let the habit slip.`
+                  color = C.green; icon = '🚀'
+                } else if(winRate>=55 && drills>=5){
+                  msg   = `Solid week  -  ${drills} drills and a ${winRate}% win rate. One more focused huddle could push this team over 60%.`
+                  color = C.green; icon = '📈'
+                } else if(winRate>=40 && drills>=3){
+                  msg   = `Win rate is at ${winRate}%  -  your team is working but not converting. Focus today's drill on the Advance step.`
+                  color = C.yellow; icon = '⚠️'
+                } else if(drills>0 && winRate<40){
+                  msg   = `Activity is up but win rate is ${winRate}%. More drills alone won't fix this  -  the team needs to hear the model script out loud.`
+                  color = C.orange; icon = '🔧'
+                } else if(huddles===0 && drills>0){
+                  msg   = `Reps are drilling but no huddles this week. Run one today  -  the group rep is what makes individual practice stick.`
+                  color = C.yellow; icon = '📋'
+                } else {
+                  msg   = `${drills} drills this week  -  ${winRate}% win rate  -  ${huddles} huddle${huddles===1?'':'s'}. Keep building the habit.`
+                  color = C.lightText; icon = '✅'
+                }
+              } else {
+                // Rep view
+                if(streakN>=7){
+                  msg   = `${streakN}-day streak  -  you're building something. This is where habits become instincts.`
+                  color = C.green; icon = '🔥'
+                } else if(streakN>=3){
+                  msg   = `${streakN} days in a row. The reps who make this a daily habit are the ones who close more.`
+                  color = C.yellow; icon = '🔥'
+                } else if(results.length>=10){
+                  msg   = `${results.length} drills completed. You know these objections  -  now focus on earning the close on every one.`
+                  color = C.blueBright; icon = '🎯'
+                } else if(results.length>0){
+                  msg   = `${results.length} drill${results.length===1?'':'s'} so far. The floor is where you'll hear these  -  practice here first.`
+                  color = C.lightText; icon = '💪'
+                } else {
+                  msg   = 'Start your first drill. Every rep you compete against has already been practicing.'
+                  color = C.gray; icon = '▶'
+                }
+              }
+
+              return(
+                <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)',display:'flex',alignItems:'flex-start',gap:8}}>
+                  <span style={{fontSize:14,flexShrink:0,marginTop:1}}>{icon}</span>
+                  <div style={{fontSize:12,color,lineHeight:1.55,fontWeight:500}}>{msg}</div>
                 </div>
-              ) : (
-                <div style={{fontSize:12,color:C.lightText,lineHeight:1.5}}>
-                  {streak?.count>0
-                    ? <span>🔥 <span style={{color:C.orange,fontWeight:700}}>{streak.count}-day streak</span> · {results.length} total drills · keep it going</span>
-                    : <span style={{color:C.gray}}>Start your first drill to build your streak.</span>
-                  }
-                </div>
-              )}
-              {todayScript&&(
-                <div style={{fontSize:11,color:C.gray,marginTop:4,fontStyle:'italic'}}>
-                  Today: <span style={{color:C.white}}>"{todayScript.situation?.substring(0,55)}..."</span>
-                </div>
-              )}
-            </div>
+              )
+            })()}
           </div>
           <div style={{textAlign:'right'}}>
             {/* Live calendar date widget */}
@@ -459,7 +513,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
             {/* Name + role badge */}
             <div style={{display:'inline-flex',alignItems:'center',gap:5,background:'rgba(184,255,60,0.1)',border:'1px solid rgba(184,255,60,0.25)',color:C.green,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'3px 8px',borderRadius:100,maxWidth:150,overflow:'hidden'}}>
               <span>{ROLES[role]?.icon}</span>
-              <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dealer?.repName||ROLES[role]?.label}{dealer?.repTitle?` · ${dealer.repTitle}`:''}</span>
+              <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dealer?.repName||ROLES[role]?.label}{dealer?.repTitle?`  -  ${dealer.repTitle}`:''}</span>
             </div>
           </div>
         </div>
@@ -484,7 +538,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
           </div>
         )}
 
-        {/* Live Drills — reps only show personal progress bar */}
+        {/* Live Drills  -  reps only show personal progress bar */}
         {!isMgr && (
           <div style={{background:'linear-gradient(135deg,rgba(26,107,255,0.12),rgba(26,107,255,0.05))',border:'1px solid rgba(26,107,255,0.3)',borderRadius:12,padding:'14px 16px',marginBottom:12,display:'flex',alignItems:'center',gap:14}}>
             <div style={{background:'rgba(26,107,255,0.2)',borderRadius:10,padding:'10px 14px',textAlign:'center',minWidth:64}}>
@@ -496,7 +550,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
               <div style={{height:6,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',margin:'6px 0'}}>
                 <div style={{height:'100%',width:`${progressPct}%`,background:todayDrills>=dailyGoal?C.green:C.blue,borderRadius:100,transition:'width 0.4s'}}/>
               </div>
-              <div style={{fontSize:11,color:todayDrills>=dailyGoal?C.green:C.gray}}>{todayDrills>=dailyGoal?'✓ Daily goal complete!':` ${todayDrills} of ${dailyGoal} — ${dailyGoal-todayDrills} more to hit goal`}</div>
+              <div style={{fontSize:11,color:todayDrills>=dailyGoal?C.green:C.gray}}>{todayDrills>=dailyGoal?'✓ Daily goal complete!':` ${todayDrills} of ${dailyGoal}  -  ${dailyGoal-todayDrills} more to hit goal`}</div>
             </div>
           </div>
         )}
@@ -520,16 +574,16 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
           </div>
         </div>
 
-        {/* Stats row — managers: clean 4-KPI row, reps: personal 3-stat row */}
+        {/* Stats row  -  managers: clean 4-KPI row, reps: personal 3-stat row */}
         {isMgr ? (
           <div style={{marginBottom:12}}>
             {/* 4 essential KPIs in one row */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:8}}>
               {[
-                {val:teamKPI?.activeReps??'—',     label:'Active Reps',  color:C.blue,   icon:'👥'},
-                {val:teamKPI?.voiceDrills??'—',    label:'Voice Drills', color:C.yellow, icon:'🎙'},
-                {val:teamKPI?.weekHuddles??'—',    label:'Huddles/Wk',   color:C.green,  icon:'⏱'},
-                {val:teamKPI?`${teamKPI.winRate}%`:'—', label:'Win Rate', color:teamKPI?.winRate>=60?C.green:teamKPI?.winRate>=40?C.yellow:C.orange, icon:'🏆'},
+                {val:teamKPI?.activeReps??' - ',     label:'Active Reps',  color:C.blue,   icon:'👥'},
+                {val:teamKPI?.voiceDrills??' - ',    label:'Voice Drills', color:C.yellow, icon:'🎙'},
+                {val:teamKPI?.weekHuddles??' - ',    label:'Huddles/Wk',   color:C.green,  icon:'⏱'},
+                {val:teamKPI?`${teamKPI.winRate}%`:' - ', label:'Win Rate', color:teamKPI?.winRate>=60?C.green:teamKPI?.winRate>=40?C.yellow:C.orange, icon:'🏆'},
               ].map(({val,label,color,icon})=>(
                 <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 6px',textAlign:'center'}}>
                   <div style={{fontSize:14,marginBottom:2}}>{icon}</div>
@@ -570,7 +624,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
           </div>
         )}
 
-        {/* Today's Focus — huddle button now preloads script */}
+        {/* Today's Focus  -  huddle button now preloads script */}
         <div style={{background:'linear-gradient(135deg,#0f2a5c,#1a3a7a)',border:'1px solid rgba(26,107,255,0.4)',borderRadius:12,padding:'16px',marginBottom:12}}>
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
             <div style={{background:'rgba(26,107,255,0.3)',borderRadius:6,padding:'3px 8px',fontFamily:fH,fontSize:9,fontWeight:900,color:C.white,letterSpacing:1,textTransform:'uppercase'}}>{dayNames[now.getDay()]} · {months[now.getMonth()]} {now.getDate()}</div>
@@ -587,7 +641,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
         {/* Quick Drill */}
         <div onClick={()=>onDrillNow(null)} style={{background:'linear-gradient(135deg,rgba(26,107,255,0.12),rgba(26,107,255,0.06))',border:'1px solid rgba(26,107,255,0.3)',borderRadius:12,padding:'12px 16px',marginBottom:12,cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
           <div style={{fontSize:28}}>⚡</div>
-          <div style={{flex:1}}><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.blueBright,marginBottom:1}}>Quick Drill</div><div style={{fontSize:12,color:C.lightText}}>Random objection — tap and go</div></div>
+          <div style={{flex:1}}><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.blueBright,marginBottom:1}}>Quick Drill</div><div style={{fontSize:12,color:C.lightText}}>Random objection  -  tap and go</div></div>
           <div style={{color:C.blueBright,fontSize:18}}>→</div>
         </div>
 
@@ -618,7 +672,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
                     <div style={{fontSize:11,color:C.white,fontWeight:600,marginBottom:2}}>{w.label}</div>
                     <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
                       <span style={{fontFamily:fH,fontSize:10,fontWeight:700,color:w.pct<30?C.red:w.pct<50?C.yellow:C.orange}}>{w.pct}% win rate</span>
-                      <span style={{fontSize:10,color:C.gray}}>{w.total} drills{isMgr&&w.reps>1?` · ${w.reps} reps`:''}</span>
+                      <span style={{fontSize:10,color:C.gray}}>{w.total} drills{isMgr&&w.reps>1?`  -  ${w.reps} reps`:''}</span>
                     </div>
                   </div>
                   <button onClick={()=>onScheduleChange({...schedule,[nd]:`🧠 Focus: ${w.label}`})} disabled={added} style={{background:added?'rgba(184,255,60,0.15)':'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'5px 10px',borderRadius:6,cursor:added?'default':'pointer',flexShrink:0}}>{added?'✓ Added':'+ Add'}</button>
@@ -663,7 +717,7 @@ function ScriptLibrary({dealer}) {
   return (
     <div style={{padding:'16px 16px 80px'}}>
       <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Script Library</div>
-      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>60 Word Tracks — Sales & Service</div>
+      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>60 Word Tracks  -  Sales & Service</div>
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:12}}>{filtered.length} scripts</div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -695,7 +749,7 @@ function ScriptLibrary({dealer}) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// VOICE DRILL — Rebuilt AI coaching with strict ACRA grading
+// VOICE DRILL  -  Rebuilt AI coaching with strict ACRA grading
 // Grading calibrated to script library. D/F grades for bad responses.
 // ══════════════════════════════════════════════════════════════
 function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
@@ -721,10 +775,19 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [liveTranscript,setLiveTranscript] = useState([]) // [{role,text}]
   const [liveStatus,setLiveStatus]     = useState('')
   const [liveError,setLiveError]       = useState('')
-  const [exchangeCount,setExchangeCount] = useState(0)
-  const pcRef     = useRef(null)  // RTCPeerConnection
-  const dcRef     = useRef(null)  // RTCDataChannel
-  const streamRef = useRef(null)  // local mic stream
+  const [exchangeCount,setExchangeCount]   = useState(0)
+  const [liveRecording,setLiveRecording]   = useState(false) // true = rep's turn, show Send button
+  const pcRef              = useRef(null)  // RTCPeerConnection
+  const dcRef              = useRef(null)  // RTCDataChannel
+  const streamRef          = useRef(null)  // local mic stream
+  const liveTranscriptRef  = useRef([])    // always-current transcript for closures
+  const sendResponseRef    = useRef(null)  // stable ref to send function
+  const [difficulty, setDifficulty]   = useState('medium')   // easy | medium | hard
+  const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown
+  const [modelSpeaking, setModelSpeaking] = useState(false)   // speaking model script
+  const [drillHistory, setDrillHistory]   = useState({})      // {scriptId: [{score,total,date}]}
+  const [assignedDrills, setAssignedDrills] = useState(()=>{ try{return JSON.parse(localStorage.getItem('5md-assigned-'+JSON.stringify({}))||'[]')}catch{return[]} })
+  const [showAssign, setShowAssign]   = useState(null)        // script being assigned
   const [error,setError]         = useState('')
   const [recording,setRecording] = useState(false)
   const [aiText,setAiText]       = useState('')
@@ -737,8 +800,27 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const autoSubmitRef  = useRef(false) // triggers auto-submit after stop
   const supported = typeof window!=='undefined'&&('SpeechRecognition' in window||'webkitSpeechRecognition' in window)
 
+  // Load drill history from localStorage
   useEffect(()=>{
-    if(preloadScript){ launch(preloadScript, null); onClearPreload&&onClearPreload() }
+    const keys = Object.keys(localStorage).filter(k=>k.startsWith('5md-history-'))
+    const hist = {}
+    keys.forEach(k => { try { hist[k.replace('5md-history-','')] = JSON.parse(localStorage.getItem(k)||'[]') } catch {} })
+    setDrillHistory(hist)
+  },[])
+
+  useEffect(()=>{
+    if(preloadScript){
+      const persona = getPersonaForScript(preloadScript)
+      setActiveS(preloadScript)
+      setActivePersId(persona.id)
+      setFeedback(null)
+      setConfidenceFlags([])
+      setCloseEarnedFlag(false)
+      setLivePhase('connecting') // switch screen FIRST
+      onClearPreload&&onClearPreload()
+      // Small delay so React renders live screen before async call starts
+      setTimeout(() => startLiveDrill(preloadScript, persona), 100)
+    }
   },[preloadScript])
 
   const filtered = SCRIPTS.filter(s=>{
@@ -754,61 +836,90 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   // ── PERSONA LIBRARY mapped to actual script categories ─────────
   const PERSONAS = [
     // SALES
-    // SALES — 5 personas covering all 6 sales categories
+    // SALES  -  5 personas covering all 6 sales categories
     {id:'dave', name:'Dave', emoji:'📱', dept:'sales', gender:'male',
      cats:['Handling Objections & Value Selling','Sales Tactics for Higher Gross','Mindset & Gross Awareness','Add-Ons & After-Sale'],
-     desc:"Did 3 hours on TrueCar last night. Has screenshots.",
-     tone:'aggressive', escalation:"Cites exact competing prices. Gets louder when challenged.",
-     opener:()=>`I spent three hours on TrueCar last night and I found this exact car listed for two thousand two hundred less at Riverside Auto. I have the screenshot right here.`},
+     desc:"44 years old. Spent 3 hours on TrueCar last night and proud of it. Bought his last car at a dealer and felt ripped off on the trade. Uses the word 'look' when frustrated. Gets louder when ignored. Softens if the rep respects his research instead of dismissing it — he just wants to feel smart, not cheated.",
+     tone:'aggressive and price-focused', escalation:"Cites exact dollar figures. Repeats them louder. Says things like 'look, I already told you' and 'I did my homework'.",
+     phrases:["Look, I already showed you the number.", "I'm not here to negotiate against myself.", "Just tell me if you can match it or not."],
+     coreNeed:"I want to feel like I am not being taken advantage of — I did my homework and I deserve to be respected for it",
+     softens:"when the rep acknowledges his research was legitimate and pivots to what the dealer offers that TrueCar can't",
+     opener:()=>`Look — I spent three hours on TrueCar last night. Three hours. I found this exact car listed for twenty-two hundred less at Riverside Auto. I have the screenshot right here. So before we go any further, are you going to match that price or not?`},
     {id:'linda', name:'Linda', emoji:'🛡', dept:'sales', gender:'female',
      cats:['Handling Objections & Value Selling','Mindset & Gross Awareness'],
-     desc:"Got burned at her last dealership. Polite but a wall.",
-     tone:'guarded', escalation:"Becomes more withdrawn if pushed. Responds to empathy.",
-     opener:()=>`I want to be upfront — the last time I bought a car I felt really pressured and I ended up regretting it. I need to take my time on this.`},
+     desc:"38 years old. Bought a car three years ago and felt manipulated the whole time. She regrets it. Now she comes in with her guard up — polite on the surface but walls up underneath. She shuts down when she feels pressured. She opens up only when she genuinely feels heard, not just handled.",
+     tone:'polite but emotionally guarded', escalation:"Gets quieter and more vague. Says things like 'I just need more time' and 'I'm not sure this is the right day for this'.",
+     phrases:["I just need to think about it.", "I don't want to feel rushed.", "Last time I did this I really regretted it."],
+     coreNeed:"I want to feel in control of this decision — the last time I felt pressured I regretted it and I will not let that happen again",
+     softens:"when the rep slows down, asks what happened before, and genuinely validates her experience without immediately pivoting to a pitch",
+     opener:()=>`I want to be upfront with you — the last time I bought a car I felt really pressured and I ended up with something I wasn't sure about. So I need you to know I'm going to take my time here. I'm not in a rush and I don't want to feel like I am.`},
     {id:'mike', name:'Mike', emoji:'💰', dept:'sales', gender:'male',
      cats:['Menu Selling & Finance','Sales Tactics for Higher Gross'],
-     desc:"Only cares about the monthly number. Ignores total cost.",
-     tone:'impatient', escalation:"Repeats his payment number louder. Dismisses value talk.",
-     opener:()=>`Look, I don't care about the sticker price or any of that. All I want to know is my monthly payment. Keep it under four-fifty and we have a deal.`},
+     desc:"52 years old. Has bought six cars in his life and every time he walks in with one number in his head — the monthly payment. He doesn't care about total cost, interest rate, or term length. If the payment fits his budget he's happy. Gets impatient fast when people talk about anything other than the number.",
+     tone:'impatient and payment-obsessed', escalation:"Cuts off value talk. Repeats his payment number. Says 'I don't care about any of that — just tell me the payment'.",
+     phrases:["What's the payment?", "I don't care about the price, I care about the payment.", "Just keep it under four-fifty and we're done here."],
+     coreNeed:"I want to feel financially responsible — if the payment fits my budget I am making a smart decision and nobody can tell me otherwise",
+     softens:"when the rep acknowledges the payment concern first, shows him a real number on paper, then explains why the structure works in his favor",
+     opener:()=>`Let me save us both some time. I don't care about the sticker price, the MSRP, or any of that. All I want to know is my monthly payment. Keep it under four hundred and fifty dollars and we have a deal today. Can you do that or not?`},
     {id:'gary', name:'Gary', emoji:'🚛', dept:'sales', gender:'male',
      cats:['Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
-     desc:"Convinced his trade is worth more than it is. Has a firm number.",
-     tone:'stubborn', escalation:"Brings up sentimental value and what he paid originally.",
-     opener:()=>`I've had this truck for six years and taken great care of it. My neighbor sold his for twelve thousand last month. I'm not taking less than ten for mine.`},
+     desc:"59 years old. Has had his truck for six years and babied it. He's emotionally attached. He's not just talking about money — he's talking about his identity. He knows what he paid for it new and that number is stuck in his head. He's heard dealer lowball stories and is convinced they're happening to him right now.",
+     tone:'stubborn and emotionally attached', escalation:"Brings up what he paid new, what his neighbor got, the condition of the truck. Takes it personally if the number is challenged.",
+     phrases:["I know what this truck is worth.", "My neighbor just sold his for twelve.", "I've taken care of this thing better than most people take care of their kids."],
+     coreNeed:"I want to feel respected for what I have built and maintained — this truck represents six years of care and I will not let someone dismiss that",
+     softens:"when the rep acknowledges the emotional value of the truck, explains the market with real data, and offers to walk through the numbers transparently",
+     opener:()=>`I've had this truck for six years and I've taken care of it better than most people take care of their kids. My neighbor sold his — same year, way more miles — for twelve thousand last month. I'm not taking a penny less than ten for mine. So what are we working with?`},
     {id:'carol', name:'Carol', emoji:'👥', dept:'sales', gender:'female',
      cats:['Add-Ons & After-Sale','Menu Selling & Finance','Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
-     desc:"Questions every add-on. Thinks she can get it cheaper elsewhere.",
-     tone:"warm but skeptical", escalation:"Compares each item to online prices.",
-     opener:()=>`I love the car but I think a lot of these extras are things I could add later or honestly get cheaper somewhere else.`},
-    // SERVICE — 5 personas covering all 6 service categories
+     desc:"46 years old. Smart shopper. She loves the car but the minute extras get added she pulls out her phone. She's not cheap — she just hates feeling like she's being upsold. She's bought things from dealers before and later found them cheaper online and felt foolish. She won't let that happen again.",
+     tone:'warm but analytically skeptical', escalation:"Compares each item to Amazon or online pricing out loud. Gets cooler in tone. Says 'I can probably get this for half that online'.",
+     phrases:["I can get that cheaper online.", "I'll just add it later.", "I don't want to pay for something I don't need right now."],
+     coreNeed:"I want to feel like a smart shopper — I have been fooled before and I refuse to be the person who paid twice what something was worth",
+     softens:"when the rep explains the bundled pricing advantage, what the dealer warranty covers that aftermarket doesn't, and asks which items actually matter to her life",
+     opener:()=>`I love the car, I really do. But I have to be honest — every time I've added stuff at the dealer I've found it cheaper online a week later and felt like an idiot. So before you go through all of this, I need to understand why I should buy these things here instead of just adding them later myself.`},
     {id:'frank', name:'Frank', emoji:'⏳', dept:'service', gender:'male',
      cats:['Selling the Menu & Recommended Services','MPI Conversion','Mindset & Customer-Pay Focus'],
-     desc:"Car has been fine for years. Skeptical of every recommendation.",
-     tone:'skeptical', escalation:"Questions whether the work is really necessary right now.",
-     opener:()=>`That car has a hundred and forty thousand miles on it and I have never had a problem. Every time I come in here you find something new that supposedly needs fixing.`},
+     desc:"67 years old. Has driven the same car for nine years without a major breakdown and he considers that proof that he's doing something right. He's deeply skeptical of service recommendations because he believes dealers always find something to charge for. He's not rude — he's just seen it too many times.",
+     tone:'flat skeptical, slow to trust', escalation:"Challenges every recommendation. Says things like 'that's funny because it was fine last time' and 'how do I know this is actually necessary'.",
+     phrases:["It's been running fine.", "Every time I come in here there's a new list.", "How do I know you're not just making work?"],
+     coreNeed:"I want to feel like I am not being sold something unnecessary — nine years of no breakdowns is my evidence and I need yours to be better",
+     softens:"when the rep shows him the actual inspection evidence, explains what happens if it's ignored, and gives him the choice — not pressure",
+     opener:()=>`That car has got a hundred and forty thousand miles on it and I have never — not once — been stranded on the side of the road. You know why? Because I don't fix things that aren't broken. Every single time I come in here there's a new list of things that supposedly need attention. So before we start, tell me honestly — what on here actually can't wait?`},
     {id:'barbara', name:'Barbara', emoji:'💸', dept:'service', gender:'female',
      cats:['Handling Objections & Price Pushback','Selling Specific Services'],
-     desc:"Sticker shock every visit. Compares to her cousin's shop.",
-     tone:'shocked', escalation:"Calls her cousin mid-conversation for a second opinion.",
-     opener:()=>`Seven hundred and forty dollars? I called my cousin's shop this morning and he said he could do the same job for three hundred and fifty. How do you justify that kind of difference?`},
+     desc:"51 years old. She came in expecting two hundred dollars and heard seven hundred and forty. She's not angry — she's genuinely shocked and confused. Her cousin owns a small shop and she calls him for a reality check on everything. She's not trying to be difficult — she genuinely doesn't understand the price difference and needs it explained clearly.",
+     tone:'shocked and openly comparing prices', escalation:"Picks up the phone to call her cousin. Reads the estimate line by line out loud questioning each item.",
+     phrases:["My cousin said he'd do it for half that.", "Can you explain why it costs this much?", "I wasn't expecting this at all."],
+     coreNeed:"I want to feel like the price is fair and that I am not being overcharged just because I came to a dealership instead of a small shop",
+     softens:"when the rep breaks down exactly what is included, explains OEM parts vs aftermarket, and acknowledges the shock without being defensive",
+     opener:()=>`Seven hundred and forty dollars? I — I wasn't expecting that at all. I called my cousin this morning before I came in — he has his own shop — and he said the same job would run about three hundred and fifty at his place. I'm not trying to be difficult but I need you to help me understand where that difference is coming from.`},
     {id:'ray', name:'Ray', emoji:'🏪', dept:'service', gender:'male',
      cats:['Handling Objections & Price Pushback','Selling Specific Services','Mindset & Customer-Pay Focus'],
-     desc:"Loyal to his independent mechanic for fifteen years.",
-     tone:'loyal', escalation:"Defends his mechanic personally. Responds to warranty/OEM argument.",
-     opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never done me wrong and his prices are always better.`},
+     desc:"61 years old. Tony at the shop on Fifth has been doing his cars for fifteen years. This isn't just about price — it's loyalty. He feels like going to the dealer would be a betrayal. He also genuinely believes Tony does better work. He'll listen but his default answer is no unless the rep gives him a reason that Tony literally cannot match.",
+     tone:'loyal and mildly defensive', escalation:"Gets more personal about Tony. Says 'he knows my car', 'he's never let me down', 'I trust him more than I trust a dealership'.",
+     phrases:["Tony has never done me wrong.", "He knows my car inside and out.", "It's not just about price — it's about trust."],
+     coreNeed:"I want to feel loyal without feeling foolish — Tony has earned fifteen years of trust and I need a reason that actually justifies changing that",
+     softens:"when the rep acknowledges Tony's value but explains what the dealer offers that a small independent shop genuinely cannot — factory diagnostics, OEM parts, warranty on the work",
+     opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never — not once — let me down. And his prices are always better than what I see here. I'll be honest with you — the only reason I came in today is because of the recall notice. Otherwise I'd have just gone to Tony. So make your case.`},
     {id:'susan', name:'Susan', emoji:'📞', dept:'service', gender:'female',
      cats:['Phone Ups & Appointment Setting','MPI Conversion','Selling the Menu & Recommended Services','Mindset & Customer-Pay Focus'],
-     desc:"Will not approve anything without calling her husband.",
-     tone:'polite but hesitant', escalation:"Goes quiet and reaches for her phone.",
-     opener:()=>`Before I approve any of this I really need to call my husband. He handles everything mechanical and I do not want to agree to something he would have questions about.`},
+     desc:"44 years old. Her husband handles everything mechanical — that's just how their household works. She's not helpless — she's actually quite capable — but she's learned the hard way that approving something big without checking with him creates friction at home. She's polite and apologetic but her hands feel tied.",
+     tone:'polite and genuinely hesitant', escalation:"Reaches for her phone. Says 'I really do need to call him' and 'I just don't want to approve something he'd have questions about'.",
+     phrases:["I just need to call my husband real quick.", "He handles all of this — it's just how we do things.", "I don't want to approve something he'd have questions about."],
+     coreNeed:"I want to feel like I made a safe decision — approving something my husband would question makes me feel like I failed my family",
+     softens:"when the rep acknowledges her situation, offers to write everything up clearly so she can discuss it, and asks what time works for a follow-up — no pressure",
+     opener:()=>`Before I can approve any of this I really need to run it by my husband. I know that might be frustrating to hear but he handles everything mechanical and the last time I approved a big repair without checking he had a lot of questions and I just — I'd rather take ten minutes and call him. Is that okay?`},
     {id:'tom', name:'Tom', emoji:'⌛', dept:'service', gender:'male',
      cats:['Mindset & Customer-Pay Focus','Selling the Menu & Recommended Services','MPI Conversion','Selling Specific Services','Phone Ups & Appointment Setting'],
-     desc:"Always defers. Nothing is ever urgent enough today.",
-     tone:'casual dismissive', escalation:"Has a reason why now is never the right time.",
-     opener:()=>`The car is driving just fine right now. Money is tight this month. I will bring it back in a few weeks when things settle down.`},
+     desc:"37 years old. Money is tight right now. He's not irresponsible — he's stretched. He keeps telling himself he'll deal with things next month and next month keeps moving. He knows deep down the car probably needs attention but the timing is never right. He responds to urgency only when it's about safety or cost — not general maintenance.",
+     tone:'casually avoidant', escalation:"Has a specific reason for every deferral. Next month, bonus coming, wife's car just needed work too. Always a reason.",
+     phrases:["It's driving fine right now.", "I'll bring it back next month.", "Can this wait? I just had a lot of expenses this month."],
+     coreNeed:"I want to feel like the timing is right — I am not irresponsible, I am stretched, and I need this to feel manageable before I can say yes",
+     softens:"when the rep gets specific about what breaks if this is ignored and what it will cost — compared to what it costs to fix now. Real numbers. Real consequences.",
+     opener:()=>`Look, the car is driving fine. I know there's stuff on that list but money is genuinely tight right now — my wife's car just needed four hundred dollars worth of work two weeks ago and I just — I can't do everything at once. Which of these things is actually going to leave me stranded if I wait another month?`},
   ]
 
-  // Match persona — category aligned + gender alternates by script ID
+  // Match persona  -  category aligned + gender alternates by script ID
   // Odd script IDs → male persona, Even script IDs → female persona
   const getPersonaForScript = (script) => {
     if(!script) return PERSONAS[0]
@@ -852,6 +963,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   }
 
   const launch = (script, personaId=null) => {
+    setLivePhase('idle')  // ensure live screen never blocks regular drill
     if (!script) {
       const pool = SCRIPTS.filter(s=>dept==='both'||s.dept===dept)
       script = pool[Math.floor(Math.random()*pool.length)]
@@ -859,12 +971,33 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     const persona = personaId ? PERSONAS.find(p=>p.id===personaId)||getPersonaForScript(script) : getPersonaForScript(script)
     setActiveS(script); setActivePersId(persona.id)
     setPhase('drill'); setExchange(0)
+    setLivePhase('idle')  // always reset live phase so regular drill shows correctly
+    setLiveTranscript([]); setLiveStatus(''); setLiveError('')
+    // Clean up any live AI audio elements
+    document.querySelectorAll('audio[data-realtime]').forEach(el=>{ el.srcObject=null; el.remove() })
+    // Stop any open WebRTC connections
+    if(pcRef.current){ try{ pcRef.current.close() }catch{} pcRef.current=null }
+    if(dcRef.current){ try{ dcRef.current.close() }catch{} dcRef.current=null }
+    if(streamRef.current){ streamRef.current.getTracks().forEach(t=>t.stop()); streamRef.current=null }
     setTranscript(''); setAllTranscripts([]); setFeedback(null)
     setError(''); setShowScript(false); setSilentCoach(null); setSilentLoading(false); setConfidenceFlags([]); setCloseEarnedFlag(false)
     const opener = getPersonaOpener(persona, script)
     setAiText(opener)
     const vOpts = getPersonaVoiceOpts(persona)
     setSpeaking(true); speak(opener,()=>setSpeaking(false), vOpts)
+  }
+
+  const startRecWithCountdown = () => {
+    setMicWarmup(3)
+    let c = 3
+    const tick = setInterval(() => {
+      c--
+      setMicWarmup(c)
+      if(c <= 0) {
+        clearInterval(tick)
+        setTimeout(() => { playTurnCue(); startRec() }, 100)
+      }
+    }, 1000)
   }
 
   const startRec = () => {
@@ -905,7 +1038,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         if(e.error === 'no-speech') return  // ignore pauses
         setRecording(false)
         recordingRef.current = false
-        setError('Mic error — type your response below.')
+        setError('Mic error  -  type your response below.')
       }
       recRef.current = rec
       recordingRef.current = true
@@ -928,15 +1061,15 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   // ── SILENT COACH ─────────────────────────────────────────────
   // After each rep response (except the last), whisper one coaching line
   // before the customer pushes back. Tells rep exactly what step to hit next.
-  // submitRef — stable reference to submit so stopRec can call it directly
+  // submitRef  -  stable reference to submit so stopRec can call it directly
   const submitRef = useRef(null)
 
   const getSilentCoach = async (repResponse, exchangeNum, script) => {
-    // ACRA fallback tips by exchange — always show something useful
+    // ACRA fallback tips by exchange  -  always show something useful
     const fallbacks = [
       `Did you acknowledge their concern before pitching? Mirror their words first.`,
-      `Ask one clarifying question — find out WHY before you respond.`,
-      `Close with a direct yes or no question — don't leave it open ended.`,
+      `Ask one clarifying question  -  find out WHY before you respond.`,
+      `Close with a direct yes or no question  -  don't leave it open ended.`,
     ]
     const fallback = fallbacks[Math.min(exchangeNum, fallbacks.length-1)]
     try {
@@ -962,8 +1095,227 @@ One coaching whisper:`}],
   }
 
   const submit = async () => {
-    if(!transcript.trim()){return}  // silently ignore if nothing recorded
+    if(!transcript.trim()){return}
     stopRec()
+
+    // ── LIVE DRILL MODE ──────────────────────────────────────
+    if(livePhase === 'live' && activeS) {
+      const repText = transcript.trim()
+      if (!repText) { setLiveRecording(true); startRec(); return }
+
+      stopRec()
+      setTranscript('')
+      accumulatedRef.current = ''
+      setLiveRecording(false)
+      setLiveStatus('Thinking...')
+
+      const updatedLive = [...liveTranscriptRef.current, { role: 'rep', text: repText }]
+      setLiveTranscript(updatedLive)
+      liveTranscriptRef.current = updatedLive
+      const newExCount = updatedLive.filter(t => t.role === 'rep').length
+      setExchangeCount(newExCount)
+      getSilentCoach(repText, newExCount - 1, activeS)
+
+      if (newExCount >= 5) {
+        setTimeout(() => endLiveDrill(activeS, liveTranscriptRef.current), 800)
+        return
+      }
+
+      const persona = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(activeS)
+
+      // ── DIFFICULTY MODIFIER ───────────────────────────────
+      const diffMod = difficulty === 'easy'
+        ? 'This customer is worn out from shopping and wants to find a reason to say yes. They respond quickly to empathy and specific value.'
+        : difficulty === 'hard'
+        ? 'This customer has been burned before and trusts nobody. They challenge every claim. Push back hard on anything generic.'
+        : ''
+
+      // ── EMOTIONAL ARC — 5 states per persona ─────────────
+      const emotionalStates = {
+        dave:    ['Defensive and testing — want to see if they flinch at your number','Still skeptical — their answer was okay but you are not moving yet','Probing — ask one real question about what they claimed','Genuinely weighing it — their specific answer landed but you are not showing it','Decision — they either earned your trust or they did not'],
+        linda:   ['Guarded and closed — waiting for the pressure to start','Cautious — they seem different but you have heard that before','Slightly open — they actually listened and that surprised you','Cautiously curious — starting to consider but not showing it','Deciding — gut is either warming up or shutting down'],
+        mike:    ['Impatient — you want a number not a conversation','Frustrated — still no payment number','Slightly engaged — they mentioned payment structure','Calculating — running the math in your head','Ready to decide — give a payment that works or you walk'],
+        gary:    ['Defensive about your truck — you know what it is worth','Firm — they questioned your number and you are not backing down','Curious but stubborn — want to know how they got their figure','Thinking — maybe their data has merit but you will not say so','Final — either they respect the truck or you take it elsewhere'],
+        carol:   ['Skeptical — phone ready to compare prices','Probing — want to know exactly what each item covers','Genuinely curious about the warranty — had not thought of that','Warming up — the bundled pricing argument is not unreasonable','Deciding — value it or leave it'],
+        frank:   ['Flat skeptical — heard this before','Challenging — want proof not words','Testing — asking a real diagnostic question','Slightly persuaded — the evidence was harder to dismiss','Deciding — either believe them or you do not'],
+        barbara: ['Shocked — genuinely did not expect that number','Comparing out loud — cousin said half the price','Listening — want them to break it down line by line','Starting to understand — OEM parts argument making sense','Deciding — either value justifies it or call the cousin'],
+        ray:     ['Loyal — Tony earned fifteen years of trust','Defending Tony personally','Probing — what can the dealer do that Tony literally cannot','Genuinely considering — factory diagnostic point is hard to argue','Deciding — worth disrupting fifteen years of loyalty'],
+        susan:   ['Apologetic but firm — genuinely need to call husband','Still deferring — not comfortable approving alone','Asking a real question about one specific item','Warming up — if written clearly can discuss tonight','Deciding — equipped to talk to husband or not'],
+        tom:     ['Avoidant — everything can wait until next month','Deflecting — specific reason why now does not work','Paying attention — safety consequence actually worried you','Calculating — cost to fix now vs later','Deciding — urgency hit home or it did not'],
+      }
+      const states = emotionalStates[persona.id] || ['Defensive','Skeptical','Probing','Considering','Deciding']
+      const arcNote = states[Math.min(newExCount - 1, 4)]
+
+      // ── WHAT YOU ALREADY SAID — prevent repetition ────────
+      const prevPersonaLines = updatedLive
+        .filter(t => t.role === 'customer')
+        .map((t, i) => `Exchange ${i+1}: "${t.text.substring(0,80)}"`)
+      const prevPhrasesNote = prevPersonaLines.length > 0
+        ? ('\nPHRASES YOU ALREADY USED — never repeat these:\n' + prevPersonaLines.join('\n'))
+        : ''
+
+      // ── RESPONSE TYPE ROTATION ────────────────────────────
+      const responseTypes = [
+        'Challenge what they just said with a specific pushback.',
+        'Ask one genuine question — something you actually want to know.',
+        'Acknowledge one thing, then show your remaining concern.',
+        'Show a physical reaction — hesitate, reconsider out loud, then respond.',
+        'Reference something they said earlier in the conversation.',
+      ]
+      const responseTypeNote = responseTypes[(newExCount - 1) % responseTypes.length]
+
+      // ── SUB-OBJECTION AT EXCHANGE 3 ───────────────────────
+      const subObjNote = newExCount === 3
+        ? '\nAt this exchange, if the rep addressed your main concern reasonably, reveal ONE secondary concern that has been in the back of your mind.'
+        : ''
+
+      // ── TOPIC DRIFT AT EXCHANGE 2 ─────────────────────────
+      const driftNote = newExCount === 2
+        ? '\nYou may briefly mention something personal — a past experience, your schedule — before coming back to the main point.'
+        : ''
+
+      // ── CONVERSATION STATE SUMMARY ────────────────────────
+      const repLines = updatedLive.filter(t => t.role === 'rep').map(t => t.text)
+      const custLines = updatedLive.filter(t => t.role === 'customer').map(t => t.text)
+      const repAttempts = repLines.length <= 1
+        ? 'The rep has just responded for the first time.'
+        : ('The rep has made ' + repLines.length + ' attempts. Most recent: "' + repLines[repLines.length-1].substring(0,80) + '"')
+      const somethingLanded = newExCount >= 3 && repLines.some(r =>
+        r.length > 80 || r.toLowerCase().includes('understand') ||
+        r.toLowerCase().includes('hear you') || r.toLowerCase().includes('specifically')
+      )
+      const landedNote = somethingLanded
+        ? 'The rep has shown genuine engagement — something they said was specific enough to warrant a small crack in your position.'
+        : 'The rep has not yet said anything specific enough to move you.'
+
+      // ── FULL SYSTEM PROMPT ────────────────────────────────
+      const systemPrompt = `You are ${persona.name}. You are a real person having a real conversation at a dealership.
+
+YOUR IDENTITY:
+${persona.desc}
+
+YOUR CORE EMOTIONAL NEED — this is what this conversation is really about underneath the surface:
+${persona.coreNeed || 'You want to feel respected and not taken advantage of.'}
+
+Every response you give connects back to this core need — even when asking a question or acknowledging something.
+
+YOUR NATURAL SPEECH:
+${persona.phrases ? persona.phrases.map(p => `"${p}"`).join(' | ') : 'Contractions, pauses, real emotion.'}
+
+WHAT ACTUALLY MOVES YOU:
+${persona.softens || 'Genuine empathy + specific value that addresses your core need.'}
+
+THE CONCERN YOU OPENED WITH:
+${activeS.objection.replace(/"/g,'')}
+
+WHERE THIS CONVERSATION STANDS:
+${repAttempts}
+${landedNote}
+
+YOUR EMOTIONAL STATE (Exchange ${newExCount} of 5):
+${arcNote}
+
+YOUR APPROACH THIS EXCHANGE:
+${responseTypeNote}${subObjNote}${driftNote}
+
+WHAT YOU ALREADY SAID — never repeat, always advance:
+${prevPhrasesNote || 'Nothing yet.'}
+
+CONVERSATION SPINE — creates rhythm and flow:
+- Every response must ADVANCE your position one step — not just react. Harden, soften slightly, or shift to a new angle.
+- Connect back to your core need at least once every two exchanges.
+- If rep addressed your surface concern: reveal the deeper layer — 'Okay but here is what I am really thinking...'
+- If rep was generic: get more specific yourself — give them something precise to respond to.
+- If rep asked a question: answer it honestly and let the answer reveal something new about your position.
+- Reference the arc: 'You said earlier that... so then why...'
+
+RESPONSE CRAFT:
+- 1-3 sentences. Spoken language only. No lists.
+- Vary length. One sharp sentence sometimes lands harder than three.
+- Use filler naturally: 'Hang on.', 'Actually wait.', 'Okay but...'
+- Show real emotion in the rhythm of the sentence — not just words about emotion.
+- Never use the salesperson name.
+
+[CLOSE_EARNED] only at exchange 3+, only when rep gave ALL THREE: named your specific concern + gave concrete value that addressed your CORE NEED + asked a direct closing question.
+${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
+      // ── CLEAN CONVERSATION HISTORY ────────────────────────
+      const convoMessages = []
+      const allTurns = updatedLive.filter(t => t.role === 'customer' || t.role === 'rep')
+      for (const turn of allTurns) {
+        if (turn.role === 'customer') {
+          convoMessages.push({ role: 'assistant', content: turn.text })
+        } else {
+          convoMessages.push({ role: 'user', content: turn.text })
+        }
+      }
+      // Ensure last message is user turn with nudge
+      if (convoMessages.length > 0 && convoMessages[convoMessages.length-1].role === 'user') {
+        convoMessages[convoMessages.length-1].content += ' [Respond as ' + persona.name + ' — 1-3 natural sentences, never repeat what you already said]'
+      }
+
+      // ── FALLBACKS — 5 per persona, exchange-aware ─────────
+      const personaFallbackMap = {
+        dave:    ["Look, I still have that number on my phone. Two thousand less. What do I do with that?","That sounds like a standard dealer answer. Give me something specific to my situation.","I have been buying cars for twenty years. Just be straight with me.","Okay. One clear reason why I should pay more here. Not three vague ones.","I hear you. But I need the number to change or a reason it does not matter."],
+        linda:   ["I hear you. I am just not ready to decide anything today.","Why should this feel different from last time? Be honest with me.","You are doing better than most. But I have been surprised before.","I am not being difficult. I just need this to feel like my decision.","Honestly you seem genuine. Give me until tomorrow."],
+        mike:    ["What is the payment if I put three thousand down at sixty months?","If it is over four-fifty stop right there. That is my number.","Explain how the rate affects the payment. I do not follow that.","I think in payments. Show me one I can say yes to.","My last payment was three-eighty. That is my comfort zone."],
+        gary:    ["My neighbor sold his for twelve. Higher miles. Not as clean. Where is your number from?","Show me the comps. Real ones. Not a number you pulled out of nowhere.","I know what I put into this truck. Service records. No accidents. That counts.","If the market is where you say it is prove it to me with real data.","I am not giving it away. Show me you understand what this truck is worth."],
+        carol:   ["I just checked and it is ninety-eight dollars online. You are charging four hundred. Explain that.","What exactly does the warranty cover and for how long? Be specific.","Can I add this next month for the same price?","Which one item on that list would you tell your own family to get?","I am not saying no. I am saying I need to understand what I am paying for."],
+        frank:   ["That car has been running fine for nine years. Why should I believe you over the car?","Show me what you found. I want to see the actual thing not a description.","If I drive it as-is for three more months what realistically happens?","Is this actually urgent or can it wait? I need an honest answer.","Walk me through it before I approve anything."],
+        barbara: ["My cousin does this every day. He is not guessing. Break it down for me.","Go line by line. Parts first then labor.","Is OEM actually necessary for this repair or is that a choice you are making for me?","What if I supply the parts? Just the labor — what does that cost?","I came in expecting two hundred. I heard seven forty. I need this to make sense."],
+        ray:     ["Tony knows my car and my history. What can you give me that he actually cannot?","Walk me through factory diagnostics for my specific car. Not in general.","Tony stands behind his work without a warranty. What is actually different here?","Fifteen years is a long time. I would feel like I was going behind his back.","Show me one thing you can do that Tony genuinely cannot. What is it?"],
+        susan:   ["I just need five minutes with my husband. He will ask questions I cannot answer alone.","Can you write this up in plain language so I can show him tonight?","What is the one most important thing I should get approved today?","I do not want to say yes and then not be able to explain it to him later.","If I call him right now would you be willing to answer his questions directly?"],
+        tom:     ["Next month is genuinely better timing. Can you give me a quote to bring back?","That safety thing got my attention. Which item specifically could leave me stranded?","If I do the urgent one today can the rest wait without a chain reaction?","My wife is car just cost four hundred bucks. I am stretched right now.","Give me the realistic consequence of waiting sixty days. Not worst case. Realistic."],
+      }
+      const fallbackPool = personaFallbackMap[persona.id] || ["I hear you but I am not convinced yet.","Give me something specific to my situation.","That is a fair point but I still have questions.","Help me understand this better.","What does that mean in practice for me?"]
+      const getFallback = (exNum) => fallbackPool[(exNum - 1) % fallbackPool.length]
+
+      const speakReply = (reply) => {
+        const closeEarned = reply.includes('[CLOSE_EARNED]')
+        const clean = reply.replace('[CLOSE_EARNED]','').trim()
+        const withReply = [...liveTranscriptRef.current, { role: 'customer', text: clean }]
+        setLiveTranscript(withReply)
+        liveTranscriptRef.current = withReply
+        setAiText(clean)
+        setLiveStatus('Listen...')
+        const pVoice = getPersonaVoiceOpts(persona)
+        setSpeaking(true)
+        speak(clean, () => {
+          setSpeaking(false)
+          setRecording(false)
+          recordingRef.current = false
+          if (closeEarned) {
+            endLiveDrill(activeS, liveTranscriptRef.current)
+          } else {
+            setLiveStatus('Your turn  -  speak your response')
+            setTranscript('')
+            accumulatedRef.current = ''
+            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 800)
+          }
+        }, pVoice)
+      }
+
+      try {
+        const res = await fetch('/ai-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: systemPrompt,
+            messages: convoMessages,
+            max_tokens: 250,
+            temperature: 0.85,
+            top_p: 0.95,
+          })
+        })
+        const data = await res.json()
+        const rawReply = data?.content?.[0]?.text?.trim()
+        if (!rawReply || rawReply.length < 5) throw new Error('Empty response')
+        speakReply(rawReply)
+      } catch(e) {
+        speakReply(getFallback(newExCount))
+      }
+      return
+    }
+        // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
     const newEx = exchange+1; setExchange(newEx)
     const updatedTranscripts = [...allTranscripts, transcript]
     setAllTranscripts(updatedTranscripts)
@@ -981,37 +1333,13 @@ One coaching whisper:`}],
     try{
       const savedTranscript = transcript
       const res = await fetch('/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        system:`You are ${persona.name}. A real person in a dealership, not a character in a drill. Here's who you are:
-- Core concern: ${persona.desc}
-- Your emotional register: ${persona.tone}
-- When pushed: ${persona.escalation}
-
-This is exchange ${newEx} of an ongoing conversation. Vary your responses — don't repeat yourself. React to what was actually said.
-
-CONVERSATION STAGES based on exchange number:
-- Exchanges 1-2: Hold your position firmly. Don't soften at all.
-- Exchanges 3-4: Show slight cracks only if they addressed your core concern specifically. Otherwise push harder.
-- Exchanges 5-6: If they've been strong, you can start to consider. If they've been weak, get more frustrated.
-- Exchange 7+: Either you're close to agreeing or you're done talking.
-
-RESPONSE RULES:
-- 1-2 sentences MAX. Natural spoken language only.
-- React to their SPECIFIC words — don't give a generic pushback
-- Never repeat a response you've already given
-- Never say "I hear you" — that's what salespeople say
-- Sound like a real ${persona.tone} person, not a script
-
-CLOSE SIGNAL: Only if the rep gave a strong acknowledge + specific value + direct close question AND you are at exchange 3+, include [CLOSE_EARNED] hidden at the end. Be tough — most reps don't earn it.`,
-        messages:[{role:'user',content:`Exchange ${newEx} of conversation about "${activeS.objection.replace(/"/g,'')}".
-Full conversation so far: ${updatedTranscripts.map((t,i)=>i%2===0?`Rep: ${t}`:`You: ${t}`).join(' | ')}
-Your last line: "${aiText}"
-Rep just said: "${transcript}"
-Your next reaction as ${persona.name}:`}]
+        system:'You are '+persona.name+'. '+persona.tone+'. Backstory: '+persona.desc+'. When pushed: '+persona.escalation+'. Exchange '+newEx+' of 5 about: '+activeS.objection.replace(/"/g,'')+'. Rules: Hold firm exchanges 1-2. Show cracks exchange 3-4 only if they addressed your concern. Resolve exchange 5. React to EXACTLY what was just said - never repeat yourself. Sound human - contractions, emotion, 1-2 sentences max. Add [CLOSE_EARNED] only if rep earned it after exchange 2.',
+        messages:[{role:'user',content:'Exchange '+newEx+'. Rep said: "'+transcript+'". Full convo: '+updatedTranscripts.map((t,i)=>i%2===0?'Rep: '+t:'You: '+t).join(' | ')+'. Your last response was: "'+aiText+'". Respond as '+persona.name+' - react specifically to what they just said, do NOT repeat your last response:'}]
       })})
       const data = await res.json()
       // Handle both direct text and error responses
       const rawReply = data.content?.[0]?.text || data.content?.[0]?.message || null
-      // Per-persona fallbacks — never generic
+      // Per-persona fallbacks  -  never generic
       const personaFallbacks = {
         dave:    `Look, I already showed you the TrueCar price. Are you going to match it or not?`,
         linda:   `I appreciate that but I really need more time to think this through.`,
@@ -1036,7 +1364,7 @@ Your next reaction as ${persona.name}:`}]
       const pVoice = getPersonaVoiceOpts(persona)
 
       if(closeEarned || newEx>=MAX_EXCHANGES){
-        // Rep earned the close or hit max — go to coaching
+        // Rep earned the close or hit max  -  go to coaching
         setSpeaking(true)
         speak(reply, async ()=>{
           setSpeaking(false)
@@ -1045,200 +1373,143 @@ Your next reaction as ${persona.name}:`}]
       } else {
         setSpeaking(true); speak(reply,()=>setSpeaking(false), pVoice)
       }
-    }catch{setError('AI issue — type your next response.')}
+    }catch{setError('AI issue  -  type your next response.')}
     setLoading(false)
   }
   submitRef.current = submit  // keep ref current for auto-submit from stopRec
 
   // ══════════════════════════════════════════════════════════
-  // LIVE AI SIMULATION — GPT-4o Realtime via WebRTC
+  // ══════════════════════════════════════════════════════════
+  // VOICE DRILL ENGINE  -  proven components, clean flow
+  // Uses existing startRec/stopRec + ElevenLabs + Claude
+  // Persona speaks fully → mic auto-opens → silence auto-submits
   // ══════════════════════════════════════════════════════════
 
-  // OpenAI Realtime voice IDs mapped to personas
-  const REALTIME_VOICES = {
-    dave:'echo', mike:'ash', gary:'ballad', frank:'onyx', ray:'verse', tom:'echo',
-    linda:'shimmer', carol:'coral', barbara:'sage', susan:'shimmer',
-  }
-
   const startLiveDrill = async (script, persona) => {
-    // livePhase already set to 'connecting' by button click
     setLiveError('')
     setLiveTranscript([])
     setExchangeCount(0)
-    setLiveStatus('Connecting to AI customer...')
+    setLiveRecording(false)
+    liveTranscriptRef.current = []
+    setTranscript('')
+    accumulatedRef.current = ''
+    setLiveStatus('Getting into character...')
 
+    // Always use the script-specific objection as the opener
+    // Persona character comes through in their voice + AI responses, not the opener
+    const scriptOpener = getOpener(script.id)
+
+    // Show screen immediately
+    const first = [{ role: 'customer', text: scriptOpener }]
+    setLiveTranscript(first)
+    liveTranscriptRef.current = first
+    setAiText(scriptOpener)
+    setLivePhase('live')
+    setLiveStatus('Listen to the customer...')
+
+    // Speak opener immediately
+    const pVoice = getPersonaVoiceOpts(persona)
+    setSpeaking(true)
+    speak(scriptOpener, () => {
+      setSpeaking(false)
+      setLiveStatus('Your turn  -  speak your response')
+      setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
+    }, pVoice)
+
+    // Try to get AI-enhanced opener for next time (non-blocking)
     try {
-      // Step 1 — Get ephemeral session token from our Cloudflare function
-      const sessionRes = await fetch('/realtime-session', {
+      const res = await fetch('/ai-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaName:       persona.name,
-          personaDesc:       persona.desc,
-          personaTone:       persona.tone,
-          personaEscalation: persona.escalation,
-          objection:         script.objection,
-          dept:              script.dept,
-          scriptText:        script.script,
+          system: 'You are ' + persona.name + '. ' + persona.desc.substring(0,120) + '\n\nRephrase this objection in your own natural voice as if you just walked into a dealership: "' + script.objection.replace(/"/g,'') + '"\n\nKeep the same meaning. Sound like a real person. 1-2 sentences only.',
+          messages: [{ role: 'user', content: 'Say it in your voice:' }],
+          max_tokens: 80
         })
       })
-      const sessionData = await sessionRes.json()
-      if (sessionData.error) throw new Error(sessionData.error)
-
-      const ephemeralKey = sessionData.clientSecret?.value
-      if (!ephemeralKey) throw new Error('No session token received from server')
-
-      // Step 2 — Create WebRTC peer connection
-      const pc = new RTCPeerConnection()
-      pcRef.current = pc
-
-      // Step 3 — Set up remote audio output (persona voice plays through speakers)
-      const audioEl = document.createElement('audio')
-      audioEl.autoplay = true
-      document.body.appendChild(audioEl)
-      pc.ontrack = e => { audioEl.srcObject = e.streams[0] }
-
-      // Step 4 — Capture local mic audio
-      setLiveStatus('Getting microphone...')
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = micStream
-      micStream.getTracks().forEach(track => pc.addTrack(track, micStream))
-
-      // Step 5 — Data channel for sending/receiving events
-      const dc = pc.createDataChannel('oai-events')
-      dcRef.current = dc
-
-      dc.onopen = () => {
-        setLivePhase('live')
-        setLiveStatus('')
-        const voice = REALTIME_VOICES[persona.id] || 'alloy'
-        // Update session with persona voice
-        dc.send(JSON.stringify({
-          type: 'session.update',
-          session: {
-            voice,
-            turn_detection: { type: 'server_vad', threshold: 0.5, silence_duration_ms: 700 },
-            input_audio_transcription: { model: 'whisper-1' },
-          }
-        }))
-        // Trigger persona to speak first
-        setTimeout(() => {
-          dc.send(JSON.stringify({ type: 'response.create' }))
-        }, 500)
+      const data = await res.json()
+      const aiOpener = data?.content?.[0]?.text?.trim()
+      // Only use AI opener if it came back before speaking finished
+      // (otherwise fallback is already playing - that is fine)
+      if (aiOpener && aiOpener.length > 5 && liveTranscriptRef.current.length === 1 && speaking) {
+        // Still on first exchange, update transcript with better opener
+        const better = [{ role: 'customer', text: aiOpener }]
+        liveTranscriptRef.current = better
       }
-
-      dc.onmessage = e => {
-        try {
-          const evt = JSON.parse(e.data)
-
-          // AI (persona) transcript — fires when AI finishes speaking
-          if (evt.type === 'response.audio_transcript.done') {
-            if (evt.transcript) {
-              setLiveTranscript(prev => [...prev, { role: 'customer', text: evt.transcript }])
-              setExchangeCount(prev => {
-                const next = prev + 1
-                if (next >= 10) setTimeout(() => endLiveDrill(script), 1500)
-                return next
-              })
-            }
-          }
-
-          // Rep transcript — fires when user finishes speaking
-          if (evt.type === 'conversation.item.input_audio_transcription.completed') {
-            if (evt.transcript) {
-              setLiveTranscript(prev => [...prev, { role: 'rep', text: evt.transcript }])
-            }
-          }
-
-          // Connection errors
-          if (evt.type === 'error') {
-            setLiveError(`Error: ${evt.error?.message || 'Unknown error'}`)
-          }
-        } catch {}
-      }
-
-      dc.onerror = err => setLiveError('Data channel error — try again.')
-      dc.onclose = () => {
-        if (livePhase === 'live') setLiveStatus('Session disconnected.')
-      }
-
-      // Step 6 — Create SDP offer and send to OpenAI
-      setLiveStatus('Starting session...')
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-
-      const sdpRes = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ephemeralKey}`,
-          'Content-Type': 'application/sdp',
-        },
-        body: offer.sdp,
-      })
-
-      if (!sdpRes.ok) {
-        const errText = await sdpRes.text()
-        throw new Error(`OpenAI connection failed: ${sdpRes.status} — ${errText}`)
-      }
-
-      const answerSdp = await sdpRes.text()
-      await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
-      // Connection complete — data channel onopen fires next
-
-    } catch (err) {
-      setLivePhase('idle')
-      setLiveError(`Failed to connect: ${err.message}`)
+    } catch(e) {
+      // Fallback already playing - no action needed
     }
   }
 
   const endLiveDrill = async (script, transcriptSnapshot) => {
-    // Stop mic and close all connections
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    dcRef.current?.close()
-    pcRef.current?.close()
-    pcRef.current = null; dcRef.current = null; streamRef.current = null
-
-    // Remove injected audio element
-    document.querySelectorAll('audio[autoplay]').forEach(el => el.remove())
-
+    if (livePhase === 'ended') return
+    try { stopRec() } catch {}
+    stopSpeaking()
     setLivePhase('ended')
+    setLiveRecording(false)
     setLiveStatus('Generating your coaching report...')
 
-    // Use snapshot passed in to avoid stale closure
-    const transcript = transcriptSnapshot || liveTranscript
-    if (transcript.length > 0 && script) {
-      const persona = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(script)
-      const repLines  = transcript.filter(t => t.role === 'rep').map(t => t.text)
-      const fullConvo = transcript.map(t => (t.role === 'rep' ? 'Rep' : (persona?.name || 'Customer')) + ': ' + t.text).join(' | ')
-      await getFeedback(transcript[transcript.length-1]?.text || '', repLines.length > 0 ? repLines : [fullConvo])
-    } else {
+    const transcript = (transcriptSnapshot && transcriptSnapshot.length > 0)
+      ? transcriptSnapshot
+      : liveTranscriptRef.current
+
+    if (!transcript || transcript.length === 0) {
       setLivePhase('idle')
-      setLiveStatus('Session ended — no transcript to grade.')
+      setLiveError('Not enough conversation captured. Try again.')
+      setTimeout(() => setLiveError(''), 4000)
+      return
+    }
+
+    const repLines = transcript.filter(t => t.role === 'rep').map(t => t.text)
+    if (repLines.length === 0) {
+      setLivePhase('idle')
+      setLiveError('No rep responses captured. Speak clearly and try again.')
+      setTimeout(() => setLiveError(''), 4000)
+      return
+    }
+
+    const persona   = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(script)
+    const lastRep   = repLines[repLines.length - 1]
+    const fullConvo = transcript.map(t =>
+      (t.role === 'rep' ? 'Rep' : (persona?.name || 'Customer')) + ': "' + t.text + '"'
+    ).join(' | ')
+
+    try {
+      await getFeedback(lastRep, [fullConvo])
+    } catch(e) {
+      setLivePhase('idle')
+      setLiveError('Report failed  -  try again.')
+      setPhase('list')
     }
   }
 
   const stopLiveDrill = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    dcRef.current?.close()
-    pcRef.current?.close()
-    pcRef.current = null; dcRef.current = null; streamRef.current = null
-    setLivePhase('idle'); setLiveTranscript([]); setLiveStatus(''); setLiveError('')
+    try { stopRec() } catch {}
+    stopSpeaking()
+    setLivePhase('idle')
+    setLiveTranscript([])
+    setLiveRecording(false)
+    setLiveStatus('')
+    setLiveError('')
+    setTranscript('')
+    setExchangeCount(0)
+    liveTranscriptRef.current = []
   }
 
-  // ── REBUILT GRADING ENGINE — Mathematical ACRA scoring ───────
+    // ── REBUILT GRADING ENGINE  -  Mathematical ACRA scoring ───────
   const getFeedback = async (lastResp, allResps, earnedClose=false) => {
     setLoading(true); setError(''); stopSpeaking(); setSilentCoach(null)
     setCloseEarnedFlag(earnedClose)
     const fullConversation = allResps.join(' | ')
     const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
-    // Confidence score — lower hesitation = higher confidence
+    // Confidence score  -  lower hesitation = higher confidence
     const totalHesitations = confidenceFlags.reduce((a,b)=>a+b,0)
     const avgHesitation = confidenceFlags.length>0?(totalHesitations/confidenceFlags.length):0
     const confidenceScore = Math.max(0,Math.round(10-(avgHesitation*3)))
 
     const systemPrompt = `You are a brutally honest automotive sales coach. Grade this manager's objection handling using mathematical ACRA scoring.
 
-CUSTOMER PERSONA: ${persona.name} — ${persona.desc} Tone: ${persona.tone}.
+CUSTOMER PERSONA: ${persona.name}  -  ${persona.desc} Tone: ${persona.tone}.
 OBJECTION: "${activeS.objection}"
 DEPT: ${activeS.dept} | CATEGORY: ${activeS.category}
 
@@ -1247,7 +1518,7 @@ COMMON MISTAKE (earns D or F): ${activeS.mistake}
 MODEL WORD TRACK (what A looks like): "${activeS.script}"
 FOLLOW-UP CLOSE: "${activeS.followup}"
 
-MATHEMATICAL SCORING — score each step 0 to 4:
+MATHEMATICAL SCORING  -  score each step 0 to 4:
 - ACKNOWLEDGE (0-4): 0=ignored, 1=rushed past, 2=generic, 3=good mirror, 4=exact words + validated emotion
 - CLARIFY (0-4): 0=none, 1=vague, 2=attempted but weak, 3=one clear diagnostic question, 4=precise diagnosis that reframes the objection
 - RESPOND (0-4): 0=generic/defensive, 1=some value, 2=decent pivot, 3=specific dealership advantage, 4=connects directly to customer's stated concern
@@ -1256,10 +1527,10 @@ MATHEMATICAL SCORING — score each step 0 to 4:
 GRADE FROM MATH:
 - 14-16 = A+, 12-13 = A, 10-11 = B+, 8-9 = B, 6-7 = C+, 4-5 = C, 2-3 = D, 0-1 = F
 
-IMPORTANT: If they made the common mistake (${activeS.mistake.substring(0,60)}...) — cap the grade at D regardless of other scores.
+IMPORTANT: If they made the common mistake (${activeS.mistake.substring(0,60)}...)  -  cap the grade at D regardless of other scores.
 
 RETURN ONLY valid JSON:
-{"ack_score":3,"clar_score":2,"resp_score":3,"adv_score":1,"total":9,"score":"B","score_detail":"B — [one sharp sentence about overall performance]","acknowledge":"[specific — quote their words, say what worked or failed]","clarify":"[did they diagnose or just pitch? be specific]","respond":"[compare their pivot to the model — generic vs specific]","advance":"[did they close decisively? exact feedback]","improvement":"[complete word-for-word script tailored to ${persona.name} and this objection — min 3 sentences, all 4 ACRA steps]"}`
+{"ack_score":3,"clar_score":2,"resp_score":3,"adv_score":1,"total":9,"score":"B","score_detail":"B  -  [one sharp sentence about overall performance]","acknowledge":"[specific  -  quote their words, say what worked or failed]","clarify":"[did they diagnose or just pitch? be specific]","respond":"[compare their pivot to the model  -  generic vs specific]","advance":"[did they close decisively? exact feedback]","improvement":"[complete word-for-word script tailored to ${persona.name} and this objection  -  min 3 sentences, all 4 ACRA steps]"}`
 
     try {
       const res = await fetch('/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -1272,7 +1543,8 @@ RETURN ONLY valid JSON:
         const p = JSON.parse(raw.replace(/```json|```/g,'').trim())
         if (p.score&&p.improvement) {
           setFeedback(p); setPhase('feedback')
-          // Spoken feedback — short and punchy
+          setTimeout(()=>setLivePhase('idle'), 100)
+          // Spoken feedback  -  short and punchy
           const spoken = `Grade ${p.score}. ${p.acknowledge} ${p.advance}`
           setSpeaking(true); speak(spoken,()=>setSpeaking(false))
           setLoading(false); return
@@ -1283,14 +1555,15 @@ RETURN ONLY valid JSON:
     // Fallback
     setFeedback({
       ack_score:'-',clar_score:'-',resp_score:'-',adv_score:'-',total:'-',
-      score:'C', score_detail:'C — Evaluation incomplete. Review the model word track.',
-      acknowledge:'Compare your opening to the model — did you mirror the customer?',
+      score:'C', score_detail:'C  -  Evaluation incomplete. Review the model word track.',
+      acknowledge:'Compare your opening to the model  -  did you mirror the customer?',
       clarify:'Did you ask a clarifying question before pitching?',
       respond:'Review the model word track for the specific value pivot.',
       advance:'Did you end with a direct yes/no commitment question?',
       improvement: activeS.script + ' ' + activeS.followup
     })
     setPhase('feedback')
+    setTimeout(()=>setLivePhase('idle'), 100)
     setLoading(false)
   }
 
@@ -1298,8 +1571,8 @@ RETURN ONLY valid JSON:
     if(!feedback||!activeS) return
     const persona = PERSONAS.find(p=>p.id===activePersId)
     const gClass = s=>s?.startsWith('A')?'grade-a':s?.startsWith('B')?'grade-b':(s?.startsWith('D')||s==='F')?'grade-d':'grade-c'
-    const scoreBar = (val) => val==='-'?'—':`${val}/4 ${'█'.repeat(Math.max(0,val))}${'░'.repeat(Math.max(0,4-val))}`
-    printPDF(`Coaching Report — ${activeS.objection.replace(/"/g,'').substring(0,40)}`,`
+    const scoreBar = (val) => val==='-'?' - ':`${val}/4 ${'#'.repeat(Math.max(0,val))}${'░'.repeat(Math.max(0,4-val))}`
+    printPDF(`Coaching Report  -  ${activeS.objection.replace(/"/g,'').substring(0,40)}`,`
       <h1>Voice Drill Coaching Report</h1>
       <div class="sub">${dealer?.repName||'Team Member'} · ${dealer?.dealerName||'Dealership'}</div>
       <div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
@@ -1308,14 +1581,14 @@ RETURN ONLY valid JSON:
       <div class="card">
         <div class="score-badge ${gClass(feedback.score)}">${feedback.score}</div>
         <div style="font-size:14px;color:#333;margin-bottom:8px;">${feedback.score_detail}</div>
-        ${persona?`<div style="font-size:12px;color:#666;margin-bottom:4px;"><strong>Customer:</strong> ${persona.emoji} ${persona.name} — ${persona.desc}</div>`:''}
+        ${persona?`<div style="font-size:12px;color:#666;margin-bottom:4px;"><strong>Customer:</strong> ${persona.emoji} ${persona.name}  -  ${persona.desc}</div>`:''}
         <div style="font-size:13px;color:#666;"><strong>Objection:</strong> ${activeS.objection.replace(/"/g,'')}</div>
       </div>
       <h2>ACRA Mathematical Scores</h2>
       <div class="card" style="font-family:monospace;">
         <table style="width:100%;border-collapse:collapse;">
           ${[['Acknowledge',feedback.ack_score],['Clarify',feedback.clar_score],['Respond',feedback.resp_score],['Advance',feedback.adv_score]].map(([l,v])=>`
-          <tr><td style="padding:5px 10px;font-weight:700;">${l}</td><td style="padding:5px 10px;color:#1a6bff;font-size:18px;font-weight:900;">${v}/4</td><td style="padding:5px 10px;color:#ccc;font-size:16px;">${'█'.repeat(Math.max(0,v))}${'░'.repeat(Math.max(0,4-v))}</td></tr>`).join('')}
+          <tr><td style="padding:5px 10px;font-weight:700;">${l}</td><td style="padding:5px 10px;color:#1a6bff;font-size:18px;font-weight:900;">${v}/4</td><td style="padding:5px 10px;color:#ccc;font-size:16px;">${'#'.repeat(Math.max(0,v))}${'░'.repeat(Math.max(0,4-v))}</td></tr>`).join('')}
           <tr style="border-top:2px solid #eee;"><td style="padding:8px 10px;font-weight:900;">TOTAL</td><td style="padding:8px 10px;font-size:20px;font-weight:900;color:#050d1f;" colspan="2">${feedback.total}/16</td></tr>
         </table>
       </div>
@@ -1324,12 +1597,13 @@ RETURN ONLY valid JSON:
       <h2>ACRA Coaching Breakdown</h2>
       ${[{label:'Acknowledge',content:feedback.acknowledge,cls:'blue'},{label:'Clarify',cls:'yellow',content:feedback.clarify},{label:'Respond',cls:'green',content:feedback.respond},{label:'Advance',cls:'red',content:feedback.advance}].map(({label,content,cls})=>`<div class="card ${cls}"><h3>${label}</h3><div class="val">${content}</div></div>`).join('')}
       <h2>Your Improvement Script</h2>
-      <div class="card green"><h3>Use This Word Track Next Time${persona?` — Written for ${persona.name}`:''}</h3><div class="word-track">${feedback.improvement}</div></div>
+      <div class="card green"><h3>Use This Word Track Next Time${persona?`  -  Written for ${persona.name}`:''}</h3><div class="word-track">${feedback.improvement}</div></div>
       <div class="card red"><h3>Mistake to Avoid</h3><div class="val">${activeS.mistake}</div></div>
     `)
   }
 
   const logResult = result => {
+    setLivePhase('idle')  // ensure live screen doesn't block list
     // Save best score per script for streak mode
     if(activeS&&feedback?.score){
       const bestKey = `5md-best-${activeS.id}`
@@ -1339,8 +1613,28 @@ RETURN ONLY valid JSON:
       const newIdx  = gradeOrder.indexOf(feedback.score)
       if(newIdx < prevIdx) saveJSON(bestKey, feedback.score)  // lower index = better grade
     }
-    onLog({dept:activeS.dept,script:activeS.objection.replace(/"/g,''),result,notes:'Voice drill — AI coached',type:'voice'})
-    setPhase('list'); setActiveS(null); stopSpeaking()
+    // Save drill history for trend tracking
+    if(activeS && feedback?.total !== '-') {
+      const histKey = '5md-history-' + activeS.id
+      try {
+        const prev = JSON.parse(localStorage.getItem(histKey)||'[]')
+        prev.push({ score: feedback.score, total: feedback.total||0, date: Date.now() })
+        if(prev.length > 15) prev.shift()
+        localStorage.setItem(histKey, JSON.stringify(prev))
+        setDrillHistory(h => ({...h, [String(activeS.id)]: prev}))
+      } catch {}
+    }
+    const cachedScript = activeS
+    const cachedPersonaId = activePersId
+    onLog({dept:activeS.dept,script:activeS.objection.replace(/"/g,''),result,notes:'Voice drill  -  AI coached',type:'voice'})
+    // Don't clear activeS — keep it so Drill Again buttons work
+    setPhase('feedback_done')
+    stopSpeaking()
+    // Store cached refs for drill again buttons
+    if(cachedScript) {
+      setActiveS(cachedScript)
+      setActivePersId(cachedPersonaId)
+    }
   }
 
   const gradeColor = s => s?.startsWith('A')?C.green:s?.startsWith('B')?C.blueBright:(s?.startsWith('D')||s==='F')?C.red:C.yellow
@@ -1379,7 +1673,7 @@ RETURN ONLY valid JSON:
               <div style={{fontFamily:fH,fontSize:13,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:2}}>🎯 Coaching Report</div>
               <div style={{fontSize:12,color:C.white,fontWeight:600,marginBottom:2}}>{activeS.objection.replace(/"/g,'')}</div>
               {feedback.score_detail&&<div style={{fontSize:11,color:C.gray}}>{feedback.score_detail}</div>}
-              {persona&&<div style={{fontSize:11,color:C.yellow,marginTop:3}}>{persona.emoji} vs {persona.name} — {persona.desc}</div>}
+              {persona&&<div style={{fontSize:11,color:C.yellow,marginTop:3}}>{persona.emoji} vs {persona.name}  -  {persona.desc}</div>}
               <div style={{display:'flex',gap:8,marginTop:4,flexWrap:'wrap'}}>
                 <div style={{fontSize:10,color:C.gray}}>{allTranscripts.length} exchanges</div>
                 {confidenceFlags.length>0&&(()=>{
@@ -1429,15 +1723,17 @@ RETURN ONLY valid JSON:
           {/* Improvement script */}
           {feedback.improvement&&(
             <div style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderLeft:`3px solid ${C.blue}`,borderRadius:'0 8px 8px 0',padding:'12px 14px',marginBottom:12}}>
-              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:6}}>💡 Use This Next Time{persona?` — Written for ${persona.name}`:''}</div>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:6}}>💡 Use This Next Time{persona?`  -  Written for ${persona.name}`:''}</div>
               <div style={{fontSize:13,color:C.white,lineHeight:1.7,fontStyle:'italic'}}>{feedback.improvement}</div>
             </div>
           )}
 
-          {/* Word track comparison — your best response vs model */}
+          {/* Word track comparison  -  your best response vs model */}
           {allTranscripts.length>0&&activeS?.script&&(()=>{
             // Find the longest/best response (most words = most complete attempt)
-            const bestResp = allTranscripts.reduce((a,b)=>b.split(' ').length>a.split(' ').length?b:a,'')
+            // For live drills allTranscripts contains full convo string  -  extract rep lines
+            const repOnlyLines = allTranscripts.filter(t=>typeof t==='string'&&!t.startsWith(activeS?.situation?.substring(0,10)||'XXX'))
+            const bestResp = repOnlyLines.reduce((a,b)=>b.split(' ').length>a.split(' ').length?b:a, allTranscripts[0]||'')
             const capped = bestResp.length>300 ? bestResp.substring(0,300)+'...' : bestResp
             return(
               <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:12}}>
@@ -1468,128 +1764,82 @@ RETURN ONLY valid JSON:
             ))}
           </div>
         </div>
-        <button onClick={()=>launch(activeS,activePersId)} style={{width:'100%',background:'rgba(26,107,255,0.15)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>🔁 Drill Again — Same Persona</button>
-        <button onClick={()=>launch(activeS,null)} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>🎲 New Persona — Same Script</button>
-      </div>
-    )
-  }
-
-  // ── ACTIVE DRILL SCREEN ──────────────────────────────────────
-  if(phase==='drill'&&activeS) {
-    const persona = PERSONAS.find(p=>p.id===activePersId)
-    return(
-      <div style={{padding:'16px 16px 80px'}}>
-        <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← Back</button>
-
-        {/* Persona badge */}
-        {persona&&(
-          <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:10,display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:22}}>{persona.emoji}</span>
-            <div>
-              <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',color:C.yellow}}>{persona.name}</div>
-              <div style={{fontSize:11,color:C.gray}}>{persona.desc}</div>
-            </div>
-          </div>
-        )}
-
-        <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}><Tag color={activeS.dept==='sales'?C.blue:C.green}>{activeS.dept}</Tag><Tag color={C.gray}>{activeS.category}</Tag></div>
-        <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:12,lineHeight:1.1}}>{activeS.objection.replace(/"/g,'')}</div>
-
-        {/* Exchange progress — dynamic */}
-        <div style={{display:'flex',gap:4,marginBottom:4}}>
-          {Array.from({length:Math.max(exchange+1,3)}).map((_,i)=>(
-            <div key={i} style={{flex:1,height:6,borderRadius:100,background:i<exchange?C.green:i===exchange?C.blue:'rgba(255,255,255,0.1)',transition:'all 0.4s'}}/>
-          ))}
-        </div>
-        <div style={{fontSize:11,color:C.gray,textAlign:'center',marginBottom:12}}>
-          Exchange {exchange+1} {exchange>=7?'— Final exchange':exchange>=4?'— Keep pushing to close':''}
-        </div>
-
-        {/* Customer speech bubble */}
-        <div style={{background:speaking?'rgba(26,107,255,0.15)':'rgba(26,107,255,0.08)',border:`1px solid ${speaking?'rgba(26,107,255,0.5)':'rgba(26,107,255,0.2)'}`,borderRadius:12,padding:'14px 16px',marginBottom:10,transition:'all 0.3s'}}>
-          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:speaking?C.green:C.blueBright,marginBottom:6}}>{speaking?`🔊 ${persona?.name||'Customer'} Speaking...`:`🗣 ${persona?.name||'Customer'} Says:`}</div>
-          <div style={{fontSize:14,color:C.white,fontStyle:'italic',lineHeight:1.65}}>"{aiText}"</div>
-          <button onClick={()=>{stopSpeaking();setSpeaking(true);const rv=getPersonaVoiceOpts(persona);speak(aiText,()=>setSpeaking(false),rv)}} style={{marginTop:8,background:'rgba(26,107,255,0.2)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'5px 12px',borderRadius:6,cursor:'pointer'}}>🔊 Replay</button>
-        </div>
-
-        {/* Silent Coach whisper — prominent card between exchanges */}
-        {exchange>=1&&(
-          <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.15),rgba(184,255,60,0.06))',border:'2px solid rgba(184,255,60,0.5)',borderRadius:12,padding:'14px 16px',marginBottom:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:silentCoach?8:0}}>
-              <span style={{fontSize:22,flexShrink:0}}>🎓</span>
-              <div style={{fontFamily:fH,fontSize:11,fontWeight:900,letterSpacing:2,textTransform:'uppercase',color:C.green}}>
-                {silentLoading?'Coach Thinking...':'Coach Whisper'}
-              </div>
-            </div>
-            {silentLoading&&!silentCoach&&(
-              <div style={{fontSize:12,color:C.green,opacity:0.7,fontStyle:'italic'}}>Analyzing your response...</div>
-            )}
-            {silentCoach&&(
-              <div style={{fontSize:14,color:C.white,lineHeight:1.65,fontWeight:600}}>{silentCoach}</div>
-            )}
-            {!silentLoading&&!silentCoach&&(
-              <div style={{fontSize:12,color:C.gray,fontStyle:'italic'}}>Coaching tip will appear here after you respond</div>
-            )}
-          </div>
-        )}
-
-        <button onClick={()=>setShowScript(s=>!s)} style={{width:'100%',background:showScript?'rgba(184,255,60,0.08)':'rgba(255,255,255,0.04)',border:`1px solid ${showScript?'rgba(184,255,60,0.3)':C.border}`,color:showScript?C.green:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,cursor:'pointer',marginBottom:8}}>
-          {showScript?'▲ Hide Script':'📋 Show Script'}
+        {/* Hear model script button */}
+        <button onClick={()=>{
+          if(modelSpeaking){stopSpeaking();setModelSpeaking(false);return}
+          const text = activeS.script + ' ' + activeS.followup
+          setModelSpeaking(true); setSpeaking(true)
+          speak(text, ()=>{ setSpeaking(false); setModelSpeaking(false) })
+        }} style={{width:'100%',background:modelSpeaking?'rgba(255,107,107,0.15)':'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.25)',color:modelSpeaking?C.red:C.green,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>
+          {modelSpeaking ? '⏹ Stop' : '🔊 Hear Model Script Read Aloud'}
         </button>
-        {showScript&&<ScriptCard script={activeS} mode='scriptonly' defaultOpen={true}/>}
-
-        {/* Mic button */}
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,marginBottom:14}}>
-          <button onClick={recording?()=>stopRec(true):startRec} style={{width:72,height:72,borderRadius:'50%',background:recording?C.red:C.green,border:'none',cursor:'pointer',fontSize:26,boxShadow:recording?`0 0 30px ${C.red}66`:`0 0 20px ${C.green}44`,transition:'all 0.2s'}}>{recording?'⏹':'🎙'}</button>
-          <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:recording?C.red:C.gray}}>{recording?'🔴 Recording — tap to send':'Tap mic to respond'}</div>
-        </div>
-
-        {/* Transcript preview — editable if needed */}
-        {transcript&&<div style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:10,fontSize:13,color:C.lightText,lineHeight:1.65,fontStyle:'italic',minHeight:44}}>"{transcript}"</div>}
-        {!transcript&&!recording&&!loading&&<div style={{fontSize:11,color:C.gray,textAlign:'center',marginBottom:10,fontStyle:'italic'}}>Tap the mic to respond — stops recording automatically sends</div>}
-        {error&&<div style={{background:'rgba(255,107,107,0.08)',border:'1px solid rgba(255,107,107,0.2)',borderRadius:8,padding:'8px 12px',fontSize:13,color:C.red,marginBottom:10}}>{error}</div>}
-        {loading&&<div style={{textAlign:'center',padding:'12px 0',fontSize:13,color:C.green}}>⏳ {persona?.name} is responding...</div>}
-        {/* Fallback manual submit if needed */}
-        {transcript&&!recording&&!loading&&<button onClick={submit} style={{width:'100%',background:'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.25)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>Send Response →</button>}
+        <button onClick={()=>{
+          const s = activeS; const pid = activePersId
+          setFeedback(null); setPhase('drill')
+          setExchange(0); setAllTranscripts([]); setTranscript('')
+          setConfidenceFlags([]); setCloseEarnedFlag(false)
+          setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+          setLivePhase('connecting')
+          setTimeout(()=>startLiveDrill(s, PERSONAS.find(p=>p.id===pid)||getPersonaForScript(s)), 150)
+        }} style={{width:'100%',background:'rgba(26,107,255,0.15)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer',marginBottom:8}}>🔁 Drill Again  -  Same Persona</button>
+        <button onClick={()=>{
+          const s = activeS
+          setFeedback(null); setPhase('drill')
+          setExchange(0); setAllTranscripts([]); setTranscript('')
+          setConfidenceFlags([]); setCloseEarnedFlag(false)
+          setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+          const newP = getPersonaForScript(s)
+          setActivePersId(newP.id)
+          setLivePhase('connecting')
+          setTimeout(()=>startLiveDrill(s, newP), 150)
+        }} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>🎲 New Persona  -  Same Script</button>
       </div>
     )
   }
 
-  // ── LIVE AI SIMULATION SCREEN ───────────────────────────────
+  // ── VOICE DRILL SCREEN  -  auto-record, ElevenLabs + Claude ─
   if((livePhase==='connecting'||livePhase==='live'||livePhase==='ended')&&activeS) {
     const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
     return(
       <div style={{padding:'16px 16px 80px'}}>
-        <button onClick={stopLiveDrill} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← End Session</button>
 
-        {/* Header */}
-        <div style={{background:'linear-gradient(135deg,rgba(26,107,255,0.15),rgba(26,107,255,0.05))',border:'1px solid rgba(26,107,255,0.3)',borderRadius:12,padding:'14px 16px',marginBottom:14}}>
+        {/* Header status */}
+        <div style={{background:livePhase==='connecting'?'rgba(255,201,71,0.1)':livePhase==='live'?'rgba(255,77,77,0.1)':'rgba(184,255,60,0.08)',border:`1px solid ${livePhase==='connecting'?'rgba(255,201,71,0.3)':livePhase==='live'?'rgba(255,77,77,0.3)':'rgba(184,255,60,0.25)'}`,borderRadius:12,padding:'14px 16px',marginBottom:14}}>
           <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-            <span style={{fontSize:28}}>{persona?.emoji}</span>
-            <div>
-              <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',color:C.green,letterSpacing:2,marginBottom:2}}>
-                {livePhase==='connecting'?'🔄 Connecting...':livePhase==='live'?'🔴 Live Session':'✅ Session Complete'}
+            <span style={{fontSize:32}}>{persona?.emoji}</span>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',letterSpacing:2,marginBottom:3,color:livePhase==='connecting'?C.yellow:livePhase==='live'?C.red:C.green}}>
+                {livePhase==='connecting'?'🔄 Connecting to AI customer...':livePhase==='live'?'🔴 Live  -  Just speak naturally':'✅ Session complete'}
               </div>
-              <div style={{fontFamily:fH,fontSize:16,fontWeight:900,textTransform:'uppercase',color:C.white}}>{persona?.name} — {activeS.objection.replace(/"/g,'')}</div>
-              <div style={{fontSize:11,color:C.gray,marginTop:2}}>{persona?.desc}</div>
+              <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{persona?.name}</div>
+              <div style={{fontSize:11,color:C.gray,marginTop:2}}>{activeS.objection.replace(/"/g,'')}</div>
             </div>
+            {livePhase==='live'&&<div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:C.gray,flexShrink:0}}>{exchangeCount}<span style={{fontSize:11,color:C.gray}}> ex</span></div>}
           </div>
           {livePhase==='live'&&(
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{width:8,height:8,borderRadius:'50%',background:C.red,animation:'pulse 1.5s infinite'}}/>
-              <span style={{fontSize:12,color:C.lightText}}>Speak naturally — no button needed. Just talk.</span>
-              <span style={{marginLeft:'auto',fontFamily:fH,fontSize:11,fontWeight:700,color:C.gray}}>{exchangeCount} exchanges</span>
+            <div style={{background:liveRecording?'rgba(255,77,77,0.1)':speaking?'rgba(26,107,255,0.1)':'rgba(255,255,255,0.04)',borderRadius:8,padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:liveRecording?12:8,height:liveRecording?12:8,borderRadius:'50%',background:liveRecording?C.red:micWarmup>0?C.yellow:C.blue,flexShrink:0,animation:liveRecording?'recpulse 0.6s infinite':'livepulse 1s infinite',transition:'all 0.2s'}}/>
+              {micWarmup > 0
+                ? <span style={{fontSize:14,fontFamily:fH,fontWeight:900,color:C.yellow,letterSpacing:2}}>GET READY... {micWarmup}</span>
+                : liveRecording
+                  ? <span style={{fontSize:12,color:C.red,fontWeight:700}}>🎙 Recording — speak now</span>
+                  : speaking
+                    ? <span style={{fontSize:12,color:C.lightText}}>{persona?.name} is speaking — listen carefully</span>
+                    : <span style={{fontSize:12,color:C.gray}}>Preparing response...</span>
+              }
             </div>
           )}
-          {liveStatus&&<div style={{fontSize:12,color:C.yellow,marginTop:6}}>{liveStatus}</div>}
-          {liveError&&<div style={{fontSize:12,color:C.red,marginTop:6}}>{liveError}</div>}
+          {liveStatus&&<div style={{fontSize:12,color:C.yellow,marginTop:8}}>{liveStatus}</div>}
+          {liveError&&<div style={{background:'rgba(255,77,77,0.1)',border:'1px solid rgba(255,77,77,0.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:C.red,marginTop:8}}>{liveError}<br/><span style={{fontSize:11,color:C.gray}}>Check that OPENAI_API_KEY is set in Cloudflare env vars.</span></div>}
         </div>
 
-        {/* Live transcript */}
-        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14,maxHeight:400,overflowY:'auto'}}>
+        {/* Live transcript  -  auto-scrolls */}
+        <div id="live-transcript-box" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14,minHeight:200,maxHeight:380,overflowY:'auto'}}>
           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>Live Conversation</div>
-          {liveTranscript.length===0&&livePhase==='live'&&(
-            <div style={{fontSize:12,color:C.gray,fontStyle:'italic',textAlign:'center',padding:'20px 0'}}>Waiting for {persona?.name} to speak...</div>
+          {liveTranscript.length===0&&(
+            <div style={{fontSize:12,color:C.gray,fontStyle:'italic',textAlign:'center',padding:'30px 0'}}>
+              {livePhase==='connecting'?'Connecting...':livePhase==='live'?`${persona?.name} is about to speak...`:'No transcript recorded.'}
+            </div>
           )}
           {liveTranscript.map((t,i)=>(
             <div key={i} style={{marginBottom:10}}>
@@ -1603,22 +1853,46 @@ RETURN ONLY valid JSON:
           ))}
         </div>
 
-        {/* End session button */}
-        {livePhase==='live'&&(
-          <button onClick={()=>endLiveDrill(activeS, liveTranscript)} style={{width:'100%',background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:14,borderRadius:8,cursor:'pointer'}}>
-            🎯 End Session — Get Coaching Report
-          </button>
-        )}
-        {livePhase==='ended'&&(
-          <div style={{textAlign:'center',padding:'20px 0',fontSize:13,color:C.green}}>⏳ Generating your ACRA coaching report...</div>
-        )}
+        {/* Script reference  -  collapsed by default */}
+        <div style={{background:'rgba(184,255,60,0.04)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:8,padding:'10px 14px',marginBottom:14}}>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Model Script Reference</div>
+          <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,fontStyle:'italic'}}>{activeS.script}</div>
+        </div>
 
-        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
+        {/* ── RECORDING / ACTION AREA ── */}
+        {livePhase==='live'&&(
+          <>
+            {/* Transcript preview of what was captured */}
+            {transcript&&liveRecording&&(
+              <div style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:10,fontSize:13,color:C.lightText,fontStyle:'italic'}}>
+                "{transcript}"
+              </div>
+            )}
+
+            {/* Send Now button  -  always visible when recording */}
+            {liveRecording&&(
+              <button onClick={()=>{ if(submitRef.current) submitRef.current() }} style={{width:'100%',background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:16,letterSpacing:1,textTransform:'uppercase',padding:16,borderRadius:10,border:'none',cursor:'pointer',marginBottom:10,boxShadow:'0 0 30px rgba(184,255,60,0.3)'}}>
+                Send Now
+              </button>
+            )}
+
+            {/* End session */}
+            <button onClick={()=>endLiveDrill(activeS,liveTranscript)} style={{width:'100%',background:'transparent',border:`1px solid rgba(255,77,77,0.25)`,color:'rgba(255,77,77,0.6)',fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:9,borderRadius:8,cursor:'pointer',marginBottom:8}}>
+              End  -  Get Coaching Report
+            </button>
+          </>
+        )}
+        <button onClick={stopLiveDrill} style={{width:'100%',background:'transparent',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:9,borderRadius:8,cursor:'pointer'}}>
+          Cancel  -  Back to Drills
+        </button>
+        {livePhase==='ended'&&<div style={{textAlign:'center',padding:'16px 0',fontSize:13,color:C.green}}>Generating coaching report...</div>}
+
+        <style>{`@keyframes livepulse{0%,100%{opacity:1}50%{opacity:0.3}} @keyframes recpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.7}}`}</style>
       </div>
     )
   }
 
-  // ── DRILL LIST — with Persona selector ──────────────────────
+  // ── DRILL LIST  -  with Persona selector ──────────────────────
   return(
     <div style={{padding:'16px 16px 80px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
@@ -1651,6 +1925,25 @@ RETURN ONLY valid JSON:
       )}
 
       {!supported&&<div style={{fontSize:12,color:C.yellow,marginBottom:10}}>⚠ Use Chrome or Edge for voice input.</div>}
+
+      {/* Dept mode + Difficulty selector */}
+      <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+        {/* Dept tabs - only show if not locked */}
+        {!lockDept&&(
+          <div style={{display:'flex',gap:4,background:'rgba(255,255,255,0.04)',borderRadius:8,padding:4}}>
+            {[['all','All'],['sales','🏆 Sales'],['service','🔧 Service']].map(([v,l])=>(
+              <button key={v} onClick={()=>setFilterDept(v)} style={{background:filterDept===v?C.blue:'transparent',color:filterDept===v?C.white:C.gray,fontFamily:fH,fontWeight:900,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:6,border:'none',cursor:'pointer'}}>{l}</button>
+            ))}
+          </div>
+        )}
+        {/* Difficulty */}
+        <div style={{display:'flex',gap:4,background:'rgba(255,255,255,0.04)',borderRadius:8,padding:4}}>
+          {[['easy','Easy','rgba(184,255,60,0.6)'],['medium','Medium',C.yellow],['hard','Hard',C.red]].map(([v,l,color])=>(
+            <button key={v} onClick={()=>setDifficulty(v)} style={{background:difficulty===v?color+'22':'transparent',color:difficulty===v?color:C.gray,border:difficulty===v?'1px solid '+color+'44':'1px solid transparent',fontFamily:fH,fontWeight:900,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:6,cursor:'pointer'}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -1665,32 +1958,99 @@ RETURN ONLY valid JSON:
                   <Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag>
                   <span style={{fontSize:10,color:C.gray}}>{s.category}</span>
                   <span style={{fontSize:10,color:C.yellow}}>{matchPersona.emoji} {matchPersona.name}</span>
-                  {(()=>{const best=loadJSON(`5md-best-${s.id}`,null);return best?<span style={{fontFamily:fH,fontSize:10,fontWeight:700,color:best.startsWith('A')?C.green:best.startsWith('B')?C.blueBright:C.yellow}}>Best: {best}</span>:null})()}
+                  {(()=>{
+                    const best=loadJSON(`5md-best-${s.id}`,null)
+                    const hist = drillHistory[String(s.id)] || []
+                    const trend = hist.length >= 2 ? (hist[hist.length-1].total > hist[hist.length-2].total ? '↑' : hist[hist.length-1].total < hist[hist.length-2].total ? '↓' : '→') : null
+                    const trendColor = trend==='↑'?C.green:trend==='↓'?C.red:C.gray
+                    return(<>
+                      {best&&<span style={{fontFamily:fH,fontSize:10,fontWeight:700,color:best.startsWith('A')?C.green:best.startsWith('B')?C.blueBright:C.yellow}}>Best: {best}</span>}
+                      {trend&&<span style={{fontFamily:fH,fontSize:11,fontWeight:900,color:trendColor}}>{trend} {hist.length} drills</span>}
+                    </>)
+                  })()}
                 </div>
               </div>
               <div style={{display:'flex',gap:6,flexShrink:0}}>
-                <button onClick={()=>launch(s,null)} style={{background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px 12px',borderRadius:8,border:'none',cursor:'pointer'}}>GO</button>
+                {/* Assign drill (managers only) */}
+                {dealer?.role&&ROLES[dealer.role]?.isManager&&(
+                  <button onClick={()=>setShowAssign(showAssign?.id===s.id?null:s)} style={{background:'rgba(255,201,71,0.1)',color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'10px 10px',borderRadius:8,border:'1px solid rgba(255,201,71,0.2)',cursor:'pointer',flexShrink:0}}>📋</button>
+                )}
                 <button onClick={()=>{
                   const p=getPersonaForScript(s)
                   setActiveS(s); setActivePersId(p.id)
                   setFeedback(null); setConfidenceFlags([]); setCloseEarnedFlag(false)
-                  setLivePhase('connecting')  // set BEFORE async call so screen switches immediately
-                  startLiveDrill(s,p)
-                }} style={{background:'rgba(26,107,255,0.2)',border:'1px solid rgba(26,107,255,0.4)',color:C.blueBright,fontFamily:fH,fontWeight:900,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'10px 10px',borderRadius:8,cursor:'pointer',whiteSpace:'nowrap'}}>🎙 LIVE</button>
+                  setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+                  setLivePhase('connecting')
+                  setTimeout(()=>startLiveDrill(s,p), 150)
+                }} style={{background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px 14px',borderRadius:8,border:'none',cursor:'pointer',flexShrink:0}}>🎙 Start Live Drill</button>
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Drill Assignment Panel */}
+      {showAssign&&dealer?.role&&ROLES[dealer.role]?.isManager&&(
+        <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:448,background:C.navyMid,border:'1px solid rgba(255,201,71,0.3)',borderRadius:12,padding:16,zIndex:200}}>
+          <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:8}}>📋 Assign Drill to Rep</div>
+          <div style={{fontSize:12,color:C.lightText,marginBottom:10,fontStyle:'italic'}}>{showAssign.objection.replace(/"/g,'')}</div>
+          <input placeholder="Rep name..." style={{...{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:'#fff',fontFamily:'Barlow,sans-serif',fontSize:14,padding:'8px 12px',outline:'none',width:'100%',boxSizing:'border-box'},marginBottom:8}} id="assign-rep-input"/>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>{
+              const repName = document.getElementById('assign-rep-input').value.trim()
+              if(!repName) return
+              const key = '5md-assigned-' + (dealer?.dealerId||'local')
+              try {
+                const existing = JSON.parse(localStorage.getItem(key)||'[]')
+                existing.push({scriptId:showAssign.id,objection:showAssign.objection,repName,assignedBy:dealer?.repName,date:Date.now()})
+                localStorage.setItem(key, JSON.stringify(existing))
+              } catch {}
+              setShowAssign(null)
+            }} style={{flex:1,background:C.yellow,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 12px',borderRadius:6,border:'none',cursor:'pointer'}}>Assign</button>
+            <button onClick={()=>setShowAssign(null)} style={{background:'transparent',color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,padding:'8px 12px',borderRadius:6,border:'1px solid '+C.border,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Assigned drills banner for reps */}
+      {dealer?.role&&!ROLES[dealer.role]?.isManager&&(()=>{
+        const key = '5md-assigned-' + (dealer?.dealerId||'local')
+        try {
+          const assigned = JSON.parse(localStorage.getItem(key)||'[]').filter(a=>a.repName===dealer?.repName)
+          if(!assigned.length) return null
+          return(
+            <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.25)',borderRadius:10,padding:'12px 14px',marginBottom:12}}>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:8}}>📋 Assigned to You ({assigned.length})</div>
+              {assigned.map((a,i)=>{
+                const s = SCRIPTS.find(sc=>sc.id===a.scriptId)
+                if(!s) return null
+                return(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                    <div style={{flex:1,fontSize:12,color:C.white}}>{a.objection.replace(/"/g,'')}</div>
+                    <button onClick={()=>{
+                      const p=getPersonaForScript(s)
+                      setActiveS(s); setActivePersId(p.id)
+                      setFeedback(null); setConfidenceFlags([]); setCloseEarnedFlag(false)
+                      setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+                      setLivePhase('connecting')
+                      setTimeout(()=>startLiveDrill(s,p), 150)
+                    }} style={{background:C.yellow,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:6,border:'none',cursor:'pointer'}}>Start</button>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        } catch { return null }
+      })()}
     </div>
   )
+
+
+// ══════════════════════════════════════════════════════════════
+// HUDDLE TIMER  -  Now accepts preloadScript from Home button
+// ══════════════════════════════════════════════════════════════
+
 }
-
-
-// ══════════════════════════════════════════════════════════════
-// HUDDLE TIMER — Now accepts preloadScript from Home button
-// ══════════════════════════════════════════════════════════════
-
 // ── Huddle Attendance + Completion Component ─────────────────
 function HuddleComplete({selScript,dealer,onLog,onNew}) {
   const [attended,setAttended] = useState({})
@@ -1774,7 +2134,7 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
       )}
 
       <button onClick={()=>setStep('result')} style={{width:'100%',background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:15,letterSpacing:1,textTransform:'uppercase',padding:14,borderRadius:10,border:'none',cursor:'pointer',marginBottom:10}}>
-        Next — Rate the Huddle →
+        Next  -  Rate the Huddle →
       </button>
       <button onClick={()=>setStep('result')} style={{width:'100%',background:'transparent',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>
         Skip Attendance
@@ -1797,6 +2157,52 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
   )
 }
 
+function HuddleLeaderboard({dealer}) {
+  const [data, setData] = useState(null)
+  useEffect(()=>{
+    if(dealer?.dealerId){
+      dealerSync('getDashboard',dealer.dealerId,'').then(res=>{
+        if(res&&!res.error) setData(res)
+      })
+    }
+  },[])
+  if(!data) return <div style={{padding:'20px',textAlign:'center',fontSize:12,color:'#8a9ab5'}}>Loading leaderboard...</div>
+  const acts = data.activities||[]
+  const reps = [...new Set(acts.map(a=>a.repName))].filter(Boolean)
+  const repStats = reps.map(rep=>{
+    const repActs = acts.filter(a=>a.repName===rep)
+    const drills = repActs.filter(a=>a.type==='voice'||a.type==='voice_drill')
+    const wins = drills.filter(a=>a.result==='won').length
+    const winRate = drills.length > 0 ? Math.round((wins/drills.length)*100) : 0
+    const streak = (()=>{
+      let s=0; const sorted=repActs.sort((a,b)=>b.timestamp-a.timestamp)
+      for(const a of sorted){ if(a.result==='won'||a.result?.startsWith('A')||a.result?.startsWith('B'))s++; else break }
+      return s
+    })()
+    return {rep, drills:drills.length, wins, winRate, streak, total:repActs.length}
+  }).sort((a,b)=>b.winRate-a.winRate||b.drills-a.drills)
+
+  return(
+    <div style={{padding:'0 0 16px'}}>
+      <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:'#8a9ab5',marginBottom:12}}>🏆 Team Leaderboard</div>
+      {repStats.length===0&&<div style={{fontSize:12,color:'#8a9ab5',fontStyle:'italic'}}>No drill data yet. Complete voice drills to appear here.</div>}
+      {repStats.map((r,i)=>(
+        <div key={r.rep} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,background:i===0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.02)',border:'1px solid '+(i===0?'rgba(184,255,60,0.2)':'rgba(255,255,255,0.06)'),marginBottom:6}}>
+          <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:18,fontWeight:900,color:i===0?'#b8ff3c':i===1?'#c8d4e8':i===2?'#ff9f43':'#8a9ab5',minWidth:24,textAlign:'center'}}>{i+1}</div>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:14,fontWeight:900,textTransform:'uppercase',color:'#fff'}}>{r.rep}</div>
+            <div style={{fontSize:11,color:'#8a9ab5'}}>{r.drills} drills · {r.streak} streak</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:20,fontWeight:900,color:r.winRate>=60?'#b8ff3c':r.winRate>=40?'#ffc947':'#ff6b6b'}}>{r.winRate}%</div>
+            <div style={{fontSize:10,color:'#8a9ab5'}}>win rate</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
@@ -1807,6 +2213,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const [selScript,setSelScript] = useState(null)
   const [timeLeft,setTimeLeft]   = useState(TOTAL_H)
   const [running,setRunning]     = useState(false)
+  const [huddleTab,setHuddleTab] = useState('scripts')  // scripts | leaderboard
   const intRef = useRef(null)
 
   // Preload script from Home "Team Huddle" button
@@ -1937,7 +2344,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 
 // ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════
-// TRACK & DASHBOARD — Rebuilt
+// TRACK & DASHBOARD  -  Rebuilt
 // Managers: 3 zones (Health Bar, Who Needs Attention, Activity Feed) + floating log
 // Reps: personal stats + team rank
 // ══════════════════════════════════════════════════════════════
@@ -1965,7 +2372,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
         <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Log a Live Win</div>
         <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Used a script on the floor? Log it in 10 seconds.</div>
 
-        {/* Step 1 — Department */}
+        {/* Step 1  -  Department */}
         <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>1. Department</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
           {[{id:'sales',icon:'🏆',label:'Sales',color:C.blue},{id:'service',icon:'🔧',label:'Service',color:C.green}].map(d=>(
@@ -1976,7 +2383,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
           ))}
         </div>
 
-        {/* Step 2 — Objection picker */}
+        {/* Step 2  -  Objection picker */}
         {dept && (
           <>
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>2. Script / Objection</div>
@@ -1992,7 +2399,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
           </>
         )}
 
-        {/* Step 3 — Result */}
+        {/* Step 3  -  Result */}
         {selObj && (
           <>
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>3. Result</div>
@@ -2006,11 +2413,11 @@ function QuickLogSheet({onLog,onClose,dealer}) {
           </>
         )}
 
-        {/* Step 4 — Rep name (managers only) */}
+        {/* Step 4  -  Rep name (managers only) */}
         {isMgr&&result&&(
           <>
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>4. Team Member (optional)</div>
-            <input style={{...inp,marginBottom:16}} placeholder="Rep name — leave blank for yourself" value={rep} onChange={e=>setRep(e.target.value)}/>
+            <input style={{...inp,marginBottom:16}} placeholder="Rep name  -  leave blank for yourself" value={rep} onChange={e=>setRep(e.target.value)}/>
           </>
         )}
 
@@ -2073,10 +2480,10 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
     const topScript = (() => {
       const sc = {}
       acts.forEach(a=>{ if(a.script){ sc[a.script]=(sc[a.script]||0)+1 }})
-      return Object.entries(sc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'
+      return Object.entries(sc).sort((a,b)=>b[1]-a[1])[0]?.[0]||' - '
     })()
 
-    printPDF(`Monthly Report Card — ${month}`,`
+    printPDF(`Monthly Report Card  -  ${month}`,`
       <h1>Monthly Dealer Report Card</h1>
       <div class="sub">${dashData.dealer?.name||dealer?.dealerName||'Dealership'} · Code: ${dealer?.dealerId}</div>
       <div class="date">${month}</div>
@@ -2118,7 +2525,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
       <div class="card blue"><div style="font-size:14px;font-weight:700;">${topScript}</div></div>
 
       <h2>Recent Activity (Last 20)</h2>
-      ${acts.slice(0,20).map(a=>`<div class="card"><div style="font-size:13px;font-weight:700;">${a.repName} <span style="font-size:11px;color:${a.dept==='sales'?'#1a6bff':'#5ca800'};font-weight:600;">[${(a.dept||'').toUpperCase()}]</span></div><div style="font-size:12px;color:#666;">${a.script} · ${new Date(a.timestamp).toLocaleDateString()}</div></div>`).join('')}
+      ${acts.slice(0,20).map(a=>`<div class="card"><div style="font-size:13px;font-weight:700;">${a.repName} <span style="font-size:11px;color:${a.dept==='sales'?'#1a6bff':'#5ca800'};font-weight:600;">[${(a.dept||'').toUpperCase()}]</span></div><div style="font-size:12px;color:#666;">${a.script}  -  ${new Date(a.timestamp).toLocaleDateString()}</div></div>`).join('')}
     `)
   }
 
@@ -2131,7 +2538,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
     const won_t    = acts.filter(a=>a.result==='won').length
     const winRate  = acts.length>0?Math.round((won_t/acts.length)*100):0
 
-    // Who needs attention — grade-weighted coaching priority algorithm
+    // Who needs attention  -  grade-weighted coaching priority algorithm
     const repStats = reps.map(rep=>{
       const ra   = acts.filter(a=>a.repName===rep)
       const wa   = weekActs.filter(a=>a.repName===rep)
@@ -2141,7 +2548,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
       const repWinRate = ra.length>0?Math.round((winCount/ra.length)*100):0
       const weekHuddled = wa.some(a=>a.type==='huddle'&&a.attended!==false)
       const weekAbsent  = wa.some(a=>a.type==='huddle_absent')
-      // Coaching score — higher = more urgent coaching needed
+      // Coaching score  -  higher = more urgent coaching needed
       let coachScore = 0
       if(wa.length===0) coachScore += 40              // no activity this week
       if(repWinRate<40&&ra.length>=3) coachScore += 30 // low win rate
@@ -2149,7 +2556,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
       if(weekAbsent) coachScore += 20                  // confirmed absent from huddle
       else if(!weekHuddled&&wa.length>0) coachScore += 8 // drilling but no huddle recorded
       if(weekHuddled) coachScore = Math.max(0, coachScore - 20) // attended = credit
-      // Recognize score — higher = more deserving of recognition
+      // Recognize score  -  higher = more deserving of recognition
       let recogScore = 0
       if(wa.length>=3) recogScore += 30
       if(repWinRate>=60&&ra.length>=3) recogScore += 30
@@ -2373,7 +2780,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
                   {e.type&&<Tag color={e.type==='huddle'?'#3dcfcf':e.type==='manual'?C.orange:C.blueBright}>{e.type}</Tag>}
                   <span style={{fontSize:10,color:C.gray}}>{e.date}</span>
                 </div>
-                <button onClick={()=>onRemove(e.id)} style={{background:'none',border:'none',color:C.gray,cursor:'pointer',fontSize:16}}>×</button>
+                <button onClick={()=>onRemove(e.id)} style={{background:'none',border:'none',color:C.gray,cursor:'pointer',fontSize:16}}>x</button>
               </div>
               <div style={{fontSize:13,color:C.white}}>{e.script}</div>
             </div>
@@ -2392,14 +2799,14 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 
 
 // ── Manager Hub tools (ShopTime, LeaderGrid, Lifecycle) ───────
-const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor — extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
-function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||'—'}</div></div><div><div class="label">By When</div><div class="val">${a.by||'—'}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):'—'} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||'—'}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:'—'}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
+const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
+function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
 
-const QUADS=[{id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',desc:'Enthusiastic but developing. Invest here.',word:'"Let me show you exactly how I\'d handle that, then we\'ll practice together."',coaching:'Direct & Guide — clear expectations, role-play.'},{id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',desc:'Skilled, self-motivated. Give them autonomy.',word:'"I trust you. Here\'s the outcome — how you get there is yours."',coaching:'Delegate — give ownership, recognize publicly.'},{id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',desc:'Most challenging. Every day unaddressed costs your team.',word:'"Here are the results I need in 30 days. The change starts now."',coaching:'Direct — documented expectations, 30-day plan.'},{id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',desc:'Most dangerous. Capability without commitment breeds cynicism.',word:'"I\'ve noticed a shift. Help me understand what\'s changed."',coaching:'Excite — honest 1:1, find root cause.'}]
-function LeaderGrid(){const[team,setTeam]=useState([]);const[nm,setNm]=useState('');const[qid,setQid]=useState('delegate');const[sel,setSel]=useState(null);const[acts,setActs]=useState({});const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}]);const selQ=QUADS.find(q=>q.id===sel);const add=()=>{if(!nm.trim())return;setTeam([...team,{name:nm.trim(),qid,id:Date.now()}]);setNm('')};const rem=id=>setTeam(team.filter(m=>m.id!==id));const allNames=team.map(m=>m.name);const qC={guide:'#e8f0ff',delegate:'#e8ffe8',direct:'#ffe8e8',excite:'#fff8e8'};const expPDF=()=>{const tR=QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);if(!mb.length)return'';return`<div class="card"><div style="padding:4px 8px;background:${qC[q.id]};color:${q.color};font-weight:700;border-radius:4px;display:inline-block;margin-bottom:8px;">${q.label} — ${q.title}</div><div style="font-size:13px;color:#333;margin-bottom:8px;">${mb.map(m=>m.name).join(', ')}</div><div class="word-track">${q.word}</div></div>`}).join('');const aR=ap.filter(a=>a.emp).map(a=>{const eq=team.find(m=>m.name===a.emp);const q=QUADS.find(q=>q.id===eq?.qid);return`<div class="card"><div style="font-size:18px;font-weight:700;color:#050d1f;margin-bottom:4px;">${a.emp}</div>${q?`<div class="word-track">${q.word}</div>`:''}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px;"><div><div class="label">Priority</div><div class="val">${a.priority||'—'}</div></div><div><div class="label">By When</div><div class="val">${a.when||'—'}</div></div></div><div><div class="label">Coaching Action</div><div class="val">${a.action||'—'}</div></div></div>`}).join('');printPDF('Commitment & Capability',`<h1>Commitment & Capability</h1><div class="sub">Leadership Grid</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${tR?`<h2>Team Assessment</h2>${tR}`:''}${aR?`<h2>Coaching Action Plan</h2>${aR}`:''}<h2>Weekly Check-In</h2>${['Reviewed grid','Identified top 2 priorities','Matched coaching style','Scheduled 1:1s','Written commitments'].map(i=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;">${i}</div></div>`).join('')}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Commitment & Capability</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Leadership Grid</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><span>🎯</span><span style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white}}>The Coaching Model</span></div>{QUADS.map((q,i)=>(<div key={q.id} style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:i<3?10:0}}><div style={{background:`${q.color}22`,border:`1px solid ${q.color}44`,borderRadius:8,padding:'5px 8px',fontFamily:fH,fontSize:10,fontWeight:900,color:q.color,minWidth:60,textAlign:'center',flexShrink:0}}>{q.label}</div><div><div style={{fontFamily:fH,fontSize:12,fontWeight:900,textTransform:'uppercase',color:q.color,marginBottom:1}}>{q.title}</div><div style={{fontSize:11,color:C.gray,lineHeight:1.4}}>{q.sub} — {q.desc}</div></div></div>))}</div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Add Team Member</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input style={{...inp,flex:1}} placeholder="Name..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><select style={{...inp,flex:'0 0 auto',cursor:'pointer'}} value={qid} onChange={e=>setQid(e.target.value)}>{QUADS.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}</select><button onClick={add} style={{background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,border:'none',cursor:'pointer'}}>Add</button></div></div><div style={{marginBottom:14}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);const isS=sel===q.id;return(<div key={q.id} onClick={()=>setSel(isS?null:q.id)} style={{background:isS?q.bg:C.card,border:`2px solid ${isS?q.color:C.border}`,borderRadius:10,padding:12,cursor:'pointer',minHeight:90}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:q.color}}>{q.label}</div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{q.title}</div><div style={{fontSize:10,color:C.gray}}>{q.sub}</div></div><div style={{background:q.bg,border:`1px solid ${q.bdr}`,borderRadius:100,width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:fH,fontWeight:900,fontSize:11,color:q.color}}>{mb.length}</div></div><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{mb.map(m=><div key={m.id} style={{background:'rgba(255,255,255,0.08)',borderRadius:100,padding:'2px 7px',fontSize:11,color:C.white,display:'flex',alignItems:'center',gap:4}}>{m.name}<span onClick={e=>{e.stopPropagation();rem(m.id)}} style={{color:C.gray,cursor:'pointer'}}>×</span></div>)}{!mb.length&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',fontStyle:'italic'}}>Empty</div>}</div></div>)})}</div></div>{selQ&&(<div style={{background:selQ.bg,border:`1px solid ${selQ.bdr}`,borderRadius:10,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:selQ.color,marginBottom:4}}>{selQ.label} — {selQ.title}</div><p style={{fontSize:13,color:C.lightText,lineHeight:1.65,marginBottom:10}}>{selQ.desc}</p><div style={{background:'rgba(0,0,0,0.2)',borderLeft:`3px solid ${selQ.color}`,borderRadius:'0 6px 6px 0',padding:'10px 12px',fontSize:13,color:C.white,fontStyle:'italic',lineHeight:1.65,marginBottom:10}}>{selQ.word}</div><textarea style={{...inp,minHeight:44,resize:'vertical'}} placeholder="My action this week..." value={acts[selQ.id]||''} onChange={e=>setActs({...acts,[selQ.id]:e.target.value})}/></div>)}<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Coaching Action Plan</div><div style={{fontSize:12,color:C.gray,marginBottom:12}}>Pick 2 employees from your grid.</div>{ap.map((a,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:8,padding:'11px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Employee #{i+1}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Name</div><select style={{...inp,cursor:'pointer'}} value={a.emp} onChange={e=>{const x=[...ap];x[i]={...x[i],emp:e.target.value};setAp(x)}}><option value="">Select...</option>{allNames.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Priority</div><select style={{...inp,cursor:'pointer'}} value={a.priority} onChange={e=>{const x=[...ap];x[i]={...x[i],priority:e.target.value};setAp(x)}}><option value="">Select...</option><option value="High — This Week">High — This Week</option><option value="Medium — This Month">Medium</option><option value="Watching">Watching</option></select></div></div><div style={{marginBottom:6}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Coaching Action</div><input style={inp} placeholder="e.g. Role-play payment objection by Friday..." value={a.action} onChange={e=>{const x=[...ap];x[i]={...x[i],action:e.target.value};setAp(x)}}/></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>By When</div><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.when} onChange={e=>{const x=[...ap];x[i]={...x[i],when:e.target.value};setAp(x)}}/></div></div>))}</div></div>)}
+const QUADS=[{id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',desc:'Enthusiastic but developing. Invest here.',word:'"Let me show you exactly how I\'d handle that, then we\'ll practice together."',coaching:'Direct & Guide  -  clear expectations, role-play.'},{id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',desc:'Skilled, self-motivated. Give them autonomy.',word:'"I trust you. Here\'s the outcome  -  how you get there is yours."',coaching:'Delegate  -  give ownership, recognize publicly.'},{id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',desc:'Most challenging. Every day unaddressed costs your team.',word:'"Here are the results I need in 30 days. The change starts now."',coaching:'Direct  -  documented expectations, 30-day plan.'},{id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',desc:'Most dangerous. Capability without commitment breeds cynicism.',word:'"I\'ve noticed a shift. Help me understand what\'s changed."',coaching:'Excite  -  honest 1:1, find root cause.'}]
+function LeaderGrid(){const[team,setTeam]=useState([]);const[nm,setNm]=useState('');const[qid,setQid]=useState('delegate');const[sel,setSel]=useState(null);const[acts,setActs]=useState({});const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}]);const selQ=QUADS.find(q=>q.id===sel);const add=()=>{if(!nm.trim())return;setTeam([...team,{name:nm.trim(),qid,id:Date.now()}]);setNm('')};const rem=id=>setTeam(team.filter(m=>m.id!==id));const allNames=team.map(m=>m.name);const qC={guide:'#e8f0ff',delegate:'#e8ffe8',direct:'#ffe8e8',excite:'#fff8e8'};const expPDF=()=>{const tR=QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);if(!mb.length)return'';return`<div class="card"><div style="padding:4px 8px;background:${qC[q.id]};color:${q.color};font-weight:700;border-radius:4px;display:inline-block;margin-bottom:8px;">${q.label}  -  ${q.title}</div><div style="font-size:13px;color:#333;margin-bottom:8px;">${mb.map(m=>m.name).join(', ')}</div><div class="word-track">${q.word}</div></div>`}).join('');const aR=ap.filter(a=>a.emp).map(a=>{const eq=team.find(m=>m.name===a.emp);const q=QUADS.find(q=>q.id===eq?.qid);return`<div class="card"><div style="font-size:18px;font-weight:700;color:#050d1f;margin-bottom:4px;">${a.emp}</div>${q?`<div class="word-track">${q.word}</div>`:''}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px;"><div><div class="label">Priority</div><div class="val">${a.priority||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.when||' - '}</div></div></div><div><div class="label">Coaching Action</div><div class="val">${a.action||' - '}</div></div></div>`}).join('');printPDF('Commitment & Capability',`<h1>Commitment & Capability</h1><div class="sub">Leadership Grid</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${tR?`<h2>Team Assessment</h2>${tR}`:''}${aR?`<h2>Coaching Action Plan</h2>${aR}`:''}<h2>Weekly Check-In</h2>${['Reviewed grid','Identified top 2 priorities','Matched coaching style','Scheduled 1:1s','Written commitments'].map(i=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;">${i}</div></div>`).join('')}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Commitment & Capability</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Leadership Grid</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><span>🎯</span><span style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white}}>The Coaching Model</span></div>{QUADS.map((q,i)=>(<div key={q.id} style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:i<3?10:0}}><div style={{background:`${q.color}22`,border:`1px solid ${q.color}44`,borderRadius:8,padding:'5px 8px',fontFamily:fH,fontSize:10,fontWeight:900,color:q.color,minWidth:60,textAlign:'center',flexShrink:0}}>{q.label}</div><div><div style={{fontFamily:fH,fontSize:12,fontWeight:900,textTransform:'uppercase',color:q.color,marginBottom:1}}>{q.title}</div><div style={{fontSize:11,color:C.gray,lineHeight:1.4}}>{q.sub}  -  {q.desc}</div></div></div>))}</div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Add Team Member</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input style={{...inp,flex:1}} placeholder="Name..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><select style={{...inp,flex:'0 0 auto',cursor:'pointer'}} value={qid} onChange={e=>setQid(e.target.value)}>{QUADS.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}</select><button onClick={add} style={{background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,border:'none',cursor:'pointer'}}>Add</button></div></div><div style={{marginBottom:14}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);const isS=sel===q.id;return(<div key={q.id} onClick={()=>setSel(isS?null:q.id)} style={{background:isS?q.bg:C.card,border:`2px solid ${isS?q.color:C.border}`,borderRadius:10,padding:12,cursor:'pointer',minHeight:90}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:q.color}}>{q.label}</div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{q.title}</div><div style={{fontSize:10,color:C.gray}}>{q.sub}</div></div><div style={{background:q.bg,border:`1px solid ${q.bdr}`,borderRadius:100,width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:fH,fontWeight:900,fontSize:11,color:q.color}}>{mb.length}</div></div><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{mb.map(m=><div key={m.id} style={{background:'rgba(255,255,255,0.08)',borderRadius:100,padding:'2px 7px',fontSize:11,color:C.white,display:'flex',alignItems:'center',gap:4}}>{m.name}<span onClick={e=>{e.stopPropagation();rem(m.id)}} style={{color:C.gray,cursor:'pointer'}}>x</span></div>)}{!mb.length&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',fontStyle:'italic'}}>Empty</div>}</div></div>)})}</div></div>{selQ&&(<div style={{background:selQ.bg,border:`1px solid ${selQ.bdr}`,borderRadius:10,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:selQ.color,marginBottom:4}}>{selQ.label}  -  {selQ.title}</div><p style={{fontSize:13,color:C.lightText,lineHeight:1.65,marginBottom:10}}>{selQ.desc}</p><div style={{background:'rgba(0,0,0,0.2)',borderLeft:`3px solid ${selQ.color}`,borderRadius:'0 6px 6px 0',padding:'10px 12px',fontSize:13,color:C.white,fontStyle:'italic',lineHeight:1.65,marginBottom:10}}>{selQ.word}</div><textarea style={{...inp,minHeight:44,resize:'vertical'}} placeholder="My action this week..." value={acts[selQ.id]||''} onChange={e=>setActs({...acts,[selQ.id]:e.target.value})}/></div>)}<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Coaching Action Plan</div><div style={{fontSize:12,color:C.gray,marginBottom:12}}>Pick 2 employees from your grid.</div>{ap.map((a,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:8,padding:'11px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Employee #{i+1}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Name</div><select style={{...inp,cursor:'pointer'}} value={a.emp} onChange={e=>{const x=[...ap];x[i]={...x[i],emp:e.target.value};setAp(x)}}><option value="">Select...</option>{allNames.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Priority</div><select style={{...inp,cursor:'pointer'}} value={a.priority} onChange={e=>{const x=[...ap];x[i]={...x[i],priority:e.target.value};setAp(x)}}><option value="">Select...</option><option value="High  -  This Week">High  -  This Week</option><option value="Medium  -  This Month">Medium</option><option value="Watching">Watching</option></select></div></div><div style={{marginBottom:6}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Coaching Action</div><input style={inp} placeholder="e.g. Role-play payment objection by Friday..." value={a.action} onChange={e=>{const x=[...ap];x[i]={...x[i],action:e.target.value};setAp(x)}}/></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>By When</div><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.when} onChange={e=>{const x=[...ap];x[i]={...x[i],when:e.target.value};setAp(x)}}/></div></div>))}</div></div>)}
 
-const LC_STEPS=[{id:'sell1',n:1,label:'Sell #1',title:'Set the Foundation',focus:'Sell the ownership experience, not just the vehicle.',color:'#e85d4a',actions:['Deliver 5 personalized ownership value points during the sale','Capture complete guest profile — email, phone, communication preferences','Introduce the service experience early — before the deal is done','Manager turn focused on the ownership journey, not just closing'],metrics:['Closing ratio','Email capture rate (goal: 85%+)','CRM notes quality score']},{id:'deliver',n:2,label:'Deliver',title:'Execute a Premium Delivery',focus:'Slow down the delivery to speed up retention.',color:'#e88b3a',actions:['Complete the Delivery Checklist with the guest — every delivery','Manager touchpoint during delivery reinforces brand trust','Confirm technology setup, features walkthrough, and first service intro','Manager signs off on checklist before guest departs'],metrics:['Delivery checklist completion rate (goal: 90%+)','Delivery satisfaction scores']},{id:'schedule',n:3,label:'Schedule',title:'Lock in Retention',focus:'Every delivery equals a future service appointment.',color:C.green,actions:['Schedule first service appointment at delivery — every time','Confirm appointment in system before goodbye','Activate automated confirmation texts and reminders','BDC follows up within 24 hours to confirm'],metrics:['Service appts set at delivery (goal: 90–100%)','First service show rate (goal: 75%+)']},{id:'reconnect',n:4,label:'ReConnect',title:'Reinforce the Relationship',focus:'This is where loyalty is built.',color:'#3dcfcf',actions:['Schedule the ReConnect during delivery — not as an afterthought','Complete within 3–7 days while experience is fresh','Review features, confirm satisfaction, validate service appointment','Document the ReConnect outcome in CRM'],metrics:['ReConnect completion rate (goal: 90%+)','ReConnect scheduled at delivery']},{id:'appraise',n:5,label:'Appraise',title:'Activate the Sales Opportunity',focus:'The service drive is your most consistent showroom.',color:C.blueBright,actions:['Send complimentary trade appraisal offer during service appointment confirmation','BDC monitors responses and qualifies interested guests','Service advisor verbally reinforces the appraisal offer','Sales team notified immediately when interest is expressed'],metrics:['Appraisal requests per month','Service-to-sales conversion rate']},{id:'sell2',n:6,label:'Sell #2',title:'Complete the Cycle',focus:'Your next sale is already in your service lane.',color:C.blue,actions:['Engage appraisal-interested guests with personalized follow-up','Present upgrade options, equity position, and loyalty incentives','Highlight ownership benefits of staying with your dealership','Track cycle time: days from Vehicle #1 to Vehicle #2 close'],metrics:['Repeat purchase rate','Service-to-sale conversion rate','Average lifecycle cycle days']}]
-function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label} — ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan — ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Ownership Lifecycle</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label} — {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
+const LC_STEPS=[{id:'sell1',n:1,label:'Sell #1',title:'Set the Foundation',focus:'Sell the ownership experience, not just the vehicle.',color:'#e85d4a',actions:['Deliver 5 personalized ownership value points during the sale','Capture complete guest profile  -  email, phone, communication preferences','Introduce the service experience early  -  before the deal is done','Manager turn focused on the ownership journey, not just closing'],metrics:['Closing ratio','Email capture rate (goal: 85%+)','CRM notes quality score']},{id:'deliver',n:2,label:'Deliver',title:'Execute a Premium Delivery',focus:'Slow down the delivery to speed up retention.',color:'#e88b3a',actions:['Complete the Delivery Checklist with the guest  -  every delivery','Manager touchpoint during delivery reinforces brand trust','Confirm technology setup, features walkthrough, and first service intro','Manager signs off on checklist before guest departs'],metrics:['Delivery checklist completion rate (goal: 90%+)','Delivery satisfaction scores']},{id:'schedule',n:3,label:'Schedule',title:'Lock in Retention',focus:'Every delivery equals a future service appointment.',color:C.green,actions:['Schedule first service appointment at delivery  -  every time','Confirm appointment in system before goodbye','Activate automated confirmation texts and reminders','BDC follows up within 24 hours to confirm'],metrics:['Service appts set at delivery (goal: 90 - 100%)','First service show rate (goal: 75%+)']},{id:'reconnect',n:4,label:'ReConnect',title:'Reinforce the Relationship',focus:'This is where loyalty is built.',color:'#3dcfcf',actions:['Schedule the ReConnect during delivery  -  not as an afterthought','Complete within 3 - 7 days while experience is fresh','Review features, confirm satisfaction, validate service appointment','Document the ReConnect outcome in CRM'],metrics:['ReConnect completion rate (goal: 90%+)','ReConnect scheduled at delivery']},{id:'appraise',n:5,label:'Appraise',title:'Activate the Sales Opportunity',focus:'The service drive is your most consistent showroom.',color:C.blueBright,actions:['Send complimentary trade appraisal offer during service appointment confirmation','BDC monitors responses and qualifies interested guests','Service advisor verbally reinforces the appraisal offer','Sales team notified immediately when interest is expressed'],metrics:['Appraisal requests per month','Service-to-sales conversion rate']},{id:'sell2',n:6,label:'Sell #2',title:'Complete the Cycle',focus:'Your next sale is already in your service lane.',color:C.blue,actions:['Engage appraisal-interested guests with personalized follow-up','Present upgrade options, equity position, and loyalty incentives','Highlight ownership benefits of staying with your dealership','Track cycle time: days from Vehicle #1 to Vehicle #2 close'],metrics:['Repeat purchase rate','Service-to-sale conversion rate','Average lifecycle cycle days']}]
+function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Ownership Lifecycle</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
 
 // ── IP Notice shown in Mgr Hub ────────────────────────────
 function IPNotice() {
@@ -2421,7 +2828,7 @@ function ManagerHub(){const[active,setActive]=useState('shop');const Mod=HUB_MOD
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
-// MASTER OPERATOR DASHBOARD — Tony's view of all dealerships
+// MASTER OPERATOR DASHBOARD  -  Tony's view of all dealerships
 // Access via: ?admin=YOURKEY in the URL
 // ══════════════════════════════════════════════════════════════
 function MasterDashboard({adminKey,onExit}) {
@@ -2450,9 +2857,33 @@ function MasterDashboard({adminKey,onExit}) {
     .filter(d=>filter==='all'||(filter==='healthy'&&d.health>=70)||(filter==='atrisk'&&d.health>=40&&d.health<70)||(filter==='inactive'&&d.health<40))
     .sort((a,b)=>sortBy==='health'?(b.health-a.health):sortBy==='drills'?(b.totalDrills-a.totalDrills):sortBy==='active'?(a.daysSinceActive-b.daysSinceActive):(b.totalDrills-a.totalDrills))
 
-  const totalActive = dealers.filter(d=>d.daysSinceActive<=3).length
-  const avgHealth   = dealers.length>0?Math.round(dealers.reduce((a,d)=>a+d.health,0)/dealers.length):0
-  const totalDrills = dealers.reduce((a,d)=>a+(d.totalDrills||0),0)
+  const totalActive      = dealers.filter(d=>d.daysSinceActive<=3).length
+  const avgHealth        = dealers.length>0?Math.round(dealers.reduce((a,d)=>a+d.health,0)/dealers.length):0
+  const totalDrills      = dealers.reduce((a,d)=>a+(d.totalDrills||0),0)
+  const totalVoiceDrills = dealers.reduce((a,d)=>a+(d.voiceDrills||0),0)
+
+  // ── Estimated cost per dealer ─────────────────────────────
+  // Claude API: ~$0.003 per drill (haiku pricing)
+  // OpenAI Realtime: ~$0.68 per live session (estimated 10% of drills)
+  // ElevenLabs: $22/month flat split across dealers
+  const MONTHLY_REVENUE  = 997
+  const CLAUDE_PER_DRILL = 0.003
+  const REALTIME_PER_SESSION = 0.68
+  const ELEVENLABS_FLAT  = 22
+  const elevenlabsPerDealer = dealers.length>0 ? ELEVENLABS_FLAT/dealers.length : 22
+
+  const dealerCosts = dealers.map(d=>{
+    const drills       = d.voiceDrills||0
+    const liveSessions = Math.round(drills*0.10) // estimate 10% use live AI
+    const claudeCost   = drills * CLAUDE_PER_DRILL
+    const realtimeCost = liveSessions * REALTIME_PER_SESSION
+    const totalCost    = claudeCost + realtimeCost + elevenlabsPerDealer
+    const margin       = MONTHLY_REVENUE - totalCost
+    return { ...d, estCost:totalCost, estMargin:margin, liveSessions }
+  })
+  const totalEstCost   = dealerCosts.reduce((a,d)=>a+d.estCost,0)
+  const totalEstMargin = dealers.length * MONTHLY_REVENUE - totalEstCost
+  const totalRevenue   = dealers.length * MONTHLY_REVENUE
 
   const exportMasterPDF = () => {
     const rows = sorted.map(d=>`
@@ -2466,7 +2897,7 @@ function MasterDashboard({adminKey,onExit}) {
         <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${d.winRate}%</td>
         <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;color:${d.daysSinceActive<=3?'#2d8a2d':d.daysSinceActive<=7?'#a07000':'#c03030'};">${daysAgo(d.daysSinceActive)}</td>
       </tr>`).join('')
-    printPDF('5-Minute Dealer Coach — Operator Report',`
+    printPDF('5-Minute Dealer Coach  -  Operator Report',`
       <h1>Operator Dashboard</h1>
       <div class="sub">5-Minute Dealer Coaching System</div>
       <div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
@@ -2509,26 +2940,46 @@ function MasterDashboard({adminKey,onExit}) {
       </div>
 
       {loading&&<div style={{textAlign:'center',color:C.gray,padding:'60px 0',fontSize:14}}>Loading all dealerships...</div>}
-      {error&&<div style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',borderRadius:10,padding:'16px',color:C.red,marginBottom:20}}>{error==='Unauthorized'?'Invalid admin key — check your URL':'Error loading data: '+error}</div>}
+      {error&&<div style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',borderRadius:10,padding:'16px',color:C.red,marginBottom:20}}>{error==='Unauthorized'?'Invalid admin key  -  check your URL':'Error loading data: '+error}</div>}
 
       {!loading&&data&&(
         <>
           {/* KPI strip */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10}}>
+          {/* KPI strip  -  row 1 */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:8}}>
             {[
-              {val:dealers.length,     label:'Total Dealers',  color:C.blue,   icon:'🏢'},
-              {val:totalActive,        label:'Active 3 Days',  color:C.green,  icon:'🟢'},
-              {val:dealers.filter(d=>d.health<40).length,   label:'Need Attention',  color:C.red,    icon:'🔴'},
+              {val:dealers.length,        label:'Total Dealers',   color:C.blue,   icon:'🏢'},
+              {val:totalActive,           label:'Active 3 Days',   color:C.green,  icon:'🟢'},
+              {val:dealers.filter(d=>d.health<40).length, label:'Need Attention', color:C.red, icon:'🔴'},
               {val:dealers.filter(d=>d.daysSinceActive>=2&&d.daysSinceActive<=7).length, label:'Streak Alert', color:C.yellow, icon:'🟡'},
-              {val:totalDrills,        label:'Total Drills',   color:C.yellow, icon:'🎯'},
-              {val:`${avgHealth}`,     label:'Avg Health',     color:avgHealth>=70?C.green:avgHealth>=40?C.yellow:C.red, icon:'📊'},
+              {val:totalDrills,           label:'Total Drills',    color:C.yellow, icon:'🎯'},
+              {val:totalVoiceDrills,      label:'Voice Drills',    color:C.green,  icon:'🎙'},
             ].map(({val,label,color,icon})=>(
-              <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 10px',textAlign:'center'}}>
-                <div style={{fontSize:18,marginBottom:4}}>{icon}</div>
-                <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color,lineHeight:1}}>{val}</div>
+              <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontSize:16,marginBottom:3}}>{icon}</div>
+                <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color,lineHeight:1}}>{val}</div>
                 <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color,marginTop:3}}>{label}</div>
               </div>
             ))}
+          </div>
+
+          {/* KPI strip  -  row 2: financials */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
+            <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontSize:16,marginBottom:3}}>💰</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green,lineHeight:1}}>${totalRevenue.toLocaleString()}</div>
+              <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,marginTop:3}}>Monthly Revenue</div>
+            </div>
+            <div style={{background:'rgba(255,107,107,0.06)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontSize:16,marginBottom:3}}>⚡</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.orange||'#ff9f43',lineHeight:1}}>${totalEstCost.toFixed(0)}</div>
+              <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.orange||'#ff9f43',marginTop:3}}>Est. API Cost</div>
+            </div>
+            <div style={{background:'rgba(26,107,255,0.06)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
+              <div style={{fontSize:16,marginBottom:3}}>📈</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.blueBright,lineHeight:1}}>${totalEstMargin.toFixed(0)}</div>
+              <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginTop:3}}>Est. Net Margin</div>
+            </div>
           </div>
 
           {/* Filters + sort */}
@@ -2549,6 +3000,7 @@ function MasterDashboard({adminKey,onExit}) {
           {/* Dealer cards */}
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {sorted.map(d=>{
+              const dc = dealerCosts.find(x=>x.code===d.code)||{...d,estCost:0,estMargin:997,liveSessions:0}
               const isExp = expanded===d.code
               const hc = healthColor(d.health)
               return(
@@ -2629,24 +3081,41 @@ function MasterDashboard({adminKey,onExit}) {
                               <div style={{background:a.dept==='sales'?'rgba(26,107,255,0.15)':'rgba(184,255,60,0.1)',borderRadius:4,padding:'1px 5px',fontFamily:fH,fontSize:9,fontWeight:700,color:a.dept==='sales'?C.blueBright:C.green,flexShrink:0}}>
                                 {a.dept==='sales'?'SALES':'SVC'}
                               </div>
-                              <div style={{flex:1,fontSize:11,color:C.lightText}}>{a.repName} — {a.script}</div>
+                              <div style={{flex:1,fontSize:11,color:C.lightText}}>{a.repName}  -  {a.script}</div>
                               <div style={{fontSize:10,color:C.gray,flexShrink:0}}>{new Date(a.timestamp).toLocaleDateString()}</div>
                             </div>
                           ))}
                         </div>
                       )}
 
+                      {/* Estimated cost + margin for this dealer */}
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:10}}>
+                        <div style={{background:'rgba(184,255,60,0.05)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
+                          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,marginBottom:3}}>Revenue</div>
+                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.green}}>$997</div>
+                        </div>
+                        <div style={{background:'rgba(255,107,107,0.05)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
+                          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'#ff9f43',marginBottom:3}}>Est. Cost</div>
+                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:'#ff9f43'}}>${dc.estCost.toFixed(0)}</div>
+                          <div style={{fontSize:9,color:C.gray,marginTop:2}}>{dc.liveSessions} live sessions</div>
+                        </div>
+                        <div style={{background:'rgba(26,107,255,0.05)',border:'1px solid rgba(26,107,255,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
+                          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginBottom:3}}>Net Margin</div>
+                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:dc.estMargin>800?C.green:dc.estMargin>600?C.yellow:'#ff9f43'}}>${dc.estMargin.toFixed(0)}</div>
+                        </div>
+                      </div>
+
                       {/* Streak protection + churn warnings */}
                       {d.daysSinceActive>=2&&d.daysSinceActive<=7&&(
                         <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.2)',borderRadius:8,padding:'10px 12px',marginTop:10}}>
-                          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.yellow,marginBottom:3}}>🟡 Streak Alert — {d.daysSinceActive} Days Inactive</div>
+                          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.yellow,marginBottom:3}}>🟡 Streak Alert  -  {d.daysSinceActive} Days Inactive</div>
                           <div style={{fontSize:12,color:'#ffe08a'}}>No activity for {d.daysSinceActive} days. Send a check-in to re-engage before the habit breaks.</div>
                         </div>
                       )}
                       {d.daysSinceActive>7&&(
                         <div style={{background:'rgba(255,107,107,0.08)',border:'1px solid rgba(255,107,107,0.2)',borderRadius:8,padding:'10px 12px',marginTop:10}}>
-                          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.red,marginBottom:3}}>🔴 Churn Risk — {d.daysSinceActive} Days Inactive</div>
-                          <div style={{fontSize:12,color:'#ffaaaa'}}>Account has gone dark. Immediate outreach needed — {d.daysSinceActive} days without a drill or huddle.</div>
+                          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.red,marginBottom:3}}>🔴 Churn Risk  -  {d.daysSinceActive} Days Inactive</div>
+                          <div style={{fontSize:12,color:'#ffaaaa'}}>Account has gone dark. Immediate outreach needed  -  {d.daysSinceActive} days without a drill or huddle.</div>
                         </div>
                       )}
 
@@ -2666,7 +3135,7 @@ function MasterDashboard({adminKey,onExit}) {
                           const rc=r>=60?'#2d8a2d':r>=40?'#a07000':'#c03030'
                           return `<tr><td style="padding:8px 10px;border-bottom:1px solid #eee;font-weight:700;">${rep}</td><td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${ra.length}</td><td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;color:#1a6bff;">${ra.filter(a=>a.dept==='sales').length}</td><td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;color:#5ca800;">${ra.filter(a=>a.dept==='service').length}</td><td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:700;color:${rc};">${r}%</td></tr>`
                         }).join('')
-                        printPDF(`Monthly Report — ${d.name}`,`
+                        printPDF(`Monthly Report  -  ${d.name}`,`
                           <h1>Monthly Dealer Report Card</h1>
                           <div class="sub">${d.name} · Code: ${d.code}</div>
                           <div class="date">${month}</div>
@@ -2694,10 +3163,10 @@ function MasterDashboard({adminKey,onExit}) {
                           </table>`:''}
                           <h2>Top Objection Drilled</h2>
                           <div class="card blue"><div style="font-size:14px;font-weight:700;">${topScript}</div></div>
-                          ${acts.length>0?`<h2>Recent Activity</h2>${acts.slice(0,10).map(a=>`<div class="card"><div style="font-size:13px;font-weight:700;">${a.repName||'—'} <span style="color:${a.dept==='sales'?'#1a6bff':'#5ca800'}">[${(a.dept||'').toUpperCase()}]</span></div><div style="font-size:12px;color:#666;">${a.script||'—'} · ${a.timestamp?new Date(a.timestamp).toLocaleDateString():'—'}</div></div>`).join('')}`:''}
+                          ${acts.length>0?`<h2>Recent Activity</h2>${acts.slice(0,10).map(a=>`<div class="card"><div style="font-size:13px;font-weight:700;">${a.repName||' - '} <span style="color:${a.dept==='sales'?'#1a6bff':'#5ca800'}">[${(a.dept||'').toUpperCase()}]</span></div><div style="font-size:12px;color:#666;">${a.script||' - '}  -  ${a.timestamp?new Date(a.timestamp).toLocaleDateString():' - '}</div></div>`).join('')}`:''}
                         `)
                       }} style={{width:'100%',background:'linear-gradient(135deg,rgba(184,255,60,0.12),rgba(184,255,60,0.06))',border:'1px solid rgba(184,255,60,0.35)',color:C.green,fontFamily:fH,fontWeight:900,fontSize:13,letterSpacing:1,textTransform:'uppercase',padding:'11px 16px',borderRadius:8,cursor:'pointer',marginTop:12}}>
-                        📄 Pull Monthly Report — {d.name}
+                        📄 Pull Monthly Report  -  {d.name}
                       </button>
                     </div>
                   )}
@@ -2716,7 +3185,7 @@ function MasterDashboard({adminKey,onExit}) {
 }
 
 export default function App() {
-  // ── Admin mode detection — ?admin=KEY in URL ──────────────
+  // ── Admin mode detection  -  ?admin=KEY in URL ──────────────
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
@@ -2759,7 +3228,11 @@ export default function App() {
   }
 
   const handleScheduleChange = updated => { setSchedule(updated); saveJSON('5md-schedule',updated) }
-  const handleDrillNow  = script => { setPreloadDrill(script||'random'); setTab('drill') }
+  const handleDrillNow  = script => {
+    setPreloadDrill(script||'random')
+    setTab('drill')
+    // livePhase gets reset inside launch()  -  no action needed here
+  }
   const handleHuddleNow = script => { setPreloadHuddle(script); setTab('huddle') }
 
   const logResult = entry => {
@@ -2820,7 +3293,7 @@ export default function App() {
         {tab==='hub'     &&isMgr&&<ManagerHub/>}
       </div>
 
-      {/* Bottom nav — improved visibility */}
+      {/* Bottom nav  -  improved visibility */}
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:C.navyMid,borderTop:`1px solid ${C.border}`,display:'flex',zIndex:100}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:tab===t.id?'rgba(184,255,60,0.07)':'none',border:'none',borderTop:tab===t.id?`2px solid ${C.green}`:'2px solid transparent',padding:'10px 2px 8px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
