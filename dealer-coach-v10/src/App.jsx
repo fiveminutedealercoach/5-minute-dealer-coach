@@ -1099,7 +1099,6 @@ One coaching whisper:`}],
       setLiveRecording(false)
       setLiveStatus('Thinking...')
 
-      // Add rep turn to live transcript
       const updatedLive = [...liveTranscriptRef.current, { role: 'rep', text: repText }]
       setLiveTranscript(updatedLive)
       liveTranscriptRef.current = updatedLive
@@ -1114,78 +1113,132 @@ One coaching whisper:`}],
 
       const persona = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(activeS)
 
-      // ── Build proper messages array — NOT a concatenated string ──
-      // This is how the Claude API is designed to work for conversation
+      // ── DIFFICULTY MODIFIER ───────────────────────────────
       const diffMod = difficulty === 'easy'
-        ? 'This customer is tired of shopping and genuinely wants to find a reason to say yes. They are open to being helped. Small wins soften them quickly.'
+        ? 'This customer is worn out from shopping and wants to find a reason to say yes. They respond quickly to empathy and specific value.'
         : difficulty === 'hard'
-        ? 'This customer has been burned before and is highly resistant. They challenge everything. They need multiple earned moments before they budge. Be tougher than usual.'
+        ? 'This customer has been burned before and trusts nobody. They challenge every claim. Push back hard on anything generic.'
         : ''
 
-      const exchangeNum = updatedLive.filter(t => t.role === 'rep').length
-      const arcNote = exchangeNum <= 1
-        ? 'You are in full defensive mode. Hold your position completely. Do not budge at all.'
-        : exchangeNum === 2
-        ? 'You are still skeptical but something they said might have landed. Stay firm but show one small crack — a question or a slight pause in your resistance.'
-        : exchangeNum === 3
-        ? 'You are testing the rep now. Are they credible or just reciting a script? React to whether they actually addressed YOUR specific concern or just gave a generic answer.'
-        : exchangeNum === 4
-        ? 'If they have genuinely addressed your concern with something specific, you are starting to consider it. If they have been generic, you are disengaging.'
-        : 'This is your decision point. Either they earned it and you signal you are ready to move forward, or you firmly but politely disengage.'
+      // ── EMOTIONAL ARC — 5 states per persona ─────────────
+      const emotionalStates = {
+        dave:    ['Defensive and testing — want to see if they flinch at your number','Still skeptical — their answer was okay but you are not moving yet','Probing — ask one real question about what they claimed','Genuinely weighing it — their specific answer landed but you are not showing it','Decision — they either earned your trust or they did not'],
+        linda:   ['Guarded and closed — waiting for the pressure to start','Cautious — they seem different but you have heard that before','Slightly open — they actually listened and that surprised you','Cautiously curious — starting to consider but not showing it','Deciding — gut is either warming up or shutting down'],
+        mike:    ['Impatient — you want a number not a conversation','Frustrated — still no payment number','Slightly engaged — they mentioned payment structure','Calculating — running the math in your head','Ready to decide — give a payment that works or you walk'],
+        gary:    ['Defensive about your truck — you know what it is worth','Firm — they questioned your number and you are not backing down','Curious but stubborn — want to know how they got their figure','Thinking — maybe their data has merit but you will not say so','Final — either they respect the truck or you take it elsewhere'],
+        carol:   ['Skeptical — phone ready to compare prices','Probing — want to know exactly what each item covers','Genuinely curious about the warranty — had not thought of that','Warming up — the bundled pricing argument is not unreasonable','Deciding — value it or leave it'],
+        frank:   ['Flat skeptical — heard this before','Challenging — want proof not words','Testing — asking a real diagnostic question','Slightly persuaded — the evidence was harder to dismiss','Deciding — either believe them or you do not'],
+        barbara: ['Shocked — genuinely did not expect that number','Comparing out loud — cousin said half the price','Listening — want them to break it down line by line','Starting to understand — OEM parts argument making sense','Deciding — either value justifies it or call the cousin'],
+        ray:     ['Loyal — Tony earned fifteen years of trust','Defending Tony personally','Probing — what can the dealer do that Tony literally cannot','Genuinely considering — factory diagnostic point is hard to argue','Deciding — worth disrupting fifteen years of loyalty'],
+        susan:   ['Apologetic but firm — genuinely need to call husband','Still deferring — not comfortable approving alone','Asking a real question about one specific item','Warming up — if written clearly can discuss tonight','Deciding — equipped to talk to husband or not'],
+        tom:     ['Avoidant — everything can wait until next month','Deflecting — specific reason why now does not work','Paying attention — safety consequence actually worried you','Calculating — cost to fix now vs later','Deciding — urgency hit home or it did not'],
+      }
+      const states = emotionalStates[persona.id] || ['Defensive','Skeptical','Probing','Considering','Deciding']
+      const arcNote = states[Math.min(newExCount - 1, 4)]
 
-      const systemPrompt = `You are ${persona.name}. You are a real person at a dealership — not an actor, not a chatbot.
+      // ── WHAT YOU ALREADY SAID — prevent repetition ────────
+      const prevPersonaLines = updatedLive
+        .filter(t => t.role === 'customer')
+        .map((t, i) => `Exchange ${i+1}: "${t.text.substring(0,80)}"`)
+      const prevPhrasesNote = prevPersonaLines.length > 0
+        ? `
+PHRASES YOU ALREADY USED — never repeat these:
+${prevPersonaLines.join('
+')}`
+        : ''
+
+      // ── RESPONSE TYPE ROTATION ────────────────────────────
+      const responseTypes = [
+        'Challenge what they just said with a specific pushback.',
+        'Ask one genuine question — something you actually want to know.',
+        'Acknowledge one thing, then show your remaining concern.',
+        'Show a physical reaction — hesitate, reconsider out loud, then respond.',
+        'Reference something they said earlier in the conversation.',
+      ]
+      const responseTypeNote = responseTypes[(newExCount - 1) % responseTypes.length]
+
+      // ── SUB-OBJECTION AT EXCHANGE 3 ───────────────────────
+      const subObjNote = newExCount === 3
+        ? '
+At this exchange, if the rep addressed your main concern reasonably, reveal ONE secondary concern that has been in the back of your mind.'
+        : ''
+
+      // ── TOPIC DRIFT AT EXCHANGE 2 ─────────────────────────
+      const driftNote = newExCount === 2
+        ? '
+You may briefly mention something personal — a past experience, your schedule — before coming back to the main point.'
+        : ''
+
+      // ── FULL SYSTEM PROMPT ────────────────────────────────
+      const systemPrompt = `You are ${persona.name}. A real person at a car dealership — not a script, not an actor.
 
 WHO YOU ARE:
 ${persona.desc}
 
-YOUR SPEECH PATTERNS — use these naturally:
-${persona.phrases ? persona.phrases.map(p => `"${p}"`).join(', ') : 'Speak naturally with contractions and emotion.'}
+YOUR NATURAL SPEECH:
+${persona.phrases ? persona.phrases.map(p => `"${p}"`).join(' | ') : 'Use contractions, natural pauses, real emotion.'}
 
-WHAT MAKES YOU SOFTEN:
-${persona.softens || 'Genuine empathy combined with specific value — not generic reassurance.'}
+WHAT SOFTENS YOU:
+${persona.softens || 'Genuine empathy + specific value — not generic reassurance.'}
 
-YOUR CORE CONCERN:
+YOUR CONCERN:
 ${activeS.objection.replace(/"/g,'')}
 
-YOUR EMOTIONAL STATE RIGHT NOW (Exchange ${exchangeNum + 1} of 5):
+YOUR EMOTIONAL STATE (Exchange ${newExCount} of 5):
 ${arcNote}
 
-HOW TO HANDLE WHAT THE REP JUST SAID:
-- If they asked you a direct question: ANSWER IT honestly and naturally before returning to your concern. Real people answer questions. Ignoring a question is unnatural.
-- If they said something specific that actually addresses your concern: acknowledge it genuinely — "okay, that's actually a fair point" — then add your remaining hesitation.
-- If they gave you a generic response or sales pitch: push back with a specific follow-up. "That sounds like something you say to everyone."
-- If they mentioned something earlier in the conversation: reference it. "You said earlier that... so what does that mean for my situation?"
-- Around exchange 3: ask the rep ONE genuine question of your own. Real customers get curious. "Okay but how does that actually work?" or "What happens if it breaks in year two?"
-- Show physical reactions through language: "Hang on, let me think about that." / "Actually, wait." / "Okay hold on."
+YOUR APPROACH THIS EXCHANGE:
+${responseTypeNote}${subObjNote}${driftNote}${prevPhrasesNote}
 
-CONVERSATION RULES:
-- React to EXACTLY what was just said — not a generic version of the objection.
-- Never repeat your previous response word for word. This conversation is building.
-- 2-3 sentences maximum. Spoken language only. No bullet points, no lists.
-- Show real emotion — frustration, curiosity, surprise, skepticism. Let it come through.
-- Never use the salesperson's name.
-- Only add [CLOSE_EARNED] at exchange 3 or later, ONLY if the rep gave ALL THREE: genuine acknowledgment of your specific concern + concrete specific value that addressed it + a direct closing question. Two out of three is not enough.
-${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
+CONVERSATION INTELLIGENCE:
+- Direct question from rep: ANSWER IT first, then return to your concern. Real people do not dodge questions.
+- Rep said something specific and credible: acknowledge it — "okay that is actually fair" — then show remaining hesitation.
+- Rep gave a generic pitch: call it out — "That sounds like something you say to everyone. What does it mean for MY situation?"
+- Rep referenced something earlier: respond to that specific thing.
+- Exchange 3+: ask the rep one genuine question of your own. Real customers get curious.
+- Use filler language: "Hang on...", "Actually wait.", "Let me think...", "Okay but..."
+- Vary length: sometimes one sharp sentence, sometimes three. Not always two.
 
+HARD RULES:
+- React to what was SPECIFICALLY just said — never a generic version of your concern.
+- NEVER repeat a phrase you already used. This conversation is evolving.
+- 1-3 sentences max. Spoken language only. No lists.
+- Show emotion — frustration, curiosity, surprise. Let it land.
+- Never use the salesperson name.
+- [CLOSE_EARNED] only at exchange 3+, only when rep gave ALL THREE: acknowledged your specific concern by name + concrete specific value that addressed it + direct closing question. Two of three is not enough.
+${diffMod ? '
+DIFFICULTY: ' + diffMod : ''}`
+
+      // ── CLEAN CONVERSATION HISTORY ────────────────────────
       const convoMessages = []
-      let isFirst = true
-      for (const turn of updatedLive) {
+      const allTurns = updatedLive.filter(t => t.role === 'customer' || t.role === 'rep')
+      for (const turn of allTurns) {
         if (turn.role === 'customer') {
-          if (isFirst) {
-            // First customer turn is the setup for the conversation
-            convoMessages.push({ role: 'user', content: 'Start the conversation by stating your concern.' })
-            convoMessages.push({ role: 'assistant', content: turn.text })
-            isFirst = false
-          } else {
-            convoMessages.push({ role: 'assistant', content: turn.text })
-          }
+          convoMessages.push({ role: 'assistant', content: turn.text })
         } else {
-          // Rep turn
           convoMessages.push({ role: 'user', content: turn.text })
         }
       }
-      // Final instruction — tell Claude to respond as the customer
-      convoMessages.push({ role: 'user', content: 'Respond naturally as ' + persona.name + '. React to exactly what was just said. Do not repeat what you already said.' })
+      // Ensure last message is user turn with nudge
+      if (convoMessages.length > 0 && convoMessages[convoMessages.length-1].role === 'user') {
+        convoMessages[convoMessages.length-1].content += ' [Respond as ' + persona.name + ' — 1-3 natural sentences, never repeat what you already said]'
+      }
+
+      // ── FALLBACKS — 5 per persona, exchange-aware ─────────
+      const personaFallbackMap = {
+        dave:    ["Look, I still have that number on my phone. Two thousand less. What do I do with that?","That sounds like a standard dealer answer. Give me something specific to my situation.","I have been buying cars for twenty years. Just be straight with me.","Okay. One clear reason why I should pay more here. Not three vague ones.","I hear you. But I need the number to change or a reason it does not matter."],
+        linda:   ["I hear you. I am just not ready to decide anything today.","Why should this feel different from last time? Be honest with me.","You are doing better than most. But I have been surprised before.","I am not being difficult. I just need this to feel like my decision.","Honestly you seem genuine. Give me until tomorrow."],
+        mike:    ["What is the payment if I put three thousand down at sixty months?","If it is over four-fifty stop right there. That is my number.","Explain how the rate affects the payment. I do not follow that.","I think in payments. Show me one I can say yes to.","My last payment was three-eighty. That is my comfort zone."],
+        gary:    ["My neighbor sold his for twelve. Higher miles. Not as clean. Where is your number from?","Show me the comps. Real ones. Not a number you pulled out of nowhere.","I know what I put into this truck. Service records. No accidents. That counts.","If the market is where you say it is prove it to me with real data.","I am not giving it away. Show me you understand what this truck is worth."],
+        carol:   ["I just checked and it is ninety-eight dollars online. You are charging four hundred. Explain that.","What exactly does the warranty cover and for how long? Be specific.","Can I add this next month for the same price?","Which one item on that list would you tell your own family to get?","I am not saying no. I am saying I need to understand what I am paying for."],
+        frank:   ["That car has been running fine for nine years. Why should I believe you over the car?","Show me what you found. I want to see the actual thing not a description.","If I drive it as-is for three more months what realistically happens?","Is this actually urgent or can it wait? I need an honest answer.","Walk me through it before I approve anything."],
+        barbara: ["My cousin does this every day. He is not guessing. Break it down for me.","Go line by line. Parts first then labor.","Is OEM actually necessary for this repair or is that a choice you are making for me?","What if I supply the parts? Just the labor — what does that cost?","I came in expecting two hundred. I heard seven forty. I need this to make sense."],
+        ray:     ["Tony knows my car and my history. What can you give me that he actually cannot?","Walk me through factory diagnostics for my specific car. Not in general.","Tony stands behind his work without a warranty. What is actually different here?","Fifteen years is a long time. I would feel like I was going behind his back.","Show me one thing you can do that Tony genuinely cannot. What is it?"],
+        susan:   ["I just need five minutes with my husband. He will ask questions I cannot answer alone.","Can you write this up in plain language so I can show him tonight?","What is the one most important thing I should get approved today?","I do not want to say yes and then not be able to explain it to him later.","If I call him right now would you be willing to answer his questions directly?"],
+        tom:     ["Next month is genuinely better timing. Can you give me a quote to bring back?","That safety thing got my attention. Which item specifically could leave me stranded?","If I do the urgent one today can the rest wait without a chain reaction?","My wife is car just cost four hundred bucks. I am stretched right now.","Give me the realistic consequence of waiting sixty days. Not worst case. Realistic."],
+      }
+      const fallbackPool = personaFallbackMap[persona.id] || ["I hear you but I am not convinced yet.","Give me something specific to my situation.","That is a fair point but I still have questions.","Help me understand this better.","What does that mean in practice for me?"]
+      const getFallback = (exNum) => fallbackPool[(exNum - 1) % fallbackPool.length]
 
       const speakReply = (reply) => {
         const closeEarned = reply.includes('[CLOSE_EARNED]')
@@ -1199,11 +1252,15 @@ ${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
         setSpeaking(true)
         speak(clean, () => {
           setSpeaking(false)
+          setRecording(false)
+          recordingRef.current = false
           if (closeEarned) {
             endLiveDrill(activeS, liveTranscriptRef.current)
           } else {
             setLiveStatus('Your turn  -  speak your response')
-            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
+            setTranscript('')
+            accumulatedRef.current = ''
+            setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 800)
           }
         }, pVoice)
       }
@@ -1215,7 +1272,9 @@ ${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
           body: JSON.stringify({
             system: systemPrompt,
             messages: convoMessages,
-            max_tokens: 150
+            max_tokens: 250,
+            temperature: 0.85,
+            top_p: 0.95,
           })
         })
         const data = await res.json()
@@ -1223,19 +1282,11 @@ ${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
         if (!rawReply || rawReply.length < 5) throw new Error('Empty response')
         speakReply(rawReply)
       } catch(e) {
-        // Persona-specific fallbacks that advance the conversation
-        const fallbacks = [
-          'Look, I hear you, but I am still not convinced this is the right move for me right now.',
-          'You are going to have to do better than that if you want my business.',
-          'I have heard that before. What makes your situation actually different?',
-          'I appreciate it but I still have my concerns.',
-          'Let me think about that for a second... okay but what about the price though?'
-        ]
-        speakReply(fallbacks[newExCount % fallbacks.length])
+        speakReply(getFallback(newExCount))
       }
       return
     }
-    // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
+        // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
     const newEx = exchange+1; setExchange(newEx)
     const updatedTranscripts = [...allTranscripts, transcript]
     setAllTranscripts(updatedTranscripts)
