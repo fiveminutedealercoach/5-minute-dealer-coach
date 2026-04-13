@@ -1156,14 +1156,12 @@ One coaching whisper:`}],
 
       // ── SUB-OBJECTION AT EXCHANGE 3 ───────────────────────
       const subObjNote = newExCount === 3
-        ? '
-At this exchange, if the rep addressed your main concern reasonably, reveal ONE secondary concern that has been in the back of your mind.'
+        ? '\nAt this exchange, if the rep addressed your main concern reasonably, reveal ONE secondary concern that has been in the back of your mind.'
         : ''
 
       // ── TOPIC DRIFT AT EXCHANGE 2 ─────────────────────────
       const driftNote = newExCount === 2
-        ? '
-You may briefly mention something personal — a past experience, your schedule — before coming back to the main point.'
+        ? '\nYou may briefly mention something personal — a past experience, your schedule — before coming back to the main point.'
         : ''
 
       // ── FULL SYSTEM PROMPT ────────────────────────────────
@@ -1203,8 +1201,7 @@ HARD RULES:
 - Show emotion — frustration, curiosity, surprise. Let it land.
 - Never use the salesperson name.
 - [CLOSE_EARNED] only at exchange 3+, only when rep gave ALL THREE: acknowledged your specific concern by name + concrete specific value that addressed it + direct closing question. Two of three is not enough.
-${diffMod ? '
-DIFFICULTY: ' + diffMod : ''}`
+      ${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
 
       // ── CLEAN CONVERSATION HISTORY ────────────────────────
       const convoMessages = []
