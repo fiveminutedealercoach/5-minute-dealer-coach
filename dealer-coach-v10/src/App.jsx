@@ -1141,10 +1141,7 @@ One coaching whisper:`}],
         .filter(t => t.role === 'customer')
         .map((t, i) => `Exchange ${i+1}: "${t.text.substring(0,80)}"`)
       const prevPhrasesNote = prevPersonaLines.length > 0
-        ? `
-PHRASES YOU ALREADY USED — never repeat these:
-${prevPersonaLines.join('
-')}`
+        ? ('\nPHRASES YOU ALREADY USED — never repeat these:\n' + prevPersonaLines.join('\n'))
         : ''
 
       // ── RESPONSE TYPE ROTATION ────────────────────────────
