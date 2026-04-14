@@ -1583,7 +1583,6 @@ ${diffMod ? '\n' + diffMod : ''}`
       }
       return
     }
-    }
         // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
     const newEx = exchange+1; setExchange(newEx)
     const updatedTranscripts = [...allTranscripts, transcript]
