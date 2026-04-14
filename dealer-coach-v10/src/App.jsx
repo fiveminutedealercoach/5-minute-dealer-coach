@@ -812,13 +812,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
   const [teamDrillScores,setTeamDrillScores] = useState([])             // item 15: team drill
   const [patternInsight,setPatternInsight] = useState(null)             // item 14: patterns
-  const [lastDrillTranscript,setLastDrillTranscript] = useState(null)  // item 11: comparison
-  const [prevDrillData,setPrevDrillData] = useState(null)               // item 11: comparison
-  const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
   const [adaptiveDiff,setAdaptiveDiff] = useState(null)                 // item 13: adaptive
-  const [patternInsight,setPatternInsight] = useState(null)             // item 14: patterns
   const [teamDrillMode,setTeamDrillMode] = useState(false)              // item 15: team drill
-  const [teamDrillScores,setTeamDrillScores] = useState([])             // item 15: team scores
   const recRef         = useRef(null)
   const accumulatedRef = useRef('')   // tracks speech across browser restarts
   const recordingRef   = useRef(false) // ref so closures read current value
