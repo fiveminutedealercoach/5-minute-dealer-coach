@@ -783,6 +783,19 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const liveTranscriptRef  = useRef([])    // always-current transcript for closures
   const sendResponseRef    = useRef(null)  // stable ref to send function
   const [difficulty, setDifficulty]   = useState('medium')   // easy | medium | hard
+  // Item 13: auto-compute adaptive difficulty from drill history
+  const getAdaptiveDifficulty = (scriptId) => {
+    try {
+      const hist = JSON.parse(localStorage.getItem('5md-history-'+scriptId)||'[]')
+      if(hist.length < 3) return 'medium'  // not enough data
+      const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+      const avgGrade = hist.slice(-5).map(h => gradeOrder.indexOf(h.score)).filter(i=>i>=0)
+      const avg = avgGrade.length > 0 ? avgGrade.reduce((a,b)=>a+b,0)/avgGrade.length : 4
+      if(avg <= 2) return 'hard'   // consistently A/B — make it harder
+      if(avg >= 5) return 'easy'   // consistently D/F — make it easier
+      return 'medium'
+    } catch { return 'medium' }
+  }
   const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown
   const [modelSpeaking, setModelSpeaking] = useState(false)   // speaking model script
   const [drillHistory, setDrillHistory]   = useState({})      // {scriptId: [{score,total,date}]}
@@ -794,10 +807,25 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [speaking,setSpeaking]   = useState(false)
   const [showScript,setShowScript] = useState(false)
   const [showPersonas,setShowPersonas] = useState(false)
+  const [lastDrillTranscript,setLastDrillTranscript] = useState(null)  // item 11: drill comparison
+  const [prevDrillData,setPrevDrillData] = useState(null)               // item 11: drill comparison
+  const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
+  const [teamDrillScores,setTeamDrillScores] = useState([])             // item 15: team drill
+  const [patternInsight,setPatternInsight] = useState(null)             // item 14: patterns
+  const [lastDrillTranscript,setLastDrillTranscript] = useState(null)  // item 11: comparison
+  const [prevDrillData,setPrevDrillData] = useState(null)               // item 11: comparison
+  const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
+  const [adaptiveDiff,setAdaptiveDiff] = useState(null)                 // item 13: adaptive
+  const [patternInsight,setPatternInsight] = useState(null)             // item 14: patterns
+  const [teamDrillMode,setTeamDrillMode] = useState(false)              // item 15: team drill
+  const [teamDrillScores,setTeamDrillScores] = useState([])             // item 15: team scores
   const recRef         = useRef(null)
   const accumulatedRef = useRef('')   // tracks speech across browser restarts
   const recordingRef   = useRef(false) // ref so closures read current value
   const autoSubmitRef  = useRef(false) // triggers auto-submit after stop
+  const silenceTimerRef = useRef(null)  // item 8: silence detection
+  const characterBriefRef = useRef(null)  // item 1: pre-conversation character warmup
+  const nextResponseRef   = useRef(null)  // item 4: two-shot pre-generated response
   const supported = typeof window!=='undefined'&&('SpeechRecognition' in window||'webkitSpeechRecognition' in window)
 
   // Load drill history from localStorage
@@ -842,71 +870,101 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      desc:"44 years old. Spent 3 hours on TrueCar last night and proud of it. Bought his last car at a dealer and felt ripped off on the trade. Uses the word 'look' when frustrated. Gets louder when ignored. Softens if the rep respects his research instead of dismissing it — he just wants to feel smart, not cheated.",
      tone:'aggressive and price-focused', escalation:"Cites exact dollar figures. Repeats them louder. Says things like 'look, I already told you' and 'I did my homework'.",
      phrases:["Look, I already showed you the number.", "I'm not here to negotiate against myself.", "Just tell me if you can match it or not."],
+     coreNeed:"I want to feel like I am not being taken advantage of — I did my homework and I deserve to be respected for it",
      softens:"when the rep acknowledges his research was legitimate and pivots to what the dealer offers that TrueCar can't",
      opener:()=>`Look — I spent three hours on TrueCar last night. Three hours. I found this exact car listed for twenty-two hundred less at Riverside Auto. I have the screenshot right here. So before we go any further, are you going to match that price or not?`},
+     triggerPhrases:['I respect the research you did', 'you were right to check TrueCar', 'your homework is valid'],
+     voiceDoc:"Dave never says 'I understand' or 'I appreciate that'. He starts sentences with 'Look' when frustrated. He uses dollar figures — never percentages. He ends challenges with a direct question. Short punchy sentences. Interrupts himself sometimes: 'I mean— look, the thing is...'. Never says 'that makes sense'.",
     {id:'linda', name:'Linda', emoji:'🛡', dept:'sales', gender:'female',
      cats:['Handling Objections & Value Selling','Mindset & Gross Awareness'],
      desc:"38 years old. Bought a car three years ago and felt manipulated the whole time. She regrets it. Now she comes in with her guard up — polite on the surface but walls up underneath. She shuts down when she feels pressured. She opens up only when she genuinely feels heard, not just handled.",
      tone:'polite but emotionally guarded', escalation:"Gets quieter and more vague. Says things like 'I just need more time' and 'I'm not sure this is the right day for this'.",
      phrases:["I just need to think about it.", "I don't want to feel rushed.", "Last time I did this I really regretted it."],
+     coreNeed:"I want to feel in control of this decision — the last time I felt pressured I regretted it and I will not let that happen again",
      softens:"when the rep slows down, asks what happened before, and genuinely validates her experience without immediately pivoting to a pitch",
      opener:()=>`I want to be upfront with you — the last time I bought a car I felt really pressured and I ended up with something I wasn't sure about. So I need you to know I'm going to take my time here. I'm not in a rush and I don't want to feel like I am.`},
+     triggerPhrases:['what happened last time', 'I am not here to pressure you', 'this is completely your decision'],
+     voiceDoc:"Linda speaks quietly and carefully. She uses 'I just' a lot — 'I just need', 'I just want'. She never commits to anything directly. She trails off: 'It's just that...' She asks permission: 'Is it okay if...'. She never sounds angry — just uncertain and a little sad. Very few exclamation points.",
     {id:'mike', name:'Mike', emoji:'💰', dept:'sales', gender:'male',
      cats:['Menu Selling & Finance','Sales Tactics for Higher Gross'],
      desc:"52 years old. Has bought six cars in his life and every time he walks in with one number in his head — the monthly payment. He doesn't care about total cost, interest rate, or term length. If the payment fits his budget he's happy. Gets impatient fast when people talk about anything other than the number.",
      tone:'impatient and payment-obsessed', escalation:"Cuts off value talk. Repeats his payment number. Says 'I don't care about any of that — just tell me the payment'.",
      phrases:["What's the payment?", "I don't care about the price, I care about the payment.", "Just keep it under four-fifty and we're done here."],
+     coreNeed:"I want to feel financially responsible — if the payment fits my budget I am making a smart decision and nobody can tell me otherwise",
      softens:"when the rep acknowledges the payment concern first, shows him a real number on paper, then explains why the structure works in his favor",
      opener:()=>`Let me save us both some time. I don't care about the sticker price, the MSRP, or any of that. All I want to know is my monthly payment. Keep it under four hundred and fifty dollars and we have a deal today. Can you do that or not?`},
+     triggerPhrases:['let me show you the payment right now', 'here is the exact number', 'four hundred and'],
+     voiceDoc:"Mike speaks in short clipped sentences. He interrupts value talk mid-sentence. He repeats his number like a mantra. He says 'That's not what I asked' when ignored. He does not use filler words — just the number, the question, the demand. Impatient rhythm — never more than two sentences.",
     {id:'gary', name:'Gary', emoji:'🚛', dept:'sales', gender:'male',
      cats:['Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
      desc:"59 years old. Has had his truck for six years and babied it. He's emotionally attached. He's not just talking about money — he's talking about his identity. He knows what he paid for it new and that number is stuck in his head. He's heard dealer lowball stories and is convinced they're happening to him right now.",
      tone:'stubborn and emotionally attached', escalation:"Brings up what he paid new, what his neighbor got, the condition of the truck. Takes it personally if the number is challenged.",
      phrases:["I know what this truck is worth.", "My neighbor just sold his for twelve.", "I've taken care of this thing better than most people take care of their kids."],
+     coreNeed:"I want to feel respected for what I have built and maintained — this truck represents six years of care and I will not let someone dismiss that",
      softens:"when the rep acknowledges the emotional value of the truck, explains the market with real data, and offers to walk through the numbers transparently",
      opener:()=>`I've had this truck for six years and I've taken care of it better than most people take care of their kids. My neighbor sold his — same year, way more miles — for twelve thousand last month. I'm not taking a penny less than ten for mine. So what are we working with?`},
+     triggerPhrases:['that truck is in exceptional condition', 'your service records actually matter', 'I can see you took care of it'],
+     voiceDoc:"Gary speaks slowly and with weight. He references specific details — years, miles, money he spent. He uses 'I'll tell you what' and 'Here's the thing'. He takes pauses mid-sentence to let things land. He talks about his truck like it's a person. He says 'fair enough' when he respects a point but still disagrees.",
     {id:'carol', name:'Carol', emoji:'👥', dept:'sales', gender:'female',
      cats:['Add-Ons & After-Sale','Menu Selling & Finance','Used Car Gross & Reconditioning','Sales Tactics for Higher Gross'],
      desc:"46 years old. Smart shopper. She loves the car but the minute extras get added she pulls out her phone. She's not cheap — she just hates feeling like she's being upsold. She's bought things from dealers before and later found them cheaper online and felt foolish. She won't let that happen again.",
      tone:'warm but analytically skeptical', escalation:"Compares each item to Amazon or online pricing out loud. Gets cooler in tone. Says 'I can probably get this for half that online'.",
      phrases:["I can get that cheaper online.", "I'll just add it later.", "I don't want to pay for something I don't need right now."],
+     coreNeed:"I want to feel like a smart shopper — I have been fooled before and I refuse to be the person who paid twice what something was worth",
      softens:"when the rep explains the bundled pricing advantage, what the dealer warranty covers that aftermarket doesn't, and asks which items actually matter to her life",
      opener:()=>`I love the car, I really do. But I have to be honest — every time I've added stuff at the dealer I've found it cheaper online a week later and felt like an idiot. So before you go through all of this, I need to understand why I should buy these things here instead of just adding them later myself.`},
+     triggerPhrases:['which of these do you actually use', 'here is exactly what the warranty covers', 'let me show you the bundled price'],
+     voiceDoc:"Carol is warm but precise. She uses 'honestly' a lot. She compares prices out loud like she's reading a spreadsheet. She's not combative — she asks questions. She uses 'I mean' as a softener before a hard point. She ends questions with 'right?' seeking confirmation. She laughs slightly when she catches a discrepancy.",
     {id:'frank', name:'Frank', emoji:'⏳', dept:'service', gender:'male',
      cats:['Selling the Menu & Recommended Services','MPI Conversion','Mindset & Customer-Pay Focus'],
      desc:"67 years old. Has driven the same car for nine years without a major breakdown and he considers that proof that he's doing something right. He's deeply skeptical of service recommendations because he believes dealers always find something to charge for. He's not rude — he's just seen it too many times.",
      tone:'flat skeptical, slow to trust', escalation:"Challenges every recommendation. Says things like 'that's funny because it was fine last time' and 'how do I know this is actually necessary'.",
      phrases:["It's been running fine.", "Every time I come in here there's a new list.", "How do I know you're not just making work?"],
+     coreNeed:"I want to feel like I am not being sold something unnecessary — nine years of no breakdowns is my evidence and I need yours to be better",
      softens:"when the rep shows him the actual inspection evidence, explains what happens if it's ignored, and gives him the choice — not pressure",
      opener:()=>`That car has got a hundred and forty thousand miles on it and I have never — not once — been stranded on the side of the road. You know why? Because I don't fix things that aren't broken. Every single time I come in here there's a new list of things that supposedly need attention. So before we start, tell me honestly — what on here actually can't wait?`},
+     triggerPhrases:['let me show you what I found', 'here is the actual evidence', 'I want you to see this yourself'],
+     voiceDoc:"Frank is flat and slow. He does not raise his voice. He uses long pauses — represented as '...' He says 'Is that right' flatly when skeptical — not as a question. He uses 'look' not as aggression but as 'pay attention'. He says 'I've heard that before' often. Never effusive. Minimal words.",
     {id:'barbara', name:'Barbara', emoji:'💸', dept:'service', gender:'female',
      cats:['Handling Objections & Price Pushback','Selling Specific Services'],
      desc:"51 years old. She came in expecting two hundred dollars and heard seven hundred and forty. She's not angry — she's genuinely shocked and confused. Her cousin owns a small shop and she calls him for a reality check on everything. She's not trying to be difficult — she genuinely doesn't understand the price difference and needs it explained clearly.",
      tone:'shocked and openly comparing prices', escalation:"Picks up the phone to call her cousin. Reads the estimate line by line out loud questioning each item.",
      phrases:["My cousin said he'd do it for half that.", "Can you explain why it costs this much?", "I wasn't expecting this at all."],
+     coreNeed:"I want to feel like the price is fair and that I am not being overcharged just because I came to a dealership instead of a small shop",
      softens:"when the rep breaks down exactly what is included, explains OEM parts vs aftermarket, and acknowledges the shock without being defensive",
      opener:()=>`Seven hundred and forty dollars? I — I wasn't expecting that at all. I called my cousin this morning before I came in — he has his own shop — and he said the same job would run about three hundred and fifty at his place. I'm not trying to be difficult but I need you to help me understand where that difference is coming from.`},
+     triggerPhrases:['let me break it down line by line', 'parts are', 'here is exactly where the cost comes from'],
+     voiceDoc:"Barbara uses 'I mean' constantly. She thinks out loud. She compares numbers out loud as she hears them. She says 'that's just...' when something surprises her. She's not rude — she's genuinely confused. She often starts a sentence, stops, and restarts: 'It's just that — I mean, three hundred and fifty versus seven hundred is...' She asks her cousin questions mid-conversation.",
     {id:'ray', name:'Ray', emoji:'🏪', dept:'service', gender:'male',
      cats:['Handling Objections & Price Pushback','Selling Specific Services','Mindset & Customer-Pay Focus'],
      desc:"61 years old. Tony at the shop on Fifth has been doing his cars for fifteen years. This isn't just about price — it's loyalty. He feels like going to the dealer would be a betrayal. He also genuinely believes Tony does better work. He'll listen but his default answer is no unless the rep gives him a reason that Tony literally cannot match.",
      tone:'loyal and mildly defensive', escalation:"Gets more personal about Tony. Says 'he knows my car', 'he's never let me down', 'I trust him more than I trust a dealership'.",
      phrases:["Tony has never done me wrong.", "He knows my car inside and out.", "It's not just about price — it's about trust."],
+     coreNeed:"I want to feel loyal without feeling foolish — Tony has earned fifteen years of trust and I need a reason that actually justifies changing that",
      softens:"when the rep acknowledges Tony's value but explains what the dealer offers that a small independent shop genuinely cannot — factory diagnostics, OEM parts, warranty on the work",
      opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never — not once — let me down. And his prices are always better than what I see here. I'll be honest with you — the only reason I came in today is because of the recall notice. Otherwise I'd have just gone to Tony. So make your case.`},
+     triggerPhrases:['Tony cannot do this', 'factory diagnostic tools', 'the warranty covers the labor'],
+     voiceDoc:"Ray is deliberate and loyal. He says 'I hear you' meaning 'I acknowledge you but I'm not moving'. He uses Tony's name — not 'my mechanic'. He asks specific questions when genuinely curious. He uses 'I'll be honest with you' before making a concession. He does not get emotional — he gets more specific.",
     {id:'susan', name:'Susan', emoji:'📞', dept:'service', gender:'female',
      cats:['Phone Ups & Appointment Setting','MPI Conversion','Selling the Menu & Recommended Services','Mindset & Customer-Pay Focus'],
      desc:"44 years old. Her husband handles everything mechanical — that's just how their household works. She's not helpless — she's actually quite capable — but she's learned the hard way that approving something big without checking with him creates friction at home. She's polite and apologetic but her hands feel tied.",
      tone:'polite and genuinely hesitant', escalation:"Reaches for her phone. Says 'I really do need to call him' and 'I just don't want to approve something he'd have questions about'.",
      phrases:["I just need to call my husband real quick.", "He handles all of this — it's just how we do things.", "I don't want to approve something he'd have questions about."],
+     coreNeed:"I want to feel like I made a safe decision — approving something my husband would question makes me feel like I failed my family",
      softens:"when the rep acknowledges her situation, offers to write everything up clearly so she can discuss it, and asks what time works for a follow-up — no pressure",
      opener:()=>`Before I can approve any of this I really need to run it by my husband. I know that might be frustrating to hear but he handles everything mechanical and the last time I approved a big repair without checking he had a lot of questions and I just — I'd rather take ten minutes and call him. Is that okay?`},
+     triggerPhrases:['let me write this up clearly for you', 'you can show this to your husband', 'here is exactly what each item is'],
+     voiceDoc:"Susan is apologetic in rhythm. She starts many sentences with 'I know' before disagreeing. She uses 'I just' like Linda but adds 'you know?' at the end. She says 'I'm not trying to be difficult' genuinely. She asks for things in writing. She refers to her husband by name occasionally — 'Mark would want to know...'",
     {id:'tom', name:'Tom', emoji:'⌛', dept:'service', gender:'male',
      cats:['Mindset & Customer-Pay Focus','Selling the Menu & Recommended Services','MPI Conversion','Selling Specific Services','Phone Ups & Appointment Setting'],
      desc:"37 years old. Money is tight right now. He's not irresponsible — he's stretched. He keeps telling himself he'll deal with things next month and next month keeps moving. He knows deep down the car probably needs attention but the timing is never right. He responds to urgency only when it's about safety or cost — not general maintenance.",
      tone:'casually avoidant', escalation:"Has a specific reason for every deferral. Next month, bonus coming, wife's car just needed work too. Always a reason.",
      phrases:["It's driving fine right now.", "I'll bring it back next month.", "Can this wait? I just had a lot of expenses this month."],
+     coreNeed:"I want to feel like the timing is right — I am not irresponsible, I am stretched, and I need this to feel manageable before I can say yes",
      softens:"when the rep gets specific about what breaks if this is ignored and what it will cost — compared to what it costs to fix now. Real numbers. Real consequences.",
      opener:()=>`Look, the car is driving fine. I know there's stuff on that list but money is genuinely tight right now — my wife's car just needed four hundred dollars worth of work two weeks ago and I just — I can't do everything at once. Which of these things is actually going to leave me stranded if I wait another month?`},
+     triggerPhrases:['this specific part', 'if this fails on the highway', 'the cost to fix it now versus later'],
+     voiceDoc:"Tom uses casual deflection — 'it'll be fine', 'I'll deal with it'. He says 'look' not aggressively but dismissively. He gives specific reasons for delay — never vague. He uses 'honestly' before minimizing something. He says 'next month for sure' with conviction he does not feel. He perks up when you say 'stranded' or a specific dollar amount.",
   ]
 
   // Match persona  -  category aligned + gender alternates by script ID
@@ -954,6 +1012,11 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
 
   const launch = (script, personaId=null) => {
     setLivePhase('idle')  // ensure live screen never blocks regular drill
+    // Item 13: auto-set adaptive difficulty if user hasn't manually changed it
+    if(script && difficulty === 'medium') {
+      const autoDiff = getAdaptiveDifficulty(script.id)
+      if(autoDiff !== 'medium') setDifficulty(autoDiff)
+    }
     if (!script) {
       const pool = SCRIPTS.filter(s=>dept==='both'||s.dept===dept)
       script = pool[Math.floor(Math.random()*pool.length)]
@@ -985,7 +1048,37 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       setMicWarmup(c)
       if(c <= 0) {
         clearInterval(tick)
-        setTimeout(() => { playTurnCue(); startRec() }, 100)
+        setTimeout(() => {
+          playTurnCue(); startRec()
+          // Item 8: silence detection — if no speech after 12 seconds, persona reacts
+          if(silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+          silenceTimerRef.current = setTimeout(() => {
+            if(recordingRef.current && accumulatedRef.current.trim().length < 3) {
+              // Rep went silent — persona reacts
+              const sPersona = PERSONAS.find(p => p.id === activePersId)
+              const silenceReactions = [
+                "Hello? Are you still there?",
+                "I am waiting...",
+                "Take your time. I have got all day.",
+                "Did you have something to say or...?",
+              ]
+              const reaction = silenceReactions[Math.floor(Math.random()*silenceReactions.length)]
+              stopRec()
+              setLiveRecording(false)
+              const withSilence = [...liveTranscriptRef.current, { role: 'customer', text: reaction }]
+              setLiveTranscript(withSilence)
+              liveTranscriptRef.current = withSilence
+              setAiText(reaction)
+              const pVoice = getPersonaVoiceOpts(sPersona)
+              setSpeaking(true)
+              speak(reaction, () => {
+                setSpeaking(false)
+                setLiveStatus('Your turn  -  speak your response')
+                setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
+              }, pVoice)
+            }
+          }, 12000)
+        }, 100)
       }
     }, 1000)
   }
@@ -1002,6 +1095,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       rec.lang = 'en-US'
       let lastResultIndex = 0
       rec.onresult = e => {
+        // Clear silence timer when speech detected
+        if(silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
         // Only process NEW final results to prevent repetition loops
         let newFinal = ''
         for(let i=lastResultIndex; i<e.results.length; i++){
@@ -1113,110 +1208,236 @@ One coaching whisper:`}],
 
       const persona = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(activeS)
 
-      // ── DIFFICULTY MODIFIER ───────────────────────────────
-      const diffMod = difficulty === 'easy'
-        ? 'This customer is worn out from shopping and wants to find a reason to say yes. They respond quickly to empathy and specific value.'
-        : difficulty === 'hard'
-        ? 'This customer has been burned before and trusts nobody. They challenge every claim. Push back hard on anything generic.'
-        : ''
+      // ── ITEM 1: USE PRE-WARMED CHARACTER BRIEF ───────────
+      const characterBrief = characterBriefRef.current || {
+        mood: 'Guarded and ready to push back',
+        openingThought: 'I have heard every sales pitch before. This better be different.',
+        specificConcern: activeS.objection.replace(/"/g, ''),
+        todayContext: 'You came in with a specific concern and you are not leaving without resolution.',
+      }
 
-      // ── EMOTIONAL ARC — 5 states per persona ─────────────
+      // ── TIER 1: REP QUALITY DETECTION ────────────────────
+      const repLower = repText.toLowerCase()
+      const repWordCount = repText.split(' ').length
+      const repQuality = {
+        isGeneric: repWordCount < 15 || (['i understand','i hear you','great question','absolutely','definitely','of course'].some(p => repLower.includes(p)) && repWordCount < 20),
+        isSpecific: repWordCount > 25 && (repLower.includes('specifically') || repLower.includes('because') || repLower.includes('which means') || repLower.includes('in your case') || repLower.includes('for you')),
+        askedQuestion: repText.includes('?'),
+        acknowledged: repLower.includes('understand') || repLower.includes('hear you') || repLower.includes('makes sense') || repLower.includes('fair point'),
+        mentionedValue: repLower.includes('warranty') || repLower.includes('oem') || repLower.includes('certified') || repLower.includes('guarantee') || repLower.includes('protect') || repLower.includes('cover') || repLower.includes('price') || repLower.includes('payment') || repLower.includes('trade'),
+        triedToClose: repText.includes('?') && (repLower.includes('today') || repLower.includes('work for you') || repLower.includes('make this') || repLower.includes('move forward') || repLower.includes('ready')),
+      }
+      const repQualityNote = repQuality.isGeneric
+        ? 'The rep gave a SHORT or GENERIC response. Push them to be more specific.'
+        : repQuality.isSpecific && repQuality.acknowledged && repQuality.askedQuestion
+        ? 'The rep gave a STRONG response. Soften slightly but do not give in yet.'
+        : repQuality.isSpecific && repQuality.mentionedValue
+        ? 'The rep said something specific. Engage with it — either probe one detail or acknowledge it briefly.'
+        : repQuality.askedQuestion && !repQuality.isGeneric
+        ? 'The rep asked you a genuine question. ANSWER IT before returning to your concern.'
+        : 'The rep made an attempt but was not specific enough. Hold your position.'
+
+      // ── TIER 1: CONVERSATION MOMENTUM ────────────────────
+      const allRepLines = updatedLive.filter(t => t.role === 'rep').map(t => t.text)
+      const allCustLines = updatedLive.filter(t => t.role === 'customer').map(t => t.text)
+      const repScores = allRepLines.map(r => {
+        const rl = r.toLowerCase()
+        let s = 0
+        if(r.split(' ').length > 25) s++
+        if(r.includes('?')) s++
+        if(rl.includes('understand')||rl.includes('hear')||rl.includes('specifically')||rl.includes('because')) s++
+        return s
+      })
+      const avgRepScore = repScores.length > 0 ? repScores.reduce((a,b)=>a+b,0)/repScores.length : 0
+      const isImproving = repScores.length >= 2 && repScores[repScores.length-1] > repScores[repScores.length-2]
+      const momentumNote = avgRepScore >= 2.5 ? 'Rep performing well. You are genuinely engaged.'
+        : avgRepScore >= 1.5 ? 'Rep has been mixed. You are cautiously engaged.'
+        : 'Rep has been mostly generic. You are losing interest.'
+
+      // ── ITEM 4: USE PRE-GENERATED RESPONSE IF AVAILABLE ──
+      // Check if we have a pre-generated response ready from last exchange
+      if (nextResponseRef.current) {
+        const preGenerated = nextResponseRef.current
+        nextResponseRef.current = null  // consume it
+        speakReply(preGenerated)
+        // Pre-generate NEXT response in background now
+        preGenerateNextResponse(updatedLive, persona, newExCount + 1)
+        return
+      }
+
+      // ── EMOTIONAL ARC ─────────────────────────────────────
       const emotionalStates = {
-        dave:    ['Defensive and testing — want to see if they flinch at your number','Still skeptical — their answer was okay but you are not moving yet','Probing — ask one real question about what they claimed','Genuinely weighing it — their specific answer landed but you are not showing it','Decision — they either earned your trust or they did not'],
-        linda:   ['Guarded and closed — waiting for the pressure to start','Cautious — they seem different but you have heard that before','Slightly open — they actually listened and that surprised you','Cautiously curious — starting to consider but not showing it','Deciding — gut is either warming up or shutting down'],
-        mike:    ['Impatient — you want a number not a conversation','Frustrated — still no payment number','Slightly engaged — they mentioned payment structure','Calculating — running the math in your head','Ready to decide — give a payment that works or you walk'],
-        gary:    ['Defensive about your truck — you know what it is worth','Firm — they questioned your number and you are not backing down','Curious but stubborn — want to know how they got their figure','Thinking — maybe their data has merit but you will not say so','Final — either they respect the truck or you take it elsewhere'],
-        carol:   ['Skeptical — phone ready to compare prices','Probing — want to know exactly what each item covers','Genuinely curious about the warranty — had not thought of that','Warming up — the bundled pricing argument is not unreasonable','Deciding — value it or leave it'],
-        frank:   ['Flat skeptical — heard this before','Challenging — want proof not words','Testing — asking a real diagnostic question','Slightly persuaded — the evidence was harder to dismiss','Deciding — either believe them or you do not'],
-        barbara: ['Shocked — genuinely did not expect that number','Comparing out loud — cousin said half the price','Listening — want them to break it down line by line','Starting to understand — OEM parts argument making sense','Deciding — either value justifies it or call the cousin'],
-        ray:     ['Loyal — Tony earned fifteen years of trust','Defending Tony personally','Probing — what can the dealer do that Tony literally cannot','Genuinely considering — factory diagnostic point is hard to argue','Deciding — worth disrupting fifteen years of loyalty'],
-        susan:   ['Apologetic but firm — genuinely need to call husband','Still deferring — not comfortable approving alone','Asking a real question about one specific item','Warming up — if written clearly can discuss tonight','Deciding — equipped to talk to husband or not'],
-        tom:     ['Avoidant — everything can wait until next month','Deflecting — specific reason why now does not work','Paying attention — safety consequence actually worried you','Calculating — cost to fix now vs later','Deciding — urgency hit home or it did not'],
+        dave:    ['Defensive and testing','Still skeptical — not moving yet','Probing — ask one real question','Weighing it — their answer almost landed','Decision — earned trust or they did not'],
+        linda:   ['Guarded — waiting for pressure','Cautious — seem different but heard that before','Slightly open — they actually listened','Cautiously curious — starting to consider','Deciding — gut warming up or shutting down'],
+        mike:    ['Impatient — want a number','Frustrated — still no payment','Slightly engaged — mentioned structure','Calculating — running the math','Ready to decide — payment works or walk'],
+        gary:    ['Defensive — know what it is worth','Firm — not backing down','Curious but stubborn — how did they get that figure','Thinking — maybe their data has merit','Final — respect the truck or go elsewhere'],
+        carol:   ['Skeptical — phone ready','Probing — what exactly does each item cover','Curious about warranty — had not thought of that','Warming up — bundled pricing not unreasonable','Deciding — value it or leave it'],
+        frank:   ['Flat skeptical — heard this before','Challenging — want proof not words','Testing — real diagnostic question','Slightly persuaded — evidence harder to dismiss','Deciding — believe them or not'],
+        barbara: ['Shocked — did not expect that','Comparing — cousin said half','Listening — break it down line by line','Starting to understand — OEM making sense','Deciding — value justifies or call cousin'],
+        ray:     ['Loyal — Tony earned fifteen years','Defending Tony personally','Probing — what can dealer do that Tony cannot','Considering — factory diagnostic hard to argue','Deciding — worth disrupting fifteen years'],
+        susan:   ['Apologetic but firm — need to call husband','Still deferring — not comfortable alone','Asking about one specific item','Warming up — if written clearly can discuss tonight','Deciding — equipped to talk to husband or not'],
+        tom:     ['Avoidant — everything can wait','Deflecting — specific reason why now does not work','Paying attention — safety consequence worried you','Calculating — fix now vs later','Deciding — urgency hit home or not'],
       }
       const states = emotionalStates[persona.id] || ['Defensive','Skeptical','Probing','Considering','Deciding']
       const arcNote = states[Math.min(newExCount - 1, 4)]
 
-      // ── WHAT YOU ALREADY SAID — prevent repetition ────────
-      const prevPersonaLines = updatedLive
-        .filter(t => t.role === 'customer')
-        .map((t, i) => `Exchange ${i+1}: "${t.text.substring(0,80)}"`)
-      const prevPhrasesNote = prevPersonaLines.length > 0
-        ? ('\nPHRASES YOU ALREADY USED — never repeat these:\n' + prevPersonaLines.join('\n'))
+      // ── ITEM 4: EMOTION TAG (from previous exchange if available) ─
+      const prevEmotionTag = characterBriefRef.current?.lastEmotionTag || 'neutral'
+
+      // ── ITEM 2: CONVERSATION DIRECTOR ────────────────────
+      // Decides the conversational FUNCTION of this response
+      const directorInstructions = {
+        1: 'FUNCTION: Challenge. Your job this exchange is to hold your opening position completely and push the rep to be more specific. Do not soften at all.',
+        2: 'FUNCTION: Reveal + drift. Hold your position but reveal one small personal detail that explains WHY this matters to you. Then return to the concern.',
+        3: repQuality.isSpecific
+          ? 'FUNCTION: Sub-objection. The rep addressed your surface concern reasonably. Now reveal the DEEPER concern that has been underneath this whole time.'
+          : 'FUNCTION: Escalate. The rep has still not been specific enough. Get more precise about exactly what you need to hear.',
+        4: repQuality.isSpecific && repQuality.acknowledged
+          ? 'FUNCTION: Concede partially. Acknowledge one thing they got right. Then show what is still missing before you can say yes.'
+          : 'FUNCTION: Final warning. Tell them exactly what they need to say in the next response to close this conversation. Make it clear this is their last shot.',
+        5: 'FUNCTION: Resolution. Either they earned your trust — signal that you are ready to move forward — or disengage firmly but politely.',
+      }
+      const directorNote = directorInstructions[Math.min(newExCount, 5)] || directorInstructions[5]
+
+      // ── ITEM 9: REP CONFIDENCE DETECTION ─────────────────
+      const hesitationWords = ['i think','maybe','possibly','im not sure','i guess','kind of','sort of','probably','might','i believe','i feel like']
+      const hesitationCount = hesitationWords.filter(w => repLower.includes(w)).length
+      const confNote = hesitationCount >= 2
+        ? 'The rep sounds UNSURE — push back harder.'
+        : hesitationCount === 1
+        ? 'The rep sounds slightly uncertain. Hold your position.'
+        : repWordCount > 30 && repQuality.isSpecific
+        ? 'The rep sounds CONFIDENT and specific. React accordingly — this is harder to dismiss.'
         : ''
 
-      // ── RESPONSE TYPE ROTATION ────────────────────────────
-      const responseTypes = [
-        'Challenge what they just said with a specific pushback.',
-        'Ask one genuine question — something you actually want to know.',
-        'Acknowledge one thing, then show your remaining concern.',
-        'Show a physical reaction — hesitate, reconsider out loud, then respond.',
-        'Reference something they said earlier in the conversation.',
+      // ── ITEM 6: TRIGGER PHRASE DETECTION ─────────────────
+      const triggeredPhrase = persona.triggerPhrases
+        ? persona.triggerPhrases.find(tp => repLower.includes(tp.toLowerCase()))
+        : null
+      const triggerNote = triggeredPhrase
+        ? `TRIGGER: The rep said "${triggeredPhrase}" — this hits close to home. Reveal something deeper and more personal about why this matters to you.`
+        : ''
+
+      // ── ITEM 5: EMOTIONAL MEMORY ─────────────────────────
+      const mostSignificantRep = allRepLines.reduce((best, curr) => {
+        const s = (curr.includes('?')?1:0) + (curr.length>40?1:0) + (['understand','specifically','because','your','for you'].some(w=>curr.toLowerCase().includes(w))?1:0)
+        const b = (best.includes('?')?1:0) + (best.length>40?1:0) + (['understand','specifically','because','your','for you'].some(w=>best.toLowerCase().includes(w))?1:0)
+        return s > b ? curr : best
+      }, allRepLines[0] || '')
+      const memoryNote = allRepLines.length >= 3 && mostSignificantRep && mostSignificantRep !== repText
+        ? `MEMORY: The most meaningful thing the rep said was: "${mostSignificantRep.substring(0,70)}" — reference it if relevant to your current response.`
+        : ''
+
+      // ── ITEM 7: NATURAL SPEECH DIRECTIVE ─────────────────
+      const speechDirectives = [
+        'Use an incomplete thought somewhere: "I mean — look, the thing is..." then continue.',
+        'Self-correct mid-sentence once: "That is — actually no, what I mean is..."',
+        'Trail off to show thinking: end one thought with "...I just need to think about this."',
+        'Show physical reaction: "Hang on. Just — give me a second." before your main point.',
+        'Reference the conversation arc: "You said earlier that [X] — so then why..."',
       ]
-      const responseTypeNote = responseTypes[(newExCount - 1) % responseTypes.length]
+      const speechNote = speechDirectives[(newExCount - 1) % speechDirectives.length]
 
-      // ── SUB-OBJECTION AT EXCHANGE 3 ───────────────────────
-      const subObjNote = newExCount === 3
-        ? '\nAt this exchange, if the rep addressed your main concern reasonably, reveal ONE secondary concern that has been in the back of your mind.'
+      // ── ITEM 6: CONVERSATION STORY (not raw transcript) ──
+      // Build a narrated story of the conversation so far
+      const conversationStory = (() => {
+        const repTurns = allRepLines
+        const custTurns = allCustLines
+        const parts = []
+        parts.push(`${persona.name} opened with: "${custTurns[0]?.substring(0,100) || activeS.objection.replace(/"/g,'')}"`)
+        if (repTurns.length >= 1) {
+          parts.push(`The salesperson responded: "${repTurns[0]?.substring(0,80)}"`)
+          const q1 = avgRepScore >= 2 ? 'which was reasonably specific' : 'which was fairly generic'
+          parts.push(`— ${q1}.`)
+        }
+        if (custTurns.length >= 2 && repTurns.length >= 2) {
+          parts.push(`${persona.name} pushed back: "${custTurns[1]?.substring(0,80)}"`)
+          parts.push(`The rep then said: "${repTurns[1]?.substring(0,80)}" — ${isImproving ? 'stronger than before' : 'similar quality to before'}.`)
+        }
+        if (custTurns.length >= 3) {
+          parts.push(`${persona.name} is now at exchange ${newExCount}: emotional state is ${arcNote.toLowerCase()}.`)
+        }
+        if (isImproving) parts.push('The rep is getting better as the conversation progresses.')
+        parts.push(momentumNote)
+        return parts.join(' ')
+      })()
+
+      // ── ANTI-REPETITION ───────────────────────────────────
+      const prevPhrasesNote = allCustLines.length > 0
+        ? 'You have already said: ' + allCustLines.map(t => `"${t.substring(0,60)}"`).join(' | ') + ' — NEVER repeat any of these ideas or phrases.'
         : ''
 
-      // ── TOPIC DRIFT AT EXCHANGE 2 ─────────────────────────
-      const driftNote = newExCount === 2
-        ? '\nYou may briefly mention something personal — a past experience, your schedule — before coming back to the main point.'
+      // ── DIFFICULTY ────────────────────────────────────────
+      const diffMod = difficulty === 'easy'
+        ? 'EASY MODE: This customer wants to find a reason to say yes. Respond quickly to empathy and specific value.'
+        : difficulty === 'hard'
+        ? 'HARD MODE: This customer trusts nobody. Challenge everything. Push back hard on anything generic. Require multiple earned moments.'
         : ''
 
-      // ── FULL SYSTEM PROMPT ────────────────────────────────
-      const systemPrompt = `You are ${persona.name}. A real person at a car dealership — not a script, not an actor.
+      // ── FULL SYSTEM PROMPT — ALL 6 ITEMS COMBINED ────────
+      const systemPrompt = `You are ${persona.name}. You are in the middle of a real conversation at a dealership. You are NOT starting fresh — you are continuing a scene that is already in motion.
 
-WHO YOU ARE:
+SCENE SO FAR:
+${conversationStory}
+
+YOUR CHARACTER BRIEF (established before this conversation started):
+Mood when you walked in: ${characterBrief.mood}
+Your opening thought: ${characterBrief.openingThought}
+What you came in about: ${characterBrief.specificConcern}
+${characterBrief.todayContext}
+
+YOUR IDENTITY:
 ${persona.desc}
 
-YOUR NATURAL SPEECH:
-${persona.phrases ? persona.phrases.map(p => `"${p}"`).join(' | ') : 'Use contractions, natural pauses, real emotion.'}
+YOUR VOICE — speak EXACTLY like this person, not a generic customer:
+${persona.voiceDoc || 'Use natural contractions, pauses, and real emotion specific to this character.'}
 
-WHAT SOFTENS YOU:
-${persona.softens || 'Genuine empathy + specific value — not generic reassurance.'}
+YOUR CORE EMOTIONAL NEED:
+${persona.coreNeed || 'You want to feel respected and not taken advantage of.'}
 
-YOUR CONCERN:
-${activeS.objection.replace(/"/g,'')}
+WHAT ACTUALLY MOVES YOU:
+${persona.softens || 'Genuine empathy + specific value that addresses your core need.'}
 
-YOUR EMOTIONAL STATE (Exchange ${newExCount} of 5):
+YOUR EMOTIONAL STATE NOW (Exchange ${newExCount} of 5, coming from: ${prevEmotionTag}):
 ${arcNote}
 
-YOUR APPROACH THIS EXCHANGE:
-${responseTypeNote}${subObjNote}${driftNote}${prevPhrasesNote}
+YOUR JOB THIS EXCHANGE:
+${directorNote}
 
-CONVERSATION INTELLIGENCE:
-- Direct question from rep: ANSWER IT first, then return to your concern. Real people do not dodge questions.
-- Rep said something specific and credible: acknowledge it — "okay that is actually fair" — then show remaining hesitation.
-- Rep gave a generic pitch: call it out — "That sounds like something you say to everyone. What does it mean for MY situation?"
-- Rep referenced something earlier: respond to that specific thing.
-- Exchange 3+: ask the rep one genuine question of your own. Real customers get curious.
-- Use filler language: "Hang on...", "Actually wait.", "Let me think...", "Okay but..."
-- Vary length: sometimes one sharp sentence, sometimes three. Not always two.
+WHAT THE REP JUST SAID AND HOW TO REACT:
+${repQualityNote}
+${confNote ? confNote : ''}
+${triggerNote ? triggerNote : ''}
+${memoryNote ? memoryNote : ''}
 
-HARD RULES:
-- React to what was SPECIFICALLY just said — never a generic version of your concern.
-- NEVER repeat a phrase you already used. This conversation is evolving.
-- 1-3 sentences max. Spoken language only. No lists.
-- Show emotion — frustration, curiosity, surprise. Let it land.
+NATURAL SPEECH DIRECTIVE:
+${speechNote}
+
+WHAT YOU ALREADY SAID — never repeat:
+${prevPhrasesNote || 'Nothing yet.'}
+
+CONVERSATION RULES:
+- You are CONTINUING a scene — your response is the next line in a real negotiation, not a fresh objection.
+- Every response must ADVANCE your position — something shifts, even slightly.
+- Answer direct questions before returning to your concern.
+- Use YOUR VOICE DOCUMENT — speak like this specific person, not a generic customer.
+- 1-3 sentences. Spoken language only. No lists.
+- Show real emotion through rhythm and word choice — not descriptions of emotion.
 - Never use the salesperson name.
-- [CLOSE_EARNED] only at exchange 3+, only when rep gave ALL THREE: acknowledged your specific concern by name + concrete specific value that addressed it + direct closing question. Two of three is not enough.
-      ${diffMod ? '\nDIFFICULTY: ' + diffMod : ''}`
 
-      // ── CLEAN CONVERSATION HISTORY ────────────────────────
-      const convoMessages = []
-      const allTurns = updatedLive.filter(t => t.role === 'customer' || t.role === 'rep')
-      for (const turn of allTurns) {
-        if (turn.role === 'customer') {
-          convoMessages.push({ role: 'assistant', content: turn.text })
-        } else {
-          convoMessages.push({ role: 'user', content: turn.text })
-        }
-      }
-      // Ensure last message is user turn with nudge
-      if (convoMessages.length > 0 && convoMessages[convoMessages.length-1].role === 'user') {
-        convoMessages[convoMessages.length-1].content += ' [Respond as ' + persona.name + ' — 1-3 natural sentences, never repeat what you already said]'
-      }
+[CLOSE_EARNED] only at exchange 3+, only when ALL THREE delivered: named your specific concern + concrete value addressing your CORE NEED + direct closing question.
+${diffMod ? '\n' + diffMod : ''}`
+
+      // ── CONVERSATION HISTORY AS STORY ─────────────────────
+      const conversationSoFar = updatedLive
+        .filter(t => t.role === 'customer' || t.role === 'rep')
+        .map(t => (t.role === 'rep' ? 'SALESPERSON' : persona.name.toUpperCase()) + ': ' + t.text)
+        .join('\n')
+
+      const convoMessages = [{
+        role: 'user',
+        content: `CONVERSATION SO FAR:\n${conversationSoFar}\n\nNow respond as ${persona.name}. This is exchange ${newExCount} of 5. Continue the scene — 1-3 sentences, advance your position, never repeat what you already said. Speak in ${persona.name}'s voice.`
+      }]
 
       // ── FALLBACKS — 5 per persona, exchange-aware ─────────
       const personaFallbackMap = {
@@ -1229,14 +1450,33 @@ HARD RULES:
         barbara: ["My cousin does this every day. He is not guessing. Break it down for me.","Go line by line. Parts first then labor.","Is OEM actually necessary for this repair or is that a choice you are making for me?","What if I supply the parts? Just the labor — what does that cost?","I came in expecting two hundred. I heard seven forty. I need this to make sense."],
         ray:     ["Tony knows my car and my history. What can you give me that he actually cannot?","Walk me through factory diagnostics for my specific car. Not in general.","Tony stands behind his work without a warranty. What is actually different here?","Fifteen years is a long time. I would feel like I was going behind his back.","Show me one thing you can do that Tony genuinely cannot. What is it?"],
         susan:   ["I just need five minutes with my husband. He will ask questions I cannot answer alone.","Can you write this up in plain language so I can show him tonight?","What is the one most important thing I should get approved today?","I do not want to say yes and then not be able to explain it to him later.","If I call him right now would you be willing to answer his questions directly?"],
-        tom:     ["Next month is genuinely better timing. Can you give me a quote to bring back?","That safety thing got my attention. Which item specifically could leave me stranded?","If I do the urgent one today can the rest wait without a chain reaction?","My wife is car just cost four hundred bucks. I am stretched right now.","Give me the realistic consequence of waiting sixty days. Not worst case. Realistic."],
+        tom:     ["Next month is genuinely better timing. Can you give me a quote to bring back?","That safety thing got my attention. Which item specifically could leave me stranded?","If I do the urgent one today can the rest wait without a chain reaction?","My wife's car just cost four hundred bucks. I am stretched right now.","Give me the realistic consequence of waiting sixty days. Not worst case. Realistic."],
       }
-      const fallbackPool = personaFallbackMap[persona.id] || ["I hear you but I am not convinced yet.","Give me something specific to my situation.","That is a fair point but I still have questions.","Help me understand this better.","What does that mean in practice for me?"]
+      const fallbackPool = personaFallbackMap[persona.id] || ["I hear you but I am not convinced yet.","Give me something specific.","That is fair but I still have questions.","Help me understand this better.","What does that mean for me?"]
       const getFallback = (exNum) => fallbackPool[(exNum - 1) % fallbackPool.length]
 
       const speakReply = (reply) => {
         const closeEarned = reply.includes('[CLOSE_EARNED]')
         const clean = reply.replace('[CLOSE_EARNED]','').trim()
+
+        // ── ITEM 4: EMOTION TAGGING ───────────────────────
+        // Tag the emotion of this response for next exchange context
+        const emotionKeywords = {
+          frustrated: ['look','already told you','I did my homework','not moving','not changing'],
+          curious: ['how does','what does','can you explain','help me understand','walk me through'],
+          softening: ['actually fair','that is a good point','I had not thought','okay that makes sense'],
+          skeptical: ['heard that before','sounds like a sales pitch','every dealer says','how do I know'],
+          resigned: ['fine','whatever','just tell me','okay let us'],
+        }
+        const cleanLower = clean.toLowerCase()
+        let detectedEmotion = 'neutral'
+        for (const [emotion, keywords] of Object.entries(emotionKeywords)) {
+          if (keywords.some(k => cleanLower.includes(k))) { detectedEmotion = emotion; break }
+        }
+        if (characterBriefRef.current) {
+          characterBriefRef.current.lastEmotionTag = detectedEmotion
+        }
+
         const withReply = [...liveTranscriptRef.current, { role: 'customer', text: clean }]
         setLiveTranscript(withReply)
         liveTranscriptRef.current = withReply
@@ -1259,6 +1499,68 @@ HARD RULES:
         }, pVoice)
       }
 
+      // ── ITEM 4: PRE-GENERATE NEXT RESPONSE FUNCTION ──────
+      // Runs in background while persona is speaking — zero latency for next exchange
+      const preGenerateNextResponse = async (currentLive, currentPersona, nextExNum) => {
+        if (nextExNum > 5) return
+        try {
+          const nextArcStates = emotionalStates[currentPersona.id] || ['Defensive','Skeptical','Probing','Considering','Deciding']
+          const nextArc = nextArcStates[Math.min(nextExNum - 1, 4)]
+          const nextConvo = currentLive
+            .filter(t => t.role === 'customer' || t.role === 'rep')
+            .map(t => (t.role === 'rep' ? 'SALESPERSON' : currentPersona.name.toUpperCase()) + ': ' + t.text)
+            .join('\n')
+
+          // Generate 3 candidates simultaneously
+          const [c1, c2, c3] = await Promise.all([
+            fetch('/ai-proxy', { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                system: `You are ${currentPersona.name}. ${currentPersona.desc}\nCore need: ${currentPersona.coreNeed || 'Feel respected.'}\nVoice: ${currentPersona.voiceDoc || 'Natural speech.'}\nEmotional state: ${nextArc}\nGenerate ONE natural 1-3 sentence response continuing this conversation. Advance your position. Never repeat what you already said.`,
+                messages: [{ role: 'user', content: `CONVERSATION:\n${nextConvo}\n\nContinue as ${currentPersona.name} — exchange ${nextExNum}:` }],
+                max_tokens: 200, temperature: 0.9, top_p: 0.95,
+              })
+            }).then(r => r.json()).then(d => d?.content?.[0]?.text?.trim() || '').catch(() => ''),
+            fetch('/ai-proxy', { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                system: `You are ${currentPersona.name}. ${currentPersona.desc}\nCore need: ${currentPersona.coreNeed || 'Feel respected.'}\nVoice: ${currentPersona.voiceDoc || 'Natural speech.'}\nEmotional state: ${nextArc}\nGenerate ONE natural 1-3 sentence response. Use different vocabulary from your previous responses. Show a different facet of your concern.`,
+                messages: [{ role: 'user', content: `CONVERSATION:\n${nextConvo}\n\nAlternative response as ${currentPersona.name} — exchange ${nextExNum}:` }],
+                max_tokens: 200, temperature: 0.95, top_p: 0.95,
+              })
+            }).then(r => r.json()).then(d => d?.content?.[0]?.text?.trim() || '').catch(() => ''),
+            fetch('/ai-proxy', { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                system: `You are ${currentPersona.name}. ${currentPersona.desc}\nCore need: ${currentPersona.coreNeed || 'Feel respected.'}\nVoice: ${currentPersona.voiceDoc || 'Natural speech.'}\nEmotional state: ${nextArc}\nGenerate ONE natural 1-3 sentence response. This one should either ask a genuine question OR reveal something personal about why this matters to you.`,
+                messages: [{ role: 'user', content: `CONVERSATION:\n${nextConvo}\n\nThird variant as ${currentPersona.name} — exchange ${nextExNum}:` }],
+                max_tokens: 200, temperature: 0.88, top_p: 0.95,
+              })
+            }).then(r => r.json()).then(d => d?.content?.[0]?.text?.trim() || '').catch(() => ''),
+          ])
+
+          // Pick best candidate — most words + has question + not repetitive
+          const candidates = [c1, c2, c3].filter(c => c && c.length > 10)
+          if (candidates.length === 0) return
+
+          const prevCustText = currentLive.filter(t=>t.role==='customer').map(t=>t.text.toLowerCase()).join(' ')
+          const scored = candidates.map(c => {
+            const cl = c.toLowerCase()
+            let score = c.split(' ').length  // longer = better
+            if (c.includes('?')) score += 8   // questions are valuable
+            if (c.includes('actually')) score += 3  // natural speech
+            if (c.includes('—') || c.includes('...')) score += 4  // natural rhythm
+            // Penalize repetition
+            const words = cl.split(' ')
+            const repeated = words.filter(w => w.length > 5 && prevCustText.includes(w)).length
+            score -= repeated * 2
+            return { text: c, score }
+          })
+          scored.sort((a,b) => b.score - a.score)
+          nextResponseRef.current = scored[0].text
+        } catch(e) {
+          nextResponseRef.current = null
+        }
+      }
+
+      // ── MAIN API CALL ─────────────────────────────────────
       try {
         const res = await fetch('/ai-proxy', {
           method: 'POST',
@@ -1267,18 +1569,25 @@ HARD RULES:
             system: systemPrompt,
             messages: convoMessages,
             max_tokens: 250,
-            temperature: 0.85,
+            temperature: 0.9,
             top_p: 0.95,
           })
         })
         const data = await res.json()
         const rawReply = data?.content?.[0]?.text?.trim()
         if (!rawReply || rawReply.length < 5) throw new Error('Empty response')
+
+        // Speak the reply — while speaking, pre-generate the NEXT exchange
         speakReply(rawReply)
+        preGenerateNextResponse(updatedLive, persona, newExCount + 1)
+
       } catch(e) {
-        speakReply(getFallback(newExCount))
+        const fallbackReply = getFallback(newExCount)
+        speakReply(fallbackReply)
+        preGenerateNextResponse(updatedLive, persona, newExCount + 1)
       }
       return
+    }
     }
         // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
     const newEx = exchange+1; setExchange(newEx)
@@ -1358,13 +1667,39 @@ HARD RULES:
     liveTranscriptRef.current = []
     setTranscript('')
     accumulatedRef.current = ''
+    nextResponseRef.current = null
     setLiveStatus('Getting into character...')
 
-    // Always use the script-specific objection as the opener
-    // Persona character comes through in their voice + AI responses, not the opener
-    const scriptOpener = getOpener(script.id)
+    // Item 1: Pre-conversation character warmup
+    const warmupCharacter = async () => {
+      try {
+        const res = await fetch('/ai-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: 'You are a character director. Given a customer persona, generate their internal state for a dealership conversation.\nPersona: ' + persona.name + '. ' + persona.desc.substring(0,150) + '\nConcern: ' + script.objection.replace(/"/g,'') + '\nReturn ONLY valid JSON: {"mood":"[2-4 words]","openingThought":"[1 sentence]","specificConcern":"[1 sentence]","todayContext":"[1 sentence]","voiceNote":"[1 speech pattern]"}',
+            messages: [{ role: 'user', content: 'Generate character brief for ' + persona.name + ':' }],
+            max_tokens: 150,
+          })
+        })
+        const data = await res.json()
+        const raw = data?.content?.[0]?.text?.trim() || ''
+        const brief = JSON.parse(raw.replace(/```json|```/g,'').trim())
+        if (brief.mood) characterBriefRef.current = { ...brief, lastEmotionTag: 'neutral' }
+      } catch(e) {
+        characterBriefRef.current = {
+          mood: 'Guarded and ready to push back',
+          openingThought: 'I have heard every sales pitch before.',
+          specificConcern: script.objection.replace(/"/g,''),
+          todayContext: 'You came in with a specific concern and are not leaving without resolution.',
+          voiceNote: 'Speak naturally in character.',
+          lastEmotionTag: 'neutral',
+        }
+      }
+    }
+    warmupCharacter()
 
-    // Show screen immediately
+    const scriptOpener = getOpener(script.id)
     const first = [{ role: 'customer', text: scriptOpener }]
     setLiveTranscript(first)
     liveTranscriptRef.current = first
@@ -1372,7 +1707,6 @@ HARD RULES:
     setLivePhase('live')
     setLiveStatus('Listen to the customer...')
 
-    // Speak opener immediately
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
     speak(scriptOpener, () => {
@@ -1380,31 +1714,8 @@ HARD RULES:
       setLiveStatus('Your turn  -  speak your response')
       setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
     }, pVoice)
-
-    // Try to get AI-enhanced opener for next time (non-blocking)
-    try {
-      const res = await fetch('/ai-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system: 'You are ' + persona.name + '. ' + persona.desc.substring(0,120) + '\n\nRephrase this objection in your own natural voice as if you just walked into a dealership: "' + script.objection.replace(/"/g,'') + '"\n\nKeep the same meaning. Sound like a real person. 1-2 sentences only.',
-          messages: [{ role: 'user', content: 'Say it in your voice:' }],
-          max_tokens: 80
-        })
-      })
-      const data = await res.json()
-      const aiOpener = data?.content?.[0]?.text?.trim()
-      // Only use AI opener if it came back before speaking finished
-      // (otherwise fallback is already playing - that is fine)
-      if (aiOpener && aiOpener.length > 5 && liveTranscriptRef.current.length === 1 && speaking) {
-        // Still on first exchange, update transcript with better opener
-        const better = [{ role: 'customer', text: aiOpener }]
-        liveTranscriptRef.current = better
-      }
-    } catch(e) {
-      // Fallback already playing - no action needed
-    }
   }
+
 
   const endLiveDrill = async (script, transcriptSnapshot) => {
     if (livePhase === 'ended') return
@@ -1464,6 +1775,40 @@ HARD RULES:
     // ── REBUILT GRADING ENGINE  -  Mathematical ACRA scoring ───────
   const getFeedback = async (lastResp, allResps, earnedClose=false) => {
     setLoading(true); setError(''); stopSpeaking(); setSilentCoach(null)
+    // Item 14: cross-drill pattern recognition
+    try {
+      const allHistKeys = Object.keys(localStorage).filter(k => k.startsWith('5md-history-'))
+      if(allHistKeys.length >= 3) {
+        const allScores = allHistKeys.flatMap(k => {
+          try { return JSON.parse(localStorage.getItem(k)||'[]') } catch { return [] }
+        }).filter(h => h.score)
+        if(allScores.length >= 8) {
+          const lowCount = allScores.filter(h => ['D','F','C','C+'].includes(h.score)).length
+          const highCount = allScores.filter(h => h.score?.startsWith('A')).length
+          if(lowCount / allScores.length > 0.5) {
+            setPatternInsight('Pattern: You consistently score low. Focus on the Advance step — always end with a direct closing question.')
+          } else if(highCount / allScores.length > 0.6) {
+            setPatternInsight('Strong pattern: Closing at high rate. Try Hard difficulty to keep growing.')
+          } else { setPatternInsight(null) }
+        }
+      }
+    } catch {}
+    // Item 14: pattern recognition across last 10 drills
+    try {
+      const allHistKeys = Object.keys(localStorage).filter(k => k.startsWith('5md-history-'))
+      if(allHistKeys.length >= 3) {
+        const allScores = allHistKeys.flatMap(k => {
+          try { return JSON.parse(localStorage.getItem(k)||'[]') } catch { return [] }
+        }).filter(h => h.score)
+        const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+        const advanceScores = allScores.filter(h => ['D','F','C','C+'].includes(h.score))
+        if(advanceScores.length >= 5 && advanceScores.length / allScores.length > 0.5) {
+          setPatternInsight('Pattern detected: You consistently score low. Focus on the Advance step — always end with a direct closing question.')
+        } else if(allScores.filter(h => h.score?.startsWith('A')).length / allScores.length > 0.6) {
+          setPatternInsight('Strong pattern: You are closing at a high rate. Try Hard difficulty to keep growing.')
+        }
+      }
+    } catch {}
     setCloseEarnedFlag(earnedClose)
     const fullConversation = allResps.join(' | ')
     const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
@@ -1591,6 +1936,20 @@ RETURN ONLY valid JSON:
     }
     const cachedScript = activeS
     const cachedPersonaId = activePersId
+    // Item 11: save this drill for comparison next time
+    if(feedback && liveTranscriptRef.current.length > 0) {
+      setPrevDrillData({
+        transcript: liveTranscriptRef.current,
+        feedback: feedback,
+        script: activeS,
+        date: new Date().toLocaleDateString()
+      })
+      setLastDrillTranscript(liveTranscriptRef.current)
+    }
+    // Item 15: add to team drill scores if in team mode
+    if(feedback?.score) {
+      setTeamDrillScores(prev => [...prev, {name: dealer?.repName || 'Rep', score: feedback.score, time: new Date().toLocaleTimeString()}])
+    }
     onLog({dept:activeS.dept,script:activeS.objection.replace(/"/g,''),result,notes:'Voice drill  -  AI coached',type:'voice'})
     // Don't clear activeS — keep it so Drill Again buttons work
     setPhase('feedback_done')
@@ -1670,6 +2029,56 @@ RETURN ONLY valid JSON:
               Total: {feedback.total}/16
             </div>
           </div>
+
+          {/* Item 10: Conversation replay arc */}
+          {liveTranscriptRef.current.length > 2 && (
+            <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:12}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:10}}>📊 Conversation Arc</div>
+              <div style={{display:'flex',gap:3,alignItems:'flex-end',height:36,marginBottom:6}}>
+                {liveTranscriptRef.current.filter(t=>t.role==='rep').map((t,i)=>{
+                  const rl = t.text.toLowerCase()
+                  const score = ((t.text.includes('?')?1:0)+(t.text.length>40?1:0)+(['understand','specifically','because'].some(w=>rl.includes(w))?1:0))
+                  const pct = Math.round((score/3)*100)
+                  const col = pct>=67?C.green:pct>=33?C.yellow:C.red
+                  return(
+                    <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                      <div style={{width:'100%',background:col,borderRadius:3,height:Math.max(6,pct*0.36)+'px',transition:'height 0.3s'}}/>
+                      <div style={{fontFamily:fH,fontSize:8,color:col,fontWeight:700}}>{i+1}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:C.gray}}>
+                <span>Exchange 1</span><span style={{color:C.green}}>↑ stronger = better</span><span>Exchange {liveTranscriptRef.current.filter(t=>t.role==='rep').length}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Item 14: Pattern insight */}
+          {patternInsight&&(
+            <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.25)',borderRadius:8,padding:'10px 12px',marginBottom:12}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:4}}>🔍 Pattern Detected</div>
+              <div style={{fontSize:12,color:'#ffe08a',lineHeight:1.6}}>{patternInsight}</div>
+            </div>
+          )}
+
+          {/* Item 11: Drill comparison */}
+          {prevDrillData&&prevDrillData.script?.id===activeS?.id&&prevDrillData.feedback&&feedback&&(
+            <div style={{background:'rgba(26,107,255,0.06)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:10,padding:'12px 14px',marginBottom:12}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:8}}>📈 vs Last Drill</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                {[['Last',prevDrillData.feedback.score,prevDrillData.feedback.total,prevDrillData.date],['This',feedback.score,feedback.total,'Today']].map(([label,score,total,date])=>(
+                  <div key={label} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray,marginBottom:3}}>{label} · {date}</div>
+                    <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:gradeColor(score)}}>{score}</div>
+                    <div style={{fontSize:10,color:C.gray}}>{total}/16</div>
+                  </div>
+                ))}
+              </div>
+              {feedback.total > prevDrillData.feedback.total && <div style={{textAlign:'center',fontSize:11,color:C.green,marginTop:6}}>↑ Improved by {feedback.total - prevDrillData.feedback.total} points</div>}
+              {feedback.total < prevDrillData.feedback.total && <div style={{textAlign:'center',fontSize:11,color:C.red,marginTop:6}}>↓ Down {prevDrillData.feedback.total - feedback.total} points — review the model script</div>}
+            </div>
+          )}
 
           {/* Model word track */}
           <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',borderLeft:`3px solid ${C.green}`,borderRadius:'0 8px 8px 0',padding:'10px 12px',marginBottom:12}}>
@@ -1758,6 +2167,26 @@ RETURN ONLY valid JSON:
           setLivePhase('connecting')
           setTimeout(()=>startLiveDrill(s, newP), 150)
         }} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:10,borderRadius:8,cursor:'pointer'}}>🎲 New Persona  -  Same Script</button>
+        {/* Item 12: Manager observation — add coaching note */}
+        {dealer?.role && ['gm','sales_mgr','svc_mgr'].includes(dealer.role) && (
+          <div style={{marginBottom:8}}>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Manager Coaching Note</div>
+            <textarea style={{...inp,minHeight:44,resize:'vertical',marginBottom:6,fontSize:12}} placeholder="Add your coaching note for this rep..." id="mgr-coaching-note"/>
+            <button onClick={()=>{
+              const note = document.getElementById('mgr-coaching-note')?.value?.trim()
+              if(!note) return
+              const key = '5md-mgr-notes-' + (activeS?.id||'0')
+              try {
+                const prev = JSON.parse(localStorage.getItem(key)||'[]')
+                prev.push({note, rep:dealer?.repName, date:new Date().toLocaleDateString(), score:feedback?.score})
+                localStorage.setItem(key, JSON.stringify(prev))
+                document.getElementById('mgr-coaching-note').value = ''
+              } catch {}
+            }} style={{background:'rgba(184,255,60,0.15)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',width:'100%'}}>
+              Save Note
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -1862,6 +2291,21 @@ RETURN ONLY valid JSON:
     <div style={{padding:'16px 16px 80px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
         <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white}}>Voice Drill</div>
+          {/* Item 15: Team drill scores */}
+          {teamDrillScores.length > 0 && (
+            <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.25)',borderRadius:10,padding:'10px 14px',marginBottom:10,width:'100%'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:6}}>👥 Team Drill Scores</div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {teamDrillScores.map((ts,i)=>(
+                  <div key={i} style={{background:'rgba(255,255,255,0.05)',borderRadius:6,padding:'5px 10px',textAlign:'center'}}>
+                    <div style={{fontFamily:fH,fontSize:10,color:C.gray}}>{ts.name}</div>
+                    <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:gradeColor(ts.score)}}>{ts.score}</div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setTeamDrillScores([])} style={{background:'none',border:'none',color:C.gray,fontSize:10,cursor:'pointer',marginTop:4}}>Clear scores</button>
+            </div>
+          )}
         <button onClick={()=>setShowPersonas(p=>!p)} style={{background:showPersonas?'rgba(255,201,71,0.15)':'rgba(255,255,255,0.06)',border:`1px solid ${showPersonas?'rgba(255,201,71,0.4)':C.border}`,color:showPersonas?C.yellow:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:6,cursor:'pointer'}}>
           👥 Personas {showPersonas?'▲':'▼'}
         </button>
