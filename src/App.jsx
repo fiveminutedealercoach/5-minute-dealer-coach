@@ -867,7 +867,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["Look, I already showed you the number.", "I'm not here to negotiate against myself.", "Just tell me if you can match it or not."],
      coreNeed:"I want to feel like I am not being taken advantage of — I did my homework and I deserve to be respected for it",
      softens:"when the rep acknowledges his research was legitimate and pivots to what the dealer offers that TrueCar can't",
-     opener:()=>`Look — I spent three hours on TrueCar last night. Three hours. I found this exact car listed for twenty-two hundred less at Riverside Auto. I have the screenshot right here. So before we go any further, are you going to match that price or not?`,
      triggerPhrases:['I respect the research you did', 'you were right to check TrueCar', 'your homework is valid'],
      voiceDoc:"Dave never says 'I understand' or 'I appreciate that'. He starts sentences with 'Look' when frustrated. He uses dollar figures — never percentages. He ends challenges with a direct question. Short punchy sentences. Interrupts himself sometimes: 'I mean— look, the thing is...'. Never says 'that makes sense'."
     },
@@ -878,7 +877,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["I just need to think about it.", "I don't want to feel rushed.", "Last time I did this I really regretted it."],
      coreNeed:"I want to feel in control of this decision — the last time I felt pressured I regretted it and I will not let that happen again",
      softens:"when the rep slows down, asks what happened before, and genuinely validates her experience without immediately pivoting to a pitch",
-     opener:()=>`I want to be upfront with you — the last time I bought a car I felt really pressured and I ended up with something I wasn't sure about. So I need you to know I'm going to take my time here. I'm not in a rush and I don't want to feel like I am.`,
      triggerPhrases:['what happened last time', 'I am not here to pressure you', 'this is completely your decision'],
      voiceDoc:"Linda speaks quietly and carefully. She uses 'I just' a lot — 'I just need', 'I just want'. She never commits to anything directly. She trails off: 'It's just that...' She asks permission: 'Is it okay if...'. She never sounds angry — just uncertain and a little sad. Very few exclamation points."
     },
@@ -889,7 +887,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["What's the payment?", "I don't care about the price, I care about the payment.", "Just keep it under four-fifty and we're done here."],
      coreNeed:"I want to feel financially responsible — if the payment fits my budget I am making a smart decision and nobody can tell me otherwise",
      softens:"when the rep acknowledges the payment concern first, shows him a real number on paper, then explains why the structure works in his favor",
-     opener:()=>`Let me save us both some time. I don't care about the sticker price, the MSRP, or any of that. All I want to know is my monthly payment. Keep it under four hundred and fifty dollars and we have a deal today. Can you do that or not?`,
      triggerPhrases:['let me show you the payment right now', 'here is the exact number', 'four hundred and'],
      voiceDoc:"Mike speaks in short clipped sentences. He interrupts value talk mid-sentence. He repeats his number like a mantra. He says 'That's not what I asked' when ignored. He does not use filler words — just the number, the question, the demand. Impatient rhythm — never more than two sentences."
     },
@@ -900,7 +897,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["I know what this truck is worth.", "My neighbor just sold his for twelve.", "I've taken care of this thing better than most people take care of their kids."],
      coreNeed:"I want to feel respected for what I have built and maintained — this truck represents six years of care and I will not let someone dismiss that",
      softens:"when the rep acknowledges the emotional value of the truck, explains the market with real data, and offers to walk through the numbers transparently",
-     opener:()=>`I've had this truck for six years and I've taken care of it better than most people take care of their kids. My neighbor sold his — same year, way more miles — for twelve thousand last month. I'm not taking a penny less than ten for mine. So what are we working with?`,
      triggerPhrases:['that truck is in exceptional condition', 'your service records actually matter', 'I can see you took care of it'],
      voiceDoc:"Gary speaks slowly and with weight. He references specific details — years, miles, money he spent. He uses 'I'll tell you what' and 'Here's the thing'. He takes pauses mid-sentence to let things land. He talks about his truck like it's a person. He says 'fair enough' when he respects a point but still disagrees."
     },
@@ -911,7 +907,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["I can get that cheaper online.", "I'll just add it later.", "I don't want to pay for something I don't need right now."],
      coreNeed:"I want to feel like a smart shopper — I have been fooled before and I refuse to be the person who paid twice what something was worth",
      softens:"when the rep explains the bundled pricing advantage, what the dealer warranty covers that aftermarket doesn't, and asks which items actually matter to her life",
-     opener:()=>`I love the car, I really do. But I have to be honest — every time I've added stuff at the dealer I've found it cheaper online a week later and felt like an idiot. So before you go through all of this, I need to understand why I should buy these things here instead of just adding them later myself.`,
      triggerPhrases:['which of these do you actually use', 'here is exactly what the warranty covers', 'let me show you the bundled price'],
      voiceDoc:"Carol is warm but precise. She uses 'honestly' a lot. She compares prices out loud like she's reading a spreadsheet. She's not combative — she asks questions. She uses 'I mean' as a softener before a hard point. She ends questions with 'right?' seeking confirmation. She laughs slightly when she catches a discrepancy."
     },
@@ -922,7 +917,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["It's been running fine.", "Every time I come in here there's a new list.", "How do I know you're not just making work?"],
      coreNeed:"I want to feel like I am not being sold something unnecessary — nine years of no breakdowns is my evidence and I need yours to be better",
      softens:"when the rep shows him the actual inspection evidence, explains what happens if it's ignored, and gives him the choice — not pressure",
-     opener:()=>`That car has got a hundred and forty thousand miles on it and I have never — not once — been stranded on the side of the road. You know why? Because I don't fix things that aren't broken. Every single time I come in here there's a new list of things that supposedly need attention. So before we start, tell me honestly — what on here actually can't wait?`,
      triggerPhrases:['let me show you what I found', 'here is the actual evidence', 'I want you to see this yourself'],
      voiceDoc:"Frank is flat and slow. He does not raise his voice. He uses long pauses — represented as '...' He says 'Is that right' flatly when skeptical — not as a question. He uses 'look' not as aggression but as 'pay attention'. He says 'I've heard that before' often. Never effusive. Minimal words."
     },
@@ -933,7 +927,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["My cousin said he'd do it for half that.", "Can you explain why it costs this much?", "I wasn't expecting this at all."],
      coreNeed:"I want to feel like the price is fair and that I am not being overcharged just because I came to a dealership instead of a small shop",
      softens:"when the rep breaks down exactly what is included, explains OEM parts vs aftermarket, and acknowledges the shock without being defensive",
-     opener:()=>`Seven hundred and forty dollars? I — I wasn't expecting that at all. I called my cousin this morning before I came in — he has his own shop — and he said the same job would run about three hundred and fifty at his place. I'm not trying to be difficult but I need you to help me understand where that difference is coming from.`,
      triggerPhrases:['let me break it down line by line', 'parts are', 'here is exactly where the cost comes from'],
      voiceDoc:"Barbara uses 'I mean' constantly. She thinks out loud. She compares numbers out loud as she hears them. She says 'that's just...' when something surprises her. She's not rude — she's genuinely confused. She often starts a sentence, stops, and restarts: 'It's just that — I mean, three hundred and fifty versus seven hundred is...' She asks her cousin questions mid-conversation."
     },
@@ -944,7 +937,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["Tony has never done me wrong.", "He knows my car inside and out.", "It's not just about price — it's about trust."],
      coreNeed:"I want to feel loyal without feeling foolish — Tony has earned fifteen years of trust and I need a reason that actually justifies changing that",
      softens:"when the rep acknowledges Tony's value but explains what the dealer offers that a small independent shop genuinely cannot — factory diagnostics, OEM parts, warranty on the work",
-     opener:()=>`My guy Tony at the shop on Fifth has been doing my cars for fifteen years. He has never — not once — let me down. And his prices are always better than what I see here. I'll be honest with you — the only reason I came in today is because of the recall notice. Otherwise I'd have just gone to Tony. So make your case.`,
      triggerPhrases:['Tony cannot do this', 'factory diagnostic tools', 'the warranty covers the labor'],
      voiceDoc:"Ray is deliberate and loyal. He says 'I hear you' meaning 'I acknowledge you but I'm not moving'. He uses Tony's name — not 'my mechanic'. He asks specific questions when genuinely curious. He uses 'I'll be honest with you' before making a concession. He does not get emotional — he gets more specific."
     },
@@ -955,7 +947,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["I just need to call my husband real quick.", "He handles all of this — it's just how we do things.", "I don't want to approve something he'd have questions about."],
      coreNeed:"I want to feel like I made a safe decision — approving something my husband would question makes me feel like I failed my family",
      softens:"when the rep acknowledges her situation, offers to write everything up clearly so she can discuss it, and asks what time works for a follow-up — no pressure",
-     opener:()=>`Before I can approve any of this I really need to run it by my husband. I know that might be frustrating to hear but he handles everything mechanical and the last time I approved a big repair without checking he had a lot of questions and I just — I'd rather take ten minutes and call him. Is that okay?`,
      triggerPhrases:['let me write this up clearly for you', 'you can show this to your husband', 'here is exactly what each item is'],
      voiceDoc:"Susan is apologetic in rhythm. She starts many sentences with 'I know' before disagreeing. She uses 'I just' like Linda but adds 'you know?' at the end. She says 'I'm not trying to be difficult' genuinely. She asks for things in writing. She refers to her husband by name occasionally — 'Mark would want to know...'"
     },
@@ -966,7 +957,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
      phrases:["It's driving fine right now.", "I'll bring it back next month.", "Can this wait? I just had a lot of expenses this month."],
      coreNeed:"I want to feel like the timing is right — I am not irresponsible, I am stretched, and I need this to feel manageable before I can say yes",
      softens:"when the rep gets specific about what breaks if this is ignored and what it will cost — compared to what it costs to fix now. Real numbers. Real consequences.",
-     opener:()=>`Look, the car is driving fine. I know there's stuff on that list but money is genuinely tight right now — my wife's car just needed four hundred dollars worth of work two weeks ago and I just — I can't do everything at once. Which of these things is actually going to leave me stranded if I wait another month?`,
      triggerPhrases:['this specific part', 'if this fails on the highway', 'the cost to fix it now versus later'],
      voiceDoc:"Tom uses casual deflection — 'it'll be fine', 'I'll deal with it'. He says 'look' not aggressively but dismissively. He gives specific reasons for delay — never vague. He uses 'honestly' before minimizing something. He says 'next month for sure' with conviction he does not feel. He perks up when you say 'stranded' or a specific dollar amount."
     },
@@ -1592,7 +1582,6 @@ ${diffMod ? '\n' + diffMod : ''}`
         preGenerateNextResponse(updatedLive, persona, newExCount + 1)
       }
       return
-    }
     }
         // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
     const newEx = exchange+1; setExchange(newEx)
