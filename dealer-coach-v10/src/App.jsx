@@ -2,6 +2,74 @@ import { useState, useEffect, useRef } from 'react'
 import { SCRIPTS } from './data/scripts'
 
 const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',blueBright:'#3d8bff',green:'#b8ff3c',white:'#ffffff',gray:'#8a9ab5',lightText:'#c8d4e8',card:'rgba(255,255,255,0.05)',border:'rgba(255,255,255,0.08)',red:'#ff6b6b',yellow:'#ffc947',orange:'#ff9f43' }
+
+// ── DESIGN SYSTEM ─────────────────────────────────────────────
+// Glassmorphism card style
+const glass = {
+  background: 'rgba(255,255,255,0.04)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: 16,
+}
+
+// Primary action button
+const btnPrimary = {
+  background: 'linear-gradient(135deg, #b8ff3c, #7ed321)',
+  color: '#050d1f',
+  fontFamily: "'Barlow Condensed', sans-serif",
+  fontWeight: 900,
+  fontSize: 16,
+  letterSpacing: 1,
+  textTransform: 'uppercase',
+  border: 'none',
+  borderRadius: 14,
+  minHeight: 56,
+  cursor: 'pointer',
+  width: '100%',
+  boxShadow: '0 0 32px rgba(184,255,60,0.25)',
+  transition: 'transform 0.15s, box-shadow 0.15s',
+}
+
+// Secondary button
+const btnSecondary = {
+  background: 'rgba(255,255,255,0.06)',
+  color: '#c8d4e8',
+  fontFamily: "'Barlow Condensed', sans-serif",
+  fontWeight: 700,
+  fontSize: 14,
+  letterSpacing: 0.5,
+  textTransform: 'uppercase',
+  border: '1px solid rgba(255,255,255,0.10)',
+  borderRadius: 12,
+  minHeight: 48,
+  cursor: 'pointer',
+  width: '100%',
+  transition: 'background 0.15s',
+}
+
+// Inject keyframe animations into document head
+if (typeof document !== 'undefined') {
+  const styleEl = document.createElement('style')
+  styleEl.textContent = `
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+    @keyframes scaleIn { from { opacity:0; transform:scale(0.85) } to { opacity:1; transform:scale(1) } }
+    @keyframes gradeReveal { from { opacity:0; transform:scale(0.5) } to { opacity:1; transform:scale(1) } }
+    @keyframes countUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes flamePulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+    @keyframes ringFill { from { stroke-dashoffset: 339 } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(32px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+    @keyframes shimmer { 0% { background-position:-200% 0 } 100% { background-position:200% 0 } }
+    .btn-press:active { transform:scale(0.97) !important; }
+    .card-hover:hover { border-color:rgba(184,255,60,0.2) !important; }
+  `
+  if (!document.getElementById('5md-styles')) {
+    styleEl.id = '5md-styles'
+    document.head.appendChild(styleEl)
+  }
+}
 const fH = "'Barlow Condensed', sans-serif"
 const fB = "'Barlow', sans-serif"
 const inp = { background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:C.white,fontFamily:fB,fontSize:14,padding:'8px 12px',outline:'none',width:'100%',boxSizing:'border-box' }
@@ -115,6 +183,16 @@ const playTurnCue = () => playBeep(660, 0.08, 0.2)  // gentle cue — your turn
 
 // speak with optional persona voice options
 const speak = (text, onDone, voiceOpts={}) => speakEL(text, onDone, voiceOpts)
+
+// Haptic feedback utility
+const haptic = (type='light') => {
+  if(typeof navigator !== 'undefined' && navigator.vibrate) {
+    if(type==='light') navigator.vibrate(10)
+    else if(type==='medium') navigator.vibrate(25)
+    else if(type==='success') navigator.vibrate([15,10,15])
+    else if(type==='win') navigator.vibrate([20,10,20,10,40])
+  }
+}
 
 // Get voice options for a persona  -  adjusts stability/style to vary personality
 const getPersonaVoiceOpts = (persona) => {
@@ -699,6 +777,389 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
 // ══════════════════════════════════════════════════════════════
 // SCRIPT LIBRARY
 // ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+// MANAGER HOME — huddle launcher + team momentum + quick actions
+// ══════════════════════════════════════════════════════════════
+function ManagerHome({dealer, stats, results, streak, onNav}) {
+  const role = dealer?.role || 'sales_mgr'
+  const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
+  const isSvcMgr = role === 'svc_mgr'
+
+  // Team momentum — % of reps who drilled this week
+  const teamMomentum = (() => {
+    try {
+      const weekAgo = Date.now() - 7*24*60*60*1000
+      const recentDrills = results.filter(r => r.type==='voice' && new Date(r.date).getTime() > weekAgo)
+      const uniqueReps = new Set(recentDrills.map(r=>r.rep||dealer?.repName)).size
+      return {drills: recentDrills.length, reps: uniqueReps}
+    } catch { return {drills:0, reps:0} }
+  })()
+
+  const momentumColor = teamMomentum.drills >= 10 ? C.green : teamMomentum.drills >= 5 ? C.yellow : C.red
+  const momentumLabel = teamMomentum.drills >= 10 ? 'Strong momentum' : teamMomentum.drills >= 5 ? 'Building momentum' : 'Needs attention'
+
+  // Today's huddle status
+  const huddleToday = results.some(r => {
+    const d = new Date(r.date)
+    const today = new Date()
+    return r.type==='huddle' && d.toDateString()===today.toDateString()
+  })
+
+  // Recent wins to surface for morning huddle
+  const lastWin = results.find(r => r.result === 'won' || r.result === 'Won')
+
+  const quickActions = [
+    {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
+    {icon:'🎯', label:'Team Coaching', sub:'C&C Grid + coaching', tab:'hub', color:C.yellow},
+    {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.green},
+  ]
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+
+      {/* Header */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+          {ROLES[role]?.label} · {dealer?.dealerName}
+        </div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+          Morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        </div>
+      </div>
+
+      {/* Team momentum card */}
+      <div style={{...glass,padding:'16px 18px',marginBottom:16,
+        borderColor:`${momentumColor}33`,
+        animation:'slideUp 0.4s ease both'
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:momentumColor}}>
+            Team Momentum
+          </div>
+          <div style={{...glass,padding:'3px 10px',borderRadius:20,borderColor:`${momentumColor}33`}}>
+            <span style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:momentumColor}}>
+              {momentumLabel}
+            </span>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:16,alignItems:'baseline'}}>
+          <div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.drills}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Drills this week</div>
+          </div>
+          <div style={{width:1,height:32,background:'rgba(255,255,255,0.08)'}}/>
+          <div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.reps}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Active reps</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Huddle CTA — primary action */}
+      <div style={{...glass,padding:'20px',marginBottom:16,
+        borderColor: huddleToday ? 'rgba(184,255,60,0.15)' : 'rgba(26,107,255,0.2)',
+        animation:'slideUp 0.5s ease both'
+      }}>
+        {huddleToday ? (
+          <>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+              <span style={{fontSize:20}}>✅</span>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.green}}>Huddle Complete</div>
+            </div>
+            <div style={{fontSize:12,color:C.gray,marginBottom:12}}>Today's huddle is done. Run another?</div>
+            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnSecondary,minHeight:48}}>
+              Run Another Huddle
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:6}}>
+              Daily Huddle
+            </div>
+            {lastWin && (
+              <div style={{fontSize:12,color:C.gray,marginBottom:8,fontStyle:'italic'}}>
+                💡 Yesterday's win: "{lastWin.script?.substring(0,45)}"
+              </div>
+            )}
+            <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,marginBottom:14}}>
+              Ready to run the morning huddle?
+            </div>
+            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnPrimary}}>
+              ⏱ Set Up Huddle
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
+        {quickActions.map((a,i)=>(
+          <button key={i} className="btn-press card-hover" onClick={()=>onNav(a.tab)}
+            style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
+              textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
+            }}>
+            <div style={{fontSize:22,marginBottom:6}}>{a.icon}</div>
+            <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:2,lineHeight:1.1}}>{a.label}</div>
+            <div style={{fontSize:10,color:C.gray,lineHeight:1.3}}>{a.sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Recent activity */}
+      {results.slice(0,3).length > 0 ? (
+        <div>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>Recent Activity</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {results.slice(0,3).map((r,i)=>(
+              <div key={i} style={{...glass,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:12,color:C.lightText,fontWeight:600}}>{r.script?.substring(0,40) || (r.type==='huddle'?'Team Huddle':'Activity')}</div>
+                  <div style={{fontSize:11,color:C.gray}}>{r.rep || dealer?.repName} · {r.date}</div>
+                </div>
+                <div style={{fontFamily:fH,fontSize:13,fontWeight:700,
+                  color:r.result==='won'||r.result==='Won'?C.green:r.result==='progress'||r.result==='Progress'?C.yellow:C.gray,
+                  textTransform:'uppercase'
+                }}>{r.result}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{...glass,padding:'24px',textAlign:'center'}}>
+          <div style={{fontSize:11,color:C.gray,marginBottom:8}}>No activity logged yet.</div>
+          <div style={{fontSize:11,color:C.gray}}>Run your first huddle to get started.</div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+// REP HOME — focused drill launcher with streak + progress rings
+// ══════════════════════════════════════════════════════════════
+function RepHome({dealer, stats, results, streak, onDrill}) {
+  const role = dealer?.role || 'sales_rep'
+  const dept = roleDept(role)
+  const firstName = dealer?.repName?.split(' ')[0] || 'Hey'
+
+  // Best suggested script based on weakest category
+  const getSuggestedScript = () => {
+    try {
+      const COACHING_IDS = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
+      const pool = SCRIPTS.filter(s => !COACHING_IDS.has(s.id) && (dept==='both'||s.dept===dept))
+      if(!pool.length) return null
+      // Check assigned drill first
+      const assigned = loadJSON('5md-assigned-drill', null)
+      if(assigned) {
+        const s = pool.find(p => p.id === assigned)
+        if(s) return {script:s, reason:'Assigned by manager'}
+      }
+      // Find weakest category from history
+      const catScores = {}
+      pool.forEach(s => {
+        try {
+          const hist = JSON.parse(localStorage.getItem('5md-history-'+s.id)||'[]')
+          if(hist.length > 0) {
+            const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+            const avg = hist.slice(-3).map(h=>gradeOrder.indexOf(h.score)).filter(i=>i>=0)
+            const avgScore = avg.length > 0 ? avg.reduce((a,b)=>a+b,0)/avg.length : 4
+            if(!catScores[s.category] || avgScore > catScores[s.category].score) {
+              catScores[s.category] = {score:avgScore, script:s}
+            }
+          }
+        } catch {}
+      })
+      const weakest = Object.values(catScores).sort((a,b)=>b.score-a.score)[0]
+      if(weakest) return {script:weakest.script, reason:'Focus area: '+weakest.script.category}
+      return {script:pool[Math.floor(Math.random()*pool.length)], reason:'Suggested for today'}
+    } catch { return null }
+  }
+
+  const suggested = getSuggestedScript()
+  const drillsThisWeek = results.filter(r => {
+    const d = new Date(r.date); const now = new Date()
+    return (now - d) < 7*24*60*60*1000 && r.type === 'voice'
+  }).length
+  const weeklyGoal = 5
+  const avgScore = (() => {
+    try {
+      const recent = results.filter(r=>r.score).slice(0,10)
+      if(!recent.length) return null
+      const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+      const avg = recent.map(r=>gradeOrder.indexOf(r.score)).filter(i=>i>=0)
+      if(!avg.length) return null
+      const idx = Math.round(avg.reduce((a,b)=>a+b,0)/avg.length)
+      return gradeOrder[Math.min(idx, gradeOrder.length-1)]
+    } catch { return null }
+  })()
+  const gradeColor = g => g?.startsWith('A')?C.green:g?.startsWith('B')?C.blueBright:g?.startsWith('C')?C.yellow:C.red
+
+  const streakCount = streak?.count || 0
+  const ringPct = Math.min(drillsThisWeek / weeklyGoal, 1)
+  const ringR = 32
+  const ringCirc = 2 * Math.PI * ringR
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+
+      {/* Header */}
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+          {ROLES[role]?.label} · {dealer?.dealerName}
+        </div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+          Good morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        </div>
+      </div>
+
+      {/* Streak flame + progress rings row */}
+      <div style={{display:'flex',gap:12,marginBottom:24}}>
+
+        {/* Streak */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center'}}>
+          <div style={{
+            fontSize:36,lineHeight:1,marginBottom:4,
+            animation: streakCount>0 ? 'flamePulse 2s ease-in-out infinite' : 'none'
+          }}>
+            {streakCount >= 10 ? '🔥' : streakCount >= 5 ? '⚡' : streakCount > 0 ? '✦' : '○'}
+          </div>
+          <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:streakCount>0?C.green:C.gray,lineHeight:1}}>
+            {streakCount}
+          </div>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:2}}>
+            Day Streak
+          </div>
+        </div>
+
+        {/* Weekly ring */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center'}}>
+          <svg width={80} height={80} style={{marginBottom:4}}>
+            <circle cx={40} cy={40} r={ringR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={6}/>
+            <circle cx={40} cy={40} r={ringR} fill="none" stroke={C.green} strokeWidth={6}
+              strokeDasharray={ringCirc}
+              strokeDashoffset={ringCirc * (1 - ringPct)}
+              strokeLinecap="round"
+              transform="rotate(-90 40 40)"
+              style={{transition:'stroke-dashoffset 1s ease', animation:'ringFill 1s ease both'}}
+            />
+            <text x={40} y={45} textAnchor="middle" fill={C.white}
+              style={{fontFamily:'Barlow Condensed',fontWeight:900,fontSize:16}}>
+              {drillsThisWeek}/{weeklyGoal}
+            </text>
+          </svg>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray}}>
+            This Week
+          </div>
+        </div>
+
+        {/* Avg score */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center'}}>
+          <div style={{fontFamily:fH,fontSize:36,fontWeight:900,
+            color:avgScore?gradeColor(avgScore):C.gray,lineHeight:1,marginBottom:4,
+            animation:avgScore?'scaleIn 0.5s ease both':'none'
+          }}>
+            {avgScore || '—'}
+          </div>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:2}}>
+            Avg Grade
+          </div>
+        </div>
+
+      </div>
+
+      {/* Suggested drill card */}
+      {suggested ? (
+        <div style={{...glass,padding:'20px',marginBottom:16,
+          borderColor:'rgba(184,255,60,0.15)',
+          animation:'slideUp 0.5s ease both'
+        }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+            <div>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>
+                {suggested.reason}
+              </div>
+              <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,lineHeight:1.2,maxWidth:220}}>
+                "{suggested.script.objection.replace(/['"]/g,'').substring(0,55)}"
+              </div>
+            </div>
+            {/* Last score badge */}
+            {(() => {
+              try {
+                const hist = JSON.parse(localStorage.getItem('5md-history-'+suggested.script.id)||'[]')
+                const last = hist[hist.length-1]
+                if(!last) return null
+                return (
+                  <div style={{...glass,padding:'6px 10px',textAlign:'center',minWidth:52,borderColor:'rgba(255,255,255,0.1)'}}>
+                    <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Last</div>
+                    <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:gradeColor(last.score)}}>{last.score}</div>
+                  </div>
+                )
+              } catch { return null }
+            })()}
+          </div>
+          <button
+            className="btn-press"
+            onClick={() => onDrill(suggested.script)}
+            style={{...btnPrimary}}
+          >
+            ▶ Start Drill
+          </button>
+        </div>
+      ) : (
+        <div style={{...glass,padding:'24px 20px',marginBottom:16,textAlign:'center',animation:'slideUp 0.5s ease both'}}>
+          <div style={{fontSize:32,marginBottom:8}}>🎙</div>
+          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,marginBottom:6}}>Ready to drill?</div>
+          <div style={{fontSize:13,color:C.gray,marginBottom:16}}>Your first drill takes 3 minutes.</div>
+          <button className="btn-press" onClick={()=>onDrill(null)} style={{...btnPrimary}}>
+            ▶ Start Your First Drill
+          </button>
+        </div>
+      )}
+
+      {/* Choose different script */}
+      <button className="btn-press" onClick={()=>onDrill(null)}
+        style={{...btnSecondary,marginBottom:24}}>
+        Browse All Scripts
+      </button>
+
+      {/* Recent results */}
+      {results.filter(r=>r.type==='voice').slice(0,3).length > 0 && (
+        <div>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>
+            Recent Drills
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {results.filter(r=>r.type==='voice').slice(0,3).map((r,i)=>(
+              <div key={i} style={{...glass,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:12,color:C.lightText,fontWeight:600,marginBottom:1}}>
+                    {r.script?.substring(0,40) || 'Voice Drill'}
+                  </div>
+                  <div style={{fontSize:11,color:C.gray}}>{r.date}</div>
+                </div>
+                {r.score && (
+                  <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:gradeColor(r.score)}}>{r.score}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {results.filter(r=>r.type==='voice').length === 0 && (
+        <div style={{textAlign:'center',padding:'24px 0',color:C.gray}}>
+          <div style={{fontSize:11}}>No drills yet. Start your first one above.</div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
 function ScriptLibrary({dealer}) {
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
@@ -746,6 +1207,93 @@ function ScriptLibrary({dealer}) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// PERSONA CARD — shown before drill starts
+// ══════════════════════════════════════════════════════════════
+function PersonaCard({persona, script, onStart, onBack}) {
+  const moodMap = {
+    dave: {emoji:'📱', mood:'Ready to push back', color:'#ff6b6b'},
+    linda: {emoji:'🛡', mood:'Guarded, walls up', color:'#8a9ab5'},
+    mike: {emoji:'💰', mood:'Impatient, wants numbers', color:'#ffc947'},
+    gary: {emoji:'🚛', mood:'Stubborn, emotionally attached', color:'#ff9f43'},
+    carol: {emoji:'👥', mood:'Skeptical, phone ready', color:'#3dcfcf'},
+    frank: {emoji:'⏳', mood:'Flat, unconvinced', color:'#8a9ab5'},
+    barbara: {emoji:'💸', mood:'Shocked by price', color:'#ff6b6b'},
+    ray: {emoji:'🏪', mood:'Loyal to his guy', color:'#ffc947'},
+    susan: {emoji:'📞', mood:'Apologetic but firm', color:'#3d8bff'},
+    tom: {emoji:'⌛', mood:'Casually avoidant', color:'#ff9f43'},
+  }
+  const pm = moodMap[persona?.id] || {emoji:'👤', mood:'Ready', color:C.blue}
+
+  // Last score for this script
+  const lastScore = (() => {
+    try {
+      const hist = JSON.parse(localStorage.getItem('5md-history-'+(script?.id||0))||'[]')
+      return hist[hist.length-1]?.score || null
+    } catch { return null }
+  })()
+  const gradeColor = g => g?.startsWith('A')?C.green:g?.startsWith('B')?C.blueBright:g?.startsWith('C')?C.yellow:C.red
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.35s ease both'}}>
+      <button onClick={onBack} style={{background:'none',border:'none',color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',cursor:'pointer',marginBottom:20,padding:0}}>
+        ← Back
+      </button>
+
+      {/* Persona intro */}
+      <div style={{...glass,padding:'28px 24px',marginBottom:20,textAlign:'center',
+        borderColor:`${pm.color}33`,
+        animation:'scaleIn 0.4s ease both'
+      }}>
+        <div style={{fontSize:64,marginBottom:12,animation:'flamePulse 3s ease-in-out infinite'}}>{pm.emoji}</div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,marginBottom:4}}>{persona?.name}</div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${pm.color}22`,
+          border:`1px solid ${pm.color}44`,borderRadius:20,padding:'4px 14px',marginBottom:16
+        }}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:pm.color,animation:'pulse 1.5s ease infinite'}}/>
+          <span style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:pm.color}}>
+            {pm.mood}
+          </span>
+        </div>
+        <div style={{fontSize:13,color:C.gray,lineHeight:1.65,maxWidth:280,margin:'0 auto'}}>
+          {persona?.desc?.substring(0,120)}...
+        </div>
+      </div>
+
+      {/* The objection */}
+      <div style={{...glass,padding:'18px 20px',marginBottom:16,borderColor:'rgba(26,107,255,0.2)'}}>
+        <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:8}}>
+          Today's Objection
+        </div>
+        <div style={{fontSize:15,color:C.white,lineHeight:1.65,fontStyle:'italic'}}>
+          "{script?.objection?.replace(/['"]/g,'')}"
+        </div>
+      </div>
+
+      {/* Beat last score */}
+      {lastScore && (
+        <div style={{...glass,padding:'12px 16px',marginBottom:20,
+          display:'flex',justifyContent:'space-between',alignItems:'center',
+          borderColor:'rgba(255,255,255,0.08)'
+        }}>
+          <div style={{fontSize:12,color:C.gray}}>Your last score on this script</div>
+          <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:gradeColor(lastScore)}}>{lastScore}</div>
+        </div>
+      )}
+      {!lastScore && (
+        <div style={{...glass,padding:'12px 16px',marginBottom:20,textAlign:'center'}}>
+          <div style={{fontSize:12,color:C.gray}}>First time drilling this script — let's see what you've got</div>
+        </div>
+      )}
+
+      <button className="btn-press" onClick={onStart} style={{...btnPrimary,fontSize:18,minHeight:60}}>
+        {lastScore ? `▶ Beat Your ${lastScore}` : '▶ Start Drill'}
+      </button>
     </div>
   )
 }
@@ -809,6 +1357,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [speaking,setSpeaking]   = useState(false)
   const [showScript,setShowScript] = useState(false)
   const [showPersonas,setShowPersonas] = useState(false)
+  const [showPersonaCard,setShowPersonaCard] = useState(false) // persona intro before drill
   const [lastDrillTranscript,setLastDrillTranscript] = useState(null)  // item 11: drill comparison
   const [prevDrillData,setPrevDrillData] = useState(null)               // item 11: drill comparison
   const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
@@ -1014,6 +1563,15 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       const autoDiff = getAdaptiveDifficulty(script.id)
       if(autoDiff !== 'medium') setDifficulty(autoDiff)
     }
+    // Show persona card before starting drill
+    if(script && !personaId) {
+      setActiveS(script)
+      const p = getPersonaForScript(script)
+      setActivePersId(p.id)
+      setShowPersonaCard(true)
+      return
+    }
+    setShowPersonaCard(false)
     if (!script) {
       const COACHING_IDS_VD = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
     const pool = SCRIPTS.filter(s=>(dept==='both'||s.dept===dept)&&!COACHING_IDS_VD.has(s.id))
@@ -1899,17 +2457,38 @@ RETURN ONLY valid JSON:
   }
 
   const gradeColor = s => s?.startsWith('A')?C.green:s?.startsWith('B')?C.blueBright:(s?.startsWith('D')||s==='F')?C.red:C.yellow
+  const gradeSize = s => s?.startsWith('A+')?96:s?.startsWith('A')?88:s?.startsWith('B')?80:72
 
   // ── FEEDBACK SCREEN ──────────────────────────────────────────
+  // Show persona card intro before drill
+  if(showPersonaCard && activeS) {
+    const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
+    return <PersonaCard
+      persona={persona}
+      script={activeS}
+      onStart={()=>{
+        setShowPersonaCard(false)
+        setPhase('drill')
+        setExchange(0); setAllTranscripts([]); setTranscript('')
+        setConfidenceFlags([]); setCloseEarnedFlag(false)
+        setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+        setLivePhase('connecting')
+        const p = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
+        setTimeout(()=>startLiveDrill(activeS, p), 150)
+      }}
+      onBack={()=>{setShowPersonaCard(false); setPhase('list')}}
+    />
+  }
+
   if(phase==='feedback'&&activeS&&feedback) {
     const persona = PERSONAS.find(p=>p.id===activePersId)
     return(
-      <div style={{padding:'16px 16px 80px'}}>
+      <div style={{padding:'16px 16px 80px', animation:'fadeUp 0.3s ease both'}}>
         <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← Back</button>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
 
         {/* Grade + persona */}
-        <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.08),rgba(184,255,60,0.03))',border:'1px solid rgba(184,255,60,0.25)',borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.08),rgba(184,255,60,0.03))',border:'1px solid rgba(184,255,60,0.25)',borderRadius:12,padding:16,marginBottom:14,animation:'scaleIn 0.5s ease both'}}>
           {/* Close earned banner */}
           {closeEarnedFlag&&(
             <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.2),rgba(184,255,60,0.08))',border:'1px solid rgba(184,255,60,0.5)',borderRadius:8,padding:'8px 14px',marginBottom:12,textAlign:'center'}}>
@@ -3542,8 +4121,32 @@ function IPNotice() {
   )
 }
 
-const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'C&C Grid',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Lifecycle',icon:'🔄',C:Lifecycle}]
-function ManagerHub(){const[active,setActive]=useState('shop');const Mod=HUB_MODS.find(m=>m.id===active)?.C;return(<div style={{padding:'16px 16px 80px'}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.blue},${C.green})`,borderRadius:6,padding:'3px 10px',fontFamily:fH,fontSize:10,fontWeight:900,letterSpacing:2,textTransform:'uppercase',color:C.navy}}>Manager Hub</div></div><div style={{display:'flex',gap:2,marginBottom:20,borderBottom:`1px solid ${C.border}`,overflowX:'auto'}}>{HUB_MODS.map(m=>(<button key={m.id} onClick={()=>setActive(m.id)} style={{background:'transparent',border:'none',borderBottom:active===m.id?`2px solid ${C.green}`:'2px solid transparent',color:active===m.id?C.white:C.gray,fontFamily:fH,fontSize:12,fontWeight:active===m.id?900:600,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap',marginBottom:-1}}><span>{m.icon}</span>{m.label}</button>))}</div>{Mod&&<Mod/>}<IPNotice/></div>)}
+const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Lifecycle',icon:'🔄',C:Lifecycle}]
+function ManagerHub(){
+  const[active,setActive]=useState('shop')
+  const Mod=HUB_MODS.find(m=>m.id===active)?.C
+  return(
+    <div style={{padding:'16px 16px 80px'}}>
+      <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:14}}>Manager Tools</div>
+      <div style={{display:'flex',gap:8,marginBottom:20,overflowX:'auto',paddingBottom:4}}>
+        {HUB_MODS.map(m=>(
+          <button key={m.id} onClick={()=>setActive(m.id)} style={{
+            flexShrink:0,
+            background:active===m.id?`rgba(184,255,60,0.12)`:'rgba(255,255,255,0.04)',
+            border:`1px solid ${active===m.id?'rgba(184,255,60,0.3)':'rgba(255,255,255,0.08)'}`,
+            color:active===m.id?C.green:C.gray,
+            fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+            padding:'8px 16px',borderRadius:10,cursor:'pointer',
+            minHeight:40,
+          }}>
+            {m.icon} {m.label}
+          </button>
+        ))}
+      </div>
+      {Mod && <Mod/>}
+    </div>
+  )
+}
 
 // ══════════════════════════════════════════════════════════════
 // APP ROOT
@@ -3995,32 +4598,68 @@ export default function App() {
   const role  = dealer.role||'sales_rep'
   const isMgr = isManager(role)
 
-  const TABS = [
+  // Role-based tab sets — reps get 2 tabs, managers get 3, GM gets 3
+  const TABS = isMgr ? [
     {id:'home',    label:'Home',    icon:'🏠'},
-    {id:'scripts', label:'Scripts', icon:'📋'},
+    {id:'huddle',  label:'Huddle',  icon:'⏱'},
+    {id:'coaching',label:'Coaching',icon:'🎯'},
+    {id:'tracker', label:'Dashboard',icon:'📊'},
+  ] : [
+    {id:'home',    label:'Home',    icon:'🏠'},
     {id:'drill',   label:'Drill',   icon:'🎙'},
-    ...(isMgr?[{id:'huddle',label:'Huddle',icon:'⏱'}]:[]),
-    {id:'tracker', label:'Dashboard',   icon:'📊'},
-    ...(isMgr?[{id:'hub',label:'Mgr Hub',icon:'🏢'}]:[]),
+    {id:'tracker', label:'Progress',icon:'📊'},
   ]
 
   return(
     <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative'}}>
       <div style={{paddingBottom:72}}>
-        {tab==='home'    &&<Home onNav={setTab} dealer={dealer} stats={stats} results={results} streak={streak} milestone={milestone} onDrillNow={handleDrillNow} onHuddleNow={handleHuddleNow} schedule={schedule} onScheduleChange={handleScheduleChange} welcomeMsg={welcomeMsg}/>}
-        {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
-        {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill==='random'?null:preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
+        {/* Role-based home screens */}
+        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}}/>}
+        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab}/>}
+        {/* Rep tabs */}
+        {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
+        {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
+        {/* Manager tabs */}
         {tab==='huddle'  &&isMgr&&<HuddleTimer onLog={logResult} dealer={dealer} preloadScript={preloadHuddle} onClearPreload={()=>setPreloadHuddle(null)}/>}
-        {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} preloadScript={preloadTracker} dealer={dealer}/>}
-        {tab==='hub'     &&isMgr&&<ManagerHub/>}
+        {tab==='coaching'&&isMgr&&<ManagerHub/>}
+        {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
       </div>
 
-      {/* Bottom nav  -  improved visibility */}
-      <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:C.navyMid,borderTop:`1px solid ${C.border}`,display:'flex',zIndex:100}}>
+      {/* Role-based bottom nav */}
+      <div style={{
+        position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:'100%',maxWidth:480,
+        background:'rgba(5,13,31,0.95)',
+        backdropFilter:'blur(20px)',
+        WebkitBackdropFilter:'blur(20px)',
+        borderTop:'1px solid rgba(255,255,255,0.08)',
+        display:'flex',zIndex:999,
+        paddingBottom:'env(safe-area-inset-bottom)',
+      }}>
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:tab===t.id?'rgba(184,255,60,0.07)':'none',border:'none',borderTop:tab===t.id?`2px solid ${C.green}`:'2px solid transparent',padding:'10px 2px 8px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-            <span style={{fontSize:16,opacity:tab===t.id?1:0.65}}>{t.icon}</span>
-            <span style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:.5,textTransform:'uppercase',color:tab===t.id?C.green:C.lightText}}>{t.label}</span>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            flex:1,
+            background:'none',border:'none',
+            padding:'10px 4px 12px',
+            cursor:'pointer',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+            opacity: tab===t.id ? 1 : 0.45,
+            transition:'opacity 0.2s',
+          }}>
+            <span style={{fontSize:20}}>{t.icon}</span>
+            <span style={{
+              fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:0.5,
+              textTransform:'uppercase',
+              color: tab===t.id ? C.green : C.gray,
+              transition:'color 0.2s',
+            }}>{t.label}</span>
+            {tab===t.id && (
+              <div style={{
+                position:'absolute',top:0,
+                width:24,height:2,borderRadius:1,
+                background:`linear-gradient(90deg,${C.blue},${C.green})`,
+              }}/>
+            )}
           </button>
         ))}
       </div>
