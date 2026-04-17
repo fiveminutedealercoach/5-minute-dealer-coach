@@ -2599,8 +2599,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const readObjectionAloud = () => {
     if(!selScript) return
     if(objPlaying) { stopSpeaking(); setObjPlaying(false); return }
-    const persona = PERSONAS ? getPersonaForScript(selScript) : null
-    const voiceOpts = persona ? getPersonaVoiceOpts(persona) : {}
+    const voiceOpts = selScript.dept === 'service'
+      ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.35}
+      : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.60}
     setObjPlaying(true)
     speak(selScript.objection.replace(/['"]/g,''), () => setObjPlaying(false), voiceOpts)
   }
@@ -2609,8 +2610,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   useEffect(() => {
     if(phase === 'running' && step === 2 && autoPlayObj && selScript && running) {
       const t = setTimeout(() => {
-        const persona = PERSONAS ? getPersonaForScript(selScript) : null
-        const voiceOpts = persona ? getPersonaVoiceOpts(persona) : {}
+        const voiceOpts = selScript.dept === 'service'
+          ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.35}
+          : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.60}
         setObjPlaying(true)
         speak(selScript.objection.replace(/['"]/g,''), () => setObjPlaying(false), voiceOpts)
       }, 1200)
@@ -2664,7 +2666,6 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
 
   if(phase==='running') return(
-    <div style={{padding:'16px 16px 80px'}}>
     <div style={{padding: presentMode ? '32px 40px 40px' : '16px 16px 80px', background: presentMode ? C.navy : 'transparent', minHeight: presentMode ? '100vh' : 'auto'}}>
       {/* Present Mode toggle + pace indicator */}
       {!presentMode && (
