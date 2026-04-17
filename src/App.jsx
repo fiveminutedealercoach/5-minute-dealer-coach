@@ -2,6 +2,74 @@ import { useState, useEffect, useRef } from 'react'
 import { SCRIPTS } from './data/scripts'
 
 const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',blueBright:'#3d8bff',green:'#b8ff3c',white:'#ffffff',gray:'#8a9ab5',lightText:'#c8d4e8',card:'rgba(255,255,255,0.05)',border:'rgba(255,255,255,0.08)',red:'#ff6b6b',yellow:'#ffc947',orange:'#ff9f43' }
+
+// ── DESIGN SYSTEM ─────────────────────────────────────────────
+// Glassmorphism card style
+const glass = {
+  background: 'rgba(255,255,255,0.04)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: 16,
+}
+
+// Primary action button
+const btnPrimary = {
+  background: 'linear-gradient(135deg, #b8ff3c, #7ed321)',
+  color: '#050d1f',
+  fontFamily: "'Barlow Condensed', sans-serif",
+  fontWeight: 900,
+  fontSize: 16,
+  letterSpacing: 1,
+  textTransform: 'uppercase',
+  border: 'none',
+  borderRadius: 14,
+  minHeight: 56,
+  cursor: 'pointer',
+  width: '100%',
+  boxShadow: '0 0 32px rgba(184,255,60,0.25)',
+  transition: 'transform 0.15s, box-shadow 0.15s',
+}
+
+// Secondary button
+const btnSecondary = {
+  background: 'rgba(255,255,255,0.06)',
+  color: '#c8d4e8',
+  fontFamily: "'Barlow Condensed', sans-serif",
+  fontWeight: 700,
+  fontSize: 14,
+  letterSpacing: 0.5,
+  textTransform: 'uppercase',
+  border: '1px solid rgba(255,255,255,0.10)',
+  borderRadius: 12,
+  minHeight: 48,
+  cursor: 'pointer',
+  width: '100%',
+  transition: 'background 0.15s',
+}
+
+// Inject keyframe animations into document head
+if (typeof document !== 'undefined') {
+  const styleEl = document.createElement('style')
+  styleEl.textContent = `
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+    @keyframes scaleIn { from { opacity:0; transform:scale(0.85) } to { opacity:1; transform:scale(1) } }
+    @keyframes gradeReveal { from { opacity:0; transform:scale(0.5) } to { opacity:1; transform:scale(1) } }
+    @keyframes countUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes flamePulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+    @keyframes ringFill { from { stroke-dashoffset: 339 } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(32px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+    @keyframes shimmer { 0% { background-position:-200% 0 } 100% { background-position:200% 0 } }
+    .btn-press:active { transform:scale(0.97) !important; }
+    .card-hover:hover { border-color:rgba(184,255,60,0.2) !important; }
+  `
+  if (!document.getElementById('5md-styles')) {
+    styleEl.id = '5md-styles'
+    document.head.appendChild(styleEl)
+  }
+}
 const fH = "'Barlow Condensed', sans-serif"
 const fB = "'Barlow', sans-serif"
 const inp = { background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:C.white,fontFamily:fB,fontSize:14,padding:'8px 12px',outline:'none',width:'100%',boxSizing:'border-box' }
@@ -115,6 +183,16 @@ const playTurnCue = () => playBeep(660, 0.08, 0.2)  // gentle cue — your turn
 
 // speak with optional persona voice options
 const speak = (text, onDone, voiceOpts={}) => speakEL(text, onDone, voiceOpts)
+
+// Haptic feedback utility
+const haptic = (type='light') => {
+  if(typeof navigator !== 'undefined' && navigator.vibrate) {
+    if(type==='light') navigator.vibrate(10)
+    else if(type==='medium') navigator.vibrate(25)
+    else if(type==='success') navigator.vibrate([15,10,15])
+    else if(type==='win') navigator.vibrate([20,10,20,10,40])
+  }
+}
 
 // Get voice options for a persona  -  adjusts stability/style to vary personality
 const getPersonaVoiceOpts = (persona) => {
@@ -699,6 +777,389 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
 // ══════════════════════════════════════════════════════════════
 // SCRIPT LIBRARY
 // ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+// MANAGER HOME — huddle launcher + team momentum + quick actions
+// ══════════════════════════════════════════════════════════════
+function ManagerHome({dealer, stats, results, streak, onNav}) {
+  const role = dealer?.role || 'sales_mgr'
+  const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
+  const isSvcMgr = role === 'svc_mgr'
+
+  // Team momentum — % of reps who drilled this week
+  const teamMomentum = (() => {
+    try {
+      const weekAgo = Date.now() - 7*24*60*60*1000
+      const recentDrills = results.filter(r => r.type==='voice' && new Date(r.date).getTime() > weekAgo)
+      const uniqueReps = new Set(recentDrills.map(r=>r.rep||dealer?.repName)).size
+      return {drills: recentDrills.length, reps: uniqueReps}
+    } catch { return {drills:0, reps:0} }
+  })()
+
+  const momentumColor = teamMomentum.drills >= 10 ? C.green : teamMomentum.drills >= 5 ? C.yellow : C.red
+  const momentumLabel = teamMomentum.drills >= 10 ? 'Strong momentum' : teamMomentum.drills >= 5 ? 'Building momentum' : 'Needs attention'
+
+  // Today's huddle status
+  const huddleToday = results.some(r => {
+    const d = new Date(r.date)
+    const today = new Date()
+    return r.type==='huddle' && d.toDateString()===today.toDateString()
+  })
+
+  // Recent wins to surface for morning huddle
+  const lastWin = results.find(r => r.result === 'won' || r.result === 'Won')
+
+  const quickActions = [
+    {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
+    {icon:'🎯', label:'Team Coaching', sub:'C&C Grid + coaching', tab:'hub', color:C.yellow},
+    {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.green},
+  ]
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+
+      {/* Header */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+          {ROLES[role]?.label} · {dealer?.dealerName}
+        </div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+          Morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        </div>
+      </div>
+
+      {/* Team momentum card */}
+      <div style={{...glass,padding:'16px 18px',marginBottom:16,
+        borderColor:`${momentumColor}33`,
+        animation:'slideUp 0.4s ease both'
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:momentumColor}}>
+            Team Momentum
+          </div>
+          <div style={{...glass,padding:'3px 10px',borderRadius:20,borderColor:`${momentumColor}33`}}>
+            <span style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:momentumColor}}>
+              {momentumLabel}
+            </span>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:16,alignItems:'baseline'}}>
+          <div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.drills}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Drills this week</div>
+          </div>
+          <div style={{width:1,height:32,background:'rgba(255,255,255,0.08)'}}/>
+          <div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.reps}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Active reps</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Huddle CTA — primary action */}
+      <div style={{...glass,padding:'20px',marginBottom:16,
+        borderColor: huddleToday ? 'rgba(184,255,60,0.15)' : 'rgba(26,107,255,0.2)',
+        animation:'slideUp 0.5s ease both'
+      }}>
+        {huddleToday ? (
+          <>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+              <span style={{fontSize:20}}>✅</span>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.green}}>Huddle Complete</div>
+            </div>
+            <div style={{fontSize:12,color:C.gray,marginBottom:12}}>Today's huddle is done. Run another?</div>
+            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnSecondary,minHeight:48}}>
+              Run Another Huddle
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:6}}>
+              Daily Huddle
+            </div>
+            {lastWin && (
+              <div style={{fontSize:12,color:C.gray,marginBottom:8,fontStyle:'italic'}}>
+                💡 Yesterday's win: "{lastWin.script?.substring(0,45)}"
+              </div>
+            )}
+            <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,marginBottom:14}}>
+              Ready to run the morning huddle?
+            </div>
+            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnPrimary}}>
+              ⏱ Set Up Huddle
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
+        {quickActions.map((a,i)=>(
+          <button key={i} className="btn-press card-hover" onClick={()=>onNav(a.tab)}
+            style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
+              textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
+            }}>
+            <div style={{fontSize:22,marginBottom:6}}>{a.icon}</div>
+            <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:2,lineHeight:1.1}}>{a.label}</div>
+            <div style={{fontSize:10,color:C.gray,lineHeight:1.3}}>{a.sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Recent activity */}
+      {results.slice(0,3).length > 0 ? (
+        <div>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>Recent Activity</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {results.slice(0,3).map((r,i)=>(
+              <div key={i} style={{...glass,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:12,color:C.lightText,fontWeight:600}}>{r.script?.substring(0,40) || (r.type==='huddle'?'Team Huddle':'Activity')}</div>
+                  <div style={{fontSize:11,color:C.gray}}>{r.rep || dealer?.repName} · {r.date}</div>
+                </div>
+                <div style={{fontFamily:fH,fontSize:13,fontWeight:700,
+                  color:r.result==='won'||r.result==='Won'?C.green:r.result==='progress'||r.result==='Progress'?C.yellow:C.gray,
+                  textTransform:'uppercase'
+                }}>{r.result}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{...glass,padding:'24px',textAlign:'center'}}>
+          <div style={{fontSize:11,color:C.gray,marginBottom:8}}>No activity logged yet.</div>
+          <div style={{fontSize:11,color:C.gray}}>Run your first huddle to get started.</div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+// REP HOME — focused drill launcher with streak + progress rings
+// ══════════════════════════════════════════════════════════════
+function RepHome({dealer, stats, results, streak, onDrill}) {
+  const role = dealer?.role || 'sales_rep'
+  const dept = roleDept(role)
+  const firstName = dealer?.repName?.split(' ')[0] || 'Hey'
+
+  // Best suggested script based on weakest category
+  const getSuggestedScript = () => {
+    try {
+      const COACHING_IDS = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
+      const pool = SCRIPTS.filter(s => !COACHING_IDS.has(s.id) && (dept==='both'||s.dept===dept))
+      if(!pool.length) return null
+      // Check assigned drill first
+      const assigned = loadJSON('5md-assigned-drill', null)
+      if(assigned) {
+        const s = pool.find(p => p.id === assigned)
+        if(s) return {script:s, reason:'Assigned by manager'}
+      }
+      // Find weakest category from history
+      const catScores = {}
+      pool.forEach(s => {
+        try {
+          const hist = JSON.parse(localStorage.getItem('5md-history-'+s.id)||'[]')
+          if(hist.length > 0) {
+            const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+            const avg = hist.slice(-3).map(h=>gradeOrder.indexOf(h.score)).filter(i=>i>=0)
+            const avgScore = avg.length > 0 ? avg.reduce((a,b)=>a+b,0)/avg.length : 4
+            if(!catScores[s.category] || avgScore > catScores[s.category].score) {
+              catScores[s.category] = {score:avgScore, script:s}
+            }
+          }
+        } catch {}
+      })
+      const weakest = Object.values(catScores).sort((a,b)=>b.score-a.score)[0]
+      if(weakest) return {script:weakest.script, reason:'Focus area: '+weakest.script.category}
+      return {script:pool[Math.floor(Math.random()*pool.length)], reason:'Suggested for today'}
+    } catch { return null }
+  }
+
+  const suggested = getSuggestedScript()
+  const drillsThisWeek = results.filter(r => {
+    const d = new Date(r.date); const now = new Date()
+    return (now - d) < 7*24*60*60*1000 && r.type === 'voice'
+  }).length
+  const weeklyGoal = 5
+  const avgScore = (() => {
+    try {
+      const recent = results.filter(r=>r.score).slice(0,10)
+      if(!recent.length) return null
+      const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+      const avg = recent.map(r=>gradeOrder.indexOf(r.score)).filter(i=>i>=0)
+      if(!avg.length) return null
+      const idx = Math.round(avg.reduce((a,b)=>a+b,0)/avg.length)
+      return gradeOrder[Math.min(idx, gradeOrder.length-1)]
+    } catch { return null }
+  })()
+  const gradeColor = g => g?.startsWith('A')?C.green:g?.startsWith('B')?C.blueBright:g?.startsWith('C')?C.yellow:C.red
+
+  const streakCount = streak?.count || 0
+  const ringPct = Math.min(drillsThisWeek / weeklyGoal, 1)
+  const ringR = 32
+  const ringCirc = 2 * Math.PI * ringR
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+
+      {/* Header */}
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+          {ROLES[role]?.label} · {dealer?.dealerName}
+        </div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+          Good morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        </div>
+      </div>
+
+      {/* Streak flame + progress rings row */}
+      <div style={{display:'flex',gap:12,marginBottom:24}}>
+
+        {/* Streak */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center'}}>
+          <div style={{
+            fontSize:36,lineHeight:1,marginBottom:4,
+            animation: streakCount>0 ? 'flamePulse 2s ease-in-out infinite' : 'none'
+          }}>
+            {streakCount >= 10 ? '🔥' : streakCount >= 5 ? '⚡' : streakCount > 0 ? '✦' : '○'}
+          </div>
+          <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:streakCount>0?C.green:C.gray,lineHeight:1}}>
+            {streakCount}
+          </div>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:2}}>
+            Day Streak
+          </div>
+        </div>
+
+        {/* Weekly ring */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center'}}>
+          <svg width={80} height={80} style={{marginBottom:4}}>
+            <circle cx={40} cy={40} r={ringR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={6}/>
+            <circle cx={40} cy={40} r={ringR} fill="none" stroke={C.green} strokeWidth={6}
+              strokeDasharray={ringCirc}
+              strokeDashoffset={ringCirc * (1 - ringPct)}
+              strokeLinecap="round"
+              transform="rotate(-90 40 40)"
+              style={{transition:'stroke-dashoffset 1s ease', animation:'ringFill 1s ease both'}}
+            />
+            <text x={40} y={45} textAnchor="middle" fill={C.white}
+              style={{fontFamily:'Barlow Condensed',fontWeight:900,fontSize:16}}>
+              {drillsThisWeek}/{weeklyGoal}
+            </text>
+          </svg>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray}}>
+            This Week
+          </div>
+        </div>
+
+        {/* Avg score */}
+        <div style={{...glass,flex:1,padding:'14px 16px',textAlign:'center'}}>
+          <div style={{fontFamily:fH,fontSize:36,fontWeight:900,
+            color:avgScore?gradeColor(avgScore):C.gray,lineHeight:1,marginBottom:4,
+            animation:avgScore?'scaleIn 0.5s ease both':'none'
+          }}>
+            {avgScore || '—'}
+          </div>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:2}}>
+            Avg Grade
+          </div>
+        </div>
+
+      </div>
+
+      {/* Suggested drill card */}
+      {suggested ? (
+        <div style={{...glass,padding:'20px',marginBottom:16,
+          borderColor:'rgba(184,255,60,0.15)',
+          animation:'slideUp 0.5s ease both'
+        }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+            <div>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>
+                {suggested.reason}
+              </div>
+              <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,lineHeight:1.2,maxWidth:220}}>
+                "{suggested.script.objection.replace(/['"]/g,'').substring(0,55)}"
+              </div>
+            </div>
+            {/* Last score badge */}
+            {(() => {
+              try {
+                const hist = JSON.parse(localStorage.getItem('5md-history-'+suggested.script.id)||'[]')
+                const last = hist[hist.length-1]
+                if(!last) return null
+                return (
+                  <div style={{...glass,padding:'6px 10px',textAlign:'center',minWidth:52,borderColor:'rgba(255,255,255,0.1)'}}>
+                    <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Last</div>
+                    <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:gradeColor(last.score)}}>{last.score}</div>
+                  </div>
+                )
+              } catch { return null }
+            })()}
+          </div>
+          <button
+            className="btn-press"
+            onClick={() => onDrill(suggested.script)}
+            style={{...btnPrimary}}
+          >
+            ▶ Start Drill
+          </button>
+        </div>
+      ) : (
+        <div style={{...glass,padding:'24px 20px',marginBottom:16,textAlign:'center',animation:'slideUp 0.5s ease both'}}>
+          <div style={{fontSize:32,marginBottom:8}}>🎙</div>
+          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,marginBottom:6}}>Ready to drill?</div>
+          <div style={{fontSize:13,color:C.gray,marginBottom:16}}>Your first drill takes 3 minutes.</div>
+          <button className="btn-press" onClick={()=>onDrill(null)} style={{...btnPrimary}}>
+            ▶ Start Your First Drill
+          </button>
+        </div>
+      )}
+
+      {/* Choose different script */}
+      <button className="btn-press" onClick={()=>onDrill(null)}
+        style={{...btnSecondary,marginBottom:24}}>
+        Browse All Scripts
+      </button>
+
+      {/* Recent results */}
+      {results.filter(r=>r.type==='voice').slice(0,3).length > 0 && (
+        <div>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>
+            Recent Drills
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {results.filter(r=>r.type==='voice').slice(0,3).map((r,i)=>(
+              <div key={i} style={{...glass,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:12,color:C.lightText,fontWeight:600,marginBottom:1}}>
+                    {r.script?.substring(0,40) || 'Voice Drill'}
+                  </div>
+                  <div style={{fontSize:11,color:C.gray}}>{r.date}</div>
+                </div>
+                {r.score && (
+                  <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:gradeColor(r.score)}}>{r.score}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {results.filter(r=>r.type==='voice').length === 0 && (
+        <div style={{textAlign:'center',padding:'24px 0',color:C.gray}}>
+          <div style={{fontSize:11}}>No drills yet. Start your first one above.</div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
 function ScriptLibrary({dealer}) {
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
@@ -707,7 +1168,9 @@ function ScriptLibrary({dealer}) {
   const [search,setSearch] = useState('')
   const [openId,setOpenId] = useState(null)
 
+  const COACHING_IDS_LIST = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
   const filtered = SCRIPTS.filter(s=>{
+    if(COACHING_IDS_LIST.has(s.id)) return false  // coaching scripts in Manager Hub
     if(filterDept!=='all'&&s.dept!==filterDept) return false
     if(cat!=='all'&&s.category!==cat) return false
     if(search&&!s.objection.toLowerCase().includes(search.toLowerCase())) return false
@@ -744,6 +1207,93 @@ function ScriptLibrary({dealer}) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// PERSONA CARD — shown before drill starts
+// ══════════════════════════════════════════════════════════════
+function PersonaCard({persona, script, onStart, onBack}) {
+  const moodMap = {
+    dave: {emoji:'📱', mood:'Ready to push back', color:'#ff6b6b'},
+    linda: {emoji:'🛡', mood:'Guarded, walls up', color:'#8a9ab5'},
+    mike: {emoji:'💰', mood:'Impatient, wants numbers', color:'#ffc947'},
+    gary: {emoji:'🚛', mood:'Stubborn, emotionally attached', color:'#ff9f43'},
+    carol: {emoji:'👥', mood:'Skeptical, phone ready', color:'#3dcfcf'},
+    frank: {emoji:'⏳', mood:'Flat, unconvinced', color:'#8a9ab5'},
+    barbara: {emoji:'💸', mood:'Shocked by price', color:'#ff6b6b'},
+    ray: {emoji:'🏪', mood:'Loyal to his guy', color:'#ffc947'},
+    susan: {emoji:'📞', mood:'Apologetic but firm', color:'#3d8bff'},
+    tom: {emoji:'⌛', mood:'Casually avoidant', color:'#ff9f43'},
+  }
+  const pm = moodMap[persona?.id] || {emoji:'👤', mood:'Ready', color:C.blue}
+
+  // Last score for this script
+  const lastScore = (() => {
+    try {
+      const hist = JSON.parse(localStorage.getItem('5md-history-'+(script?.id||0))||'[]')
+      return hist[hist.length-1]?.score || null
+    } catch { return null }
+  })()
+  const gradeColor = g => g?.startsWith('A')?C.green:g?.startsWith('B')?C.blueBright:g?.startsWith('C')?C.yellow:C.red
+
+  return (
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.35s ease both'}}>
+      <button onClick={onBack} style={{background:'none',border:'none',color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',cursor:'pointer',marginBottom:20,padding:0}}>
+        ← Back
+      </button>
+
+      {/* Persona intro */}
+      <div style={{...glass,padding:'28px 24px',marginBottom:20,textAlign:'center',
+        borderColor:`${pm.color}33`,
+        animation:'scaleIn 0.4s ease both'
+      }}>
+        <div style={{fontSize:64,marginBottom:12,animation:'flamePulse 3s ease-in-out infinite'}}>{pm.emoji}</div>
+        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,marginBottom:4}}>{persona?.name}</div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${pm.color}22`,
+          border:`1px solid ${pm.color}44`,borderRadius:20,padding:'4px 14px',marginBottom:16
+        }}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:pm.color,animation:'pulse 1.5s ease infinite'}}/>
+          <span style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:pm.color}}>
+            {pm.mood}
+          </span>
+        </div>
+        <div style={{fontSize:13,color:C.gray,lineHeight:1.65,maxWidth:280,margin:'0 auto'}}>
+          {persona?.desc?.substring(0,120)}...
+        </div>
+      </div>
+
+      {/* The objection */}
+      <div style={{...glass,padding:'18px 20px',marginBottom:16,borderColor:'rgba(26,107,255,0.2)'}}>
+        <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:8}}>
+          Today's Objection
+        </div>
+        <div style={{fontSize:15,color:C.white,lineHeight:1.65,fontStyle:'italic'}}>
+          "{script?.objection?.replace(/['"]/g,'')}"
+        </div>
+      </div>
+
+      {/* Beat last score */}
+      {lastScore && (
+        <div style={{...glass,padding:'12px 16px',marginBottom:20,
+          display:'flex',justifyContent:'space-between',alignItems:'center',
+          borderColor:'rgba(255,255,255,0.08)'
+        }}>
+          <div style={{fontSize:12,color:C.gray}}>Your last score on this script</div>
+          <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:gradeColor(lastScore)}}>{lastScore}</div>
+        </div>
+      )}
+      {!lastScore && (
+        <div style={{...glass,padding:'12px 16px',marginBottom:20,textAlign:'center'}}>
+          <div style={{fontSize:12,color:C.gray}}>First time drilling this script — let's see what you've got</div>
+        </div>
+      )}
+
+      <button className="btn-press" onClick={onStart} style={{...btnPrimary,fontSize:18,minHeight:60}}>
+        {lastScore ? `▶ Beat Your ${lastScore}` : '▶ Start Drill'}
+      </button>
     </div>
   )
 }
@@ -807,6 +1357,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [speaking,setSpeaking]   = useState(false)
   const [showScript,setShowScript] = useState(false)
   const [showPersonas,setShowPersonas] = useState(false)
+  const [showPersonaCard,setShowPersonaCard] = useState(false) // persona intro before drill
   const [lastDrillTranscript,setLastDrillTranscript] = useState(null)  // item 11: drill comparison
   const [prevDrillData,setPrevDrillData] = useState(null)               // item 11: drill comparison
   const [silenceTimer,setSilenceTimer] = useState(null)                 // item 8: silence
@@ -1012,8 +1563,18 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       const autoDiff = getAdaptiveDifficulty(script.id)
       if(autoDiff !== 'medium') setDifficulty(autoDiff)
     }
+    // Show persona card before starting drill
+    if(script && !personaId) {
+      setActiveS(script)
+      const p = getPersonaForScript(script)
+      setActivePersId(p.id)
+      setShowPersonaCard(true)
+      return
+    }
+    setShowPersonaCard(false)
     if (!script) {
-      const pool = SCRIPTS.filter(s=>dept==='both'||s.dept===dept)
+      const COACHING_IDS_VD = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
+    const pool = SCRIPTS.filter(s=>(dept==='both'||s.dept===dept)&&!COACHING_IDS_VD.has(s.id))
       script = pool[Math.floor(Math.random()*pool.length)]
     }
     const persona = personaId ? PERSONAS.find(p=>p.id===personaId)||getPersonaForScript(script) : getPersonaForScript(script)
@@ -1583,66 +2144,6 @@ ${diffMod ? '\n' + diffMod : ''}`
       }
       return
     }
-        // ── REGULAR (non-live) PATH  -  kept for fallback ─────────
-    const newEx = exchange+1; setExchange(newEx)
-    const updatedTranscripts = [...allTranscripts, transcript]
-    setAllTranscripts(updatedTranscripts)
-    const MAX_EXCHANGES = 5  // max before auto-coaching
-
-    setLoading(true)
-    const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
-
-    // Detect confidence markers in rep response
-    const hesitationWords = ['i think','maybe','possibly','im not sure','i guess','kind of','sort of','probably','might']
-    const repLower = transcript.toLowerCase()
-    const hesitationCount = hesitationWords.filter(w=>repLower.includes(w)).length
-    setConfidenceFlags(prev=>[...prev, hesitationCount])
-
-    try{
-      const savedTranscript = transcript
-      const res = await fetch('/ai-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        system:'You are '+persona.name+'. '+persona.tone+'. Backstory: '+persona.desc+'. When pushed: '+persona.escalation+'. Exchange '+newEx+' of 5 about: '+activeS.objection.replace(/"/g,'')+'. Rules: Hold firm exchanges 1-2. Show cracks exchange 3-4 only if they addressed your concern. Resolve exchange 5. React to EXACTLY what was just said - never repeat yourself. Sound human - contractions, emotion, 1-2 sentences max. Add [CLOSE_EARNED] only if rep earned it after exchange 2.',
-        messages:[{role:'user',content:'Exchange '+newEx+'. Rep said: "'+transcript+'". Full convo: '+updatedTranscripts.map((t,i)=>i%2===0?'Rep: '+t:'You: '+t).join(' | ')+'. Your last response was: "'+aiText+'". Respond as '+persona.name+' - react specifically to what they just said, do NOT repeat your last response:'}]
-      })})
-      const data = await res.json()
-      // Handle both direct text and error responses
-      const rawReply = data.content?.[0]?.text || data.content?.[0]?.message || null
-      // Per-persona fallbacks  -  never generic
-      const personaFallbacks = {
-        dave:    `Look, I already showed you the TrueCar price. Are you going to match it or not?`,
-        linda:   `I appreciate that but I really need more time to think this through.`,
-        mike:    `I hear what you're saying but I still need that payment under four-fifty.`,
-        gary:    `My truck is worth more than what you're telling me. I know what I paid for it.`,
-        carol:   `That sounds reasonable but I'd still want to check online before I decide.`,
-        frank:   `Every time I come in here there's something new that needs fixing. How do I know this is real?`,
-        barbara: `I still don't understand why your price is so much higher than my cousin's shop.`,
-        ray:     `I hear you but Tony has been doing my cars for fifteen years. That's hard to walk away from.`,
-        susan:   `I really do need to call my husband before I can approve anything.`,
-        tom:     `I get it but honestly right now just isn't the right time for me.`,
-      }
-      let reply = rawReply || personaFallbacks[persona?.id] || `I hear what you're saying but I'm going to need more than that.`
-
-      // Check if persona signals close earned
-      const closeEarned = reply.includes('[CLOSE_EARNED]')
-      reply = reply.replace('[CLOSE_EARNED]','').trim()
-
-      setAiText(reply); setTranscript(''); setError('')
-      setSilentCoach(null); setSilentLoading(true)
-      getSilentCoach(savedTranscript, newEx-1, activeS)
-      const pVoice = getPersonaVoiceOpts(persona)
-
-      if(closeEarned || newEx>=MAX_EXCHANGES){
-        // Rep earned the close or hit max  -  go to coaching
-        setSpeaking(true)
-        speak(reply, async ()=>{
-          setSpeaking(false)
-          await getFeedback(savedTranscript, updatedTranscripts, closeEarned)
-        }, pVoice)
-      } else {
-        setSpeaking(true); speak(reply,()=>setSpeaking(false), pVoice)
-      }
-    }catch{setError('AI issue  -  type your next response.')}
-    setLoading(false)
   }
   submitRef.current = submit  // keep ref current for auto-submit from stopRec
 
@@ -1956,17 +2457,38 @@ RETURN ONLY valid JSON:
   }
 
   const gradeColor = s => s?.startsWith('A')?C.green:s?.startsWith('B')?C.blueBright:(s?.startsWith('D')||s==='F')?C.red:C.yellow
+  const gradeSize = s => s?.startsWith('A+')?96:s?.startsWith('A')?88:s?.startsWith('B')?80:72
 
   // ── FEEDBACK SCREEN ──────────────────────────────────────────
+  // Show persona card intro before drill
+  if(showPersonaCard && activeS) {
+    const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
+    return <PersonaCard
+      persona={persona}
+      script={activeS}
+      onStart={()=>{
+        setShowPersonaCard(false)
+        setPhase('drill')
+        setExchange(0); setAllTranscripts([]); setTranscript('')
+        setConfidenceFlags([]); setCloseEarnedFlag(false)
+        setLiveTranscript([]); liveTranscriptRef.current=[]; setExchangeCount(0)
+        setLivePhase('connecting')
+        const p = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
+        setTimeout(()=>startLiveDrill(activeS, p), 150)
+      }}
+      onBack={()=>{setShowPersonaCard(false); setPhase('list')}}
+    />
+  }
+
   if(phase==='feedback'&&activeS&&feedback) {
     const persona = PERSONAS.find(p=>p.id===activePersId)
     return(
-      <div style={{padding:'16px 16px 80px'}}>
+      <div style={{padding:'16px 16px 80px', animation:'fadeUp 0.3s ease both'}}>
         <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← Back</button>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
 
         {/* Grade + persona */}
-        <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.08),rgba(184,255,60,0.03))',border:'1px solid rgba(184,255,60,0.25)',borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.08),rgba(184,255,60,0.03))',border:'1px solid rgba(184,255,60,0.25)',borderRadius:12,padding:16,marginBottom:14,animation:'scaleIn 0.5s ease both'}}>
           {/* Close earned banner */}
           {closeEarnedFlag&&(
             <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.2),rgba(184,255,60,0.08))',border:'1px solid rgba(184,255,60,0.5)',borderRadius:8,padding:'8px 14px',marginBottom:12,textAlign:'center'}}>
@@ -2556,6 +3078,14 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
         ))}
       </div>
       <button onClick={onNew} style={{width:'100%',background:'rgba(255,255,255,0.05)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer'}}>New Huddle</button>
+      {selScript && (
+        <div style={{marginTop:8,padding:'10px 0',borderTop:`1px solid ${C.border}`}}>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:6,textAlign:'left'}}>Practice this script now</div>
+          <button onClick={()=>window.dispatchEvent(new CustomEvent('5md-launch-drill',{detail:{scriptId:selScript.id}}))} style={{width:'100%',background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:900,fontSize:13,letterSpacing:1,textTransform:'uppercase',padding:12,borderRadius:8,cursor:'pointer'}}>
+            ▶ Drill This Script Now
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -2617,6 +3147,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const [timeLeft,setTimeLeft]   = useState(TOTAL_H)
   const [running,setRunning]     = useState(false)
   const [huddleTab,setHuddleTab] = useState('scripts')  // scripts | leaderboard
+  const[presentMode,setPresentMode] = useState(false)
+  const[autoPlayObj,setAutoPlayObj] = useState(true)
+  const[objPlaying,setObjPlaying]   = useState(false)
   const intRef = useRef(null)
 
   // Preload script from Home "Team Huddle" button
@@ -2639,7 +3172,44 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     return ()=>clearInterval(intRef.current)
   },[running])
 
-  const startHuddle = () => { if(!selScript)return; setPhase('running'); setTimeLeft(TOTAL_H); setRunning(false) }
+  const startHuddle = () => { if(!selScript)return; setPhase('running'); setTimeLeft(TOTAL_H); setRunning(true) }
+
+  // Huddle voice feature — persona reads objection aloud
+  const readObjectionAloud = () => {
+    if(!selScript) return
+    if(objPlaying) { stopSpeaking(); setObjPlaying(false); return }
+    const voiceOpts = selScript.dept === 'service'
+      ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.35}
+      : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.60}
+    setObjPlaying(true)
+    speak(selScript.objection.replace(/['"]/g,''), () => setObjPlaying(false), voiceOpts)
+  }
+
+  // Auto-play objection when drill step is reached
+  useEffect(() => {
+    if(phase === 'running' && step === 2 && autoPlayObj && selScript && running) {
+      const t = setTimeout(() => {
+        const voiceOpts = selScript.dept === 'service'
+          ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.35}
+          : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.60}
+        setObjPlaying(true)
+        speak(selScript.objection.replace(/['"]/g,''), () => setObjPlaying(false), voiceOpts)
+      }, 1200)
+      return () => clearTimeout(t)
+    }
+  }, [step, phase])
+
+  // Yesterday's win — pull last logged result
+  const yesterdayWin = (() => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('5md-logs') || '[]')
+      const wins = logs.filter(l => l.result === 'Won' || l.result === 'Progress')
+      if(wins.length === 0) return null
+      const last = wins[wins.length - 1]
+      return last.script ? last.script.substring(0, 60) : null
+    } catch { return null }
+  })()
+
   const skipStep    = () => { if(step<STEPS.length-1){setTimeLeft(TOTAL_H-STEP_STARTS[step+1])}else{clearInterval(intRef.current);setRunning(false);setPhase('done')} }
 
   const logResult = result => {
@@ -2648,7 +3218,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     setPhase('setup'); setSelScript(null); setTimeLeft(TOTAL_H); setRunning(false)
   }
 
+  const COACHING_IDS = new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37])
   const filtered = SCRIPTS.filter(s=>{
+    if(COACHING_IDS.has(s.id)) return false  // coaching scripts go to Manager Hub
     const ed=lockDept||filterDept
     if(ed!=='all'&&s.dept!==ed) return false
     if(cat!=='all'&&s.category!==cat) return false
@@ -2665,9 +3237,30 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     />
   )
 
+  // Pace indicator — green/yellow/red based on time remaining in current step
+  const stepTimeUsed = elapsed - STEP_STARTS[step]
+  const stepDuration = step < STEPS.length-1 ? STEP_STARTS[step+1] - STEP_STARTS[step] : TOTAL_H - STEP_STARTS[step]
+  const stepPct = stepTimeUsed / stepDuration
+  const paceColor = stepPct < 0.5 ? C.green : stepPct < 0.8 ? C.yellow : C.red
+  const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
+
   if(phase==='running') return(
-    <div style={{padding:'16px 16px 80px'}}>
-      <div style={{display:'flex',gap:4,marginBottom:14}}>{STEPS.map((_,i)=><div key={i} style={{flex:1,height:5,borderRadius:100,background:i<step?SCOLS[i]:i===step?col:'rgba(255,255,255,0.1)',transition:'all 0.4s'}}/>)}</div>
+    <div style={{padding: presentMode ? '32px 40px 40px' : '16px 16px 80px', background: presentMode ? C.navy : 'transparent', minHeight: presentMode ? '100vh' : 'auto'}}>
+      {/* Present Mode toggle + pace indicator */}
+      {!presentMode && (
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{background:`${paceColor}22`,border:`1px solid ${paceColor}44`,borderRadius:20,padding:'3px 10px',fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:paceColor}}>{paceLabel}</div>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <button onClick={()=>setPresentMode(true)} style={{background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:9,letterSpacing:1,textTransform:'uppercase',padding:'5px 10px',borderRadius:6,cursor:'pointer'}}>📺 Cast Mode</button>
+          </div>
+        </div>
+      )}
+      {/* Exit present mode */}
+      {presentMode && (
+        <button onClick={()=>setPresentMode(false)} style={{position:'fixed',top:12,right:12,background:'rgba(255,255,255,0.1)',border:'none',color:C.gray,fontSize:12,padding:'6px 12px',borderRadius:6,cursor:'pointer',zIndex:99}}>✕ Exit Cast Mode</button>
+      )}
       <div style={{display:'flex',gap:4,overflowX:'auto',paddingBottom:10,marginBottom:14}}>
         {STEPS.map((s,i)=>(
           <div key={i} style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'8px 10px',borderRadius:8,border:`1px solid ${i===step?SCOLS[i]+'55':C.border}`,background:i===step?`${SCOLS[i]}22`:'rgba(255,255,255,0.03)',opacity:i<step?0.5:i===step?1:0.7,transform:i===step?'scale(1.05)':'scale(1)',transition:'all 0.4s'}}>
@@ -2682,6 +3275,29 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
         <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:col,marginBottom:6}}>{stepData.label}</div>
         <div style={{fontSize:13,color:C.lightText,lineHeight:1.65,opacity:.85}}>{stepData.desc}</div>
       </div>
+        {step === 0 && yesterdayWin && (
+          <div style={{background:'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.2)',borderRadius:8,padding:'8px 12px',marginTop:8}}>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:3}}>Last Win Logged</div>
+            <div style={{fontSize:13,color:C.white,fontStyle:'italic'}}>"{yesterdayWin}"</div>
+          </div>
+        )}
+        {step === 2 && selScript && (
+          <div style={{marginTop:10}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray}}>Objection to Drill</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:10,color:C.gray}}>Auto-play</span>
+                <button onClick={()=>setAutoPlayObj(v=>!v)} style={{background:autoPlayObj?'rgba(184,255,60,0.15)':'rgba(255,255,255,0.05)',border:`1px solid ${autoPlayObj?C.green:C.border}`,color:autoPlayObj?C.green:C.gray,fontFamily:fH,fontWeight:700,fontSize:9,letterSpacing:1,textTransform:'uppercase',padding:'3px 10px',borderRadius:20,cursor:'pointer'}}>
+                  {autoPlayObj ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+            <div style={{fontSize:presentMode?20:13,color:C.white,marginBottom:8,lineHeight:1.6,fontStyle:'italic',padding:'8px 12px',background:'rgba(255,255,255,0.04)',borderRadius:8}}>"{selScript.objection.replace(/['"]/g,'')}"</div>
+            <button onClick={readObjectionAloud} style={{width:'100%',background:objPlaying?'rgba(255,107,107,0.1)':'rgba(26,107,255,0.1)',border:`1px solid ${objPlaying?C.red:'rgba(26,107,255,0.3)'}`,color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>
+              {objPlaying ? '⏹ Stop' : '🔊 Hear the Objection'}
+            </button>
+          </div>
+        )}
       {showScriptForStep&&selScript&&<ScriptCard script={selScript} mode='scriptonly' defaultOpen={true}/>}
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:16}}>
         <div style={{position:'relative',width:190,height:190}}>
@@ -3205,10 +3821,292 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
 function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
 
-const QUADS=[{id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',desc:'Enthusiastic but developing. Invest here.',word:'"Let me show you exactly how I\'d handle that, then we\'ll practice together."',coaching:'Direct & Guide  -  clear expectations, role-play.'},{id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',desc:'Skilled, self-motivated. Give them autonomy.',word:'"I trust you. Here\'s the outcome  -  how you get there is yours."',coaching:'Delegate  -  give ownership, recognize publicly.'},{id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',desc:'Most challenging. Every day unaddressed costs your team.',word:'"Here are the results I need in 30 days. The change starts now."',coaching:'Direct  -  documented expectations, 30-day plan.'},{id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',desc:'Most dangerous. Capability without commitment breeds cynicism.',word:'"I\'ve noticed a shift. Help me understand what\'s changed."',coaching:'Excite  -  honest 1:1, find root cause.'}]
-function LeaderGrid(){const[team,setTeam]=useState([]);const[nm,setNm]=useState('');const[qid,setQid]=useState('delegate');const[sel,setSel]=useState(null);const[acts,setActs]=useState({});const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}]);const selQ=QUADS.find(q=>q.id===sel);const add=()=>{if(!nm.trim())return;setTeam([...team,{name:nm.trim(),qid,id:Date.now()}]);setNm('')};const rem=id=>setTeam(team.filter(m=>m.id!==id));const allNames=team.map(m=>m.name);const qC={guide:'#e8f0ff',delegate:'#e8ffe8',direct:'#ffe8e8',excite:'#fff8e8'};const expPDF=()=>{const tR=QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);if(!mb.length)return'';return`<div class="card"><div style="padding:4px 8px;background:${qC[q.id]};color:${q.color};font-weight:700;border-radius:4px;display:inline-block;margin-bottom:8px;">${q.label}  -  ${q.title}</div><div style="font-size:13px;color:#333;margin-bottom:8px;">${mb.map(m=>m.name).join(', ')}</div><div class="word-track">${q.word}</div></div>`}).join('');const aR=ap.filter(a=>a.emp).map(a=>{const eq=team.find(m=>m.name===a.emp);const q=QUADS.find(q=>q.id===eq?.qid);return`<div class="card"><div style="font-size:18px;font-weight:700;color:#050d1f;margin-bottom:4px;">${a.emp}</div>${q?`<div class="word-track">${q.word}</div>`:''}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px;"><div><div class="label">Priority</div><div class="val">${a.priority||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.when||' - '}</div></div></div><div><div class="label">Coaching Action</div><div class="val">${a.action||' - '}</div></div></div>`}).join('');printPDF('Commitment & Capability',`<h1>Commitment & Capability</h1><div class="sub">Leadership Grid</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${tR?`<h2>Team Assessment</h2>${tR}`:''}${aR?`<h2>Coaching Action Plan</h2>${aR}`:''}<h2>Weekly Check-In</h2>${['Reviewed grid','Identified top 2 priorities','Matched coaching style','Scheduled 1:1s','Written commitments'].map(i=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;">${i}</div></div>`).join('')}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Commitment & Capability</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Leadership Grid</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14}}><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><span>🎯</span><span style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white}}>The Coaching Model</span></div>{QUADS.map((q,i)=>(<div key={q.id} style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:i<3?10:0}}><div style={{background:`${q.color}22`,border:`1px solid ${q.color}44`,borderRadius:8,padding:'5px 8px',fontFamily:fH,fontSize:10,fontWeight:900,color:q.color,minWidth:60,textAlign:'center',flexShrink:0}}>{q.label}</div><div><div style={{fontFamily:fH,fontSize:12,fontWeight:900,textTransform:'uppercase',color:q.color,marginBottom:1}}>{q.title}</div><div style={{fontSize:11,color:C.gray,lineHeight:1.4}}>{q.sub}  -  {q.desc}</div></div></div>))}</div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Add Team Member</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input style={{...inp,flex:1}} placeholder="Name..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><select style={{...inp,flex:'0 0 auto',cursor:'pointer'}} value={qid} onChange={e=>setQid(e.target.value)}>{QUADS.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}</select><button onClick={add} style={{background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,border:'none',cursor:'pointer'}}>Add</button></div></div><div style={{marginBottom:14}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{QUADS.map(q=>{const mb=team.filter(m=>m.qid===q.id);const isS=sel===q.id;return(<div key={q.id} onClick={()=>setSel(isS?null:q.id)} style={{background:isS?q.bg:C.card,border:`2px solid ${isS?q.color:C.border}`,borderRadius:10,padding:12,cursor:'pointer',minHeight:90}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:q.color}}>{q.label}</div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{q.title}</div><div style={{fontSize:10,color:C.gray}}>{q.sub}</div></div><div style={{background:q.bg,border:`1px solid ${q.bdr}`,borderRadius:100,width:22,height:22,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:fH,fontWeight:900,fontSize:11,color:q.color}}>{mb.length}</div></div><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{mb.map(m=><div key={m.id} style={{background:'rgba(255,255,255,0.08)',borderRadius:100,padding:'2px 7px',fontSize:11,color:C.white,display:'flex',alignItems:'center',gap:4}}>{m.name}<span onClick={e=>{e.stopPropagation();rem(m.id)}} style={{color:C.gray,cursor:'pointer'}}>x</span></div>)}{!mb.length&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',fontStyle:'italic'}}>Empty</div>}</div></div>)})}</div></div>{selQ&&(<div style={{background:selQ.bg,border:`1px solid ${selQ.bdr}`,borderRadius:10,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:selQ.color,marginBottom:4}}>{selQ.label}  -  {selQ.title}</div><p style={{fontSize:13,color:C.lightText,lineHeight:1.65,marginBottom:10}}>{selQ.desc}</p><div style={{background:'rgba(0,0,0,0.2)',borderLeft:`3px solid ${selQ.color}`,borderRadius:'0 6px 6px 0',padding:'10px 12px',fontSize:13,color:C.white,fontStyle:'italic',lineHeight:1.65,marginBottom:10}}>{selQ.word}</div><textarea style={{...inp,minHeight:44,resize:'vertical'}} placeholder="My action this week..." value={acts[selQ.id]||''} onChange={e=>setActs({...acts,[selQ.id]:e.target.value})}/></div>)}<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:'13px 14px',marginBottom:14}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Coaching Action Plan</div><div style={{fontSize:12,color:C.gray,marginBottom:12}}>Pick 2 employees from your grid.</div>{ap.map((a,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:8,padding:'11px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Employee #{i+1}</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Name</div><select style={{...inp,cursor:'pointer'}} value={a.emp} onChange={e=>{const x=[...ap];x[i]={...x[i],emp:e.target.value};setAp(x)}}><option value="">Select...</option>{allNames.map(n=><option key={n} value={n}>{n}</option>)}</select></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Priority</div><select style={{...inp,cursor:'pointer'}} value={a.priority} onChange={e=>{const x=[...ap];x[i]={...x[i],priority:e.target.value};setAp(x)}}><option value="">Select...</option><option value="High  -  This Week">High  -  This Week</option><option value="Medium  -  This Month">Medium</option><option value="Watching">Watching</option></select></div></div><div style={{marginBottom:6}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Coaching Action</div><input style={inp} placeholder="e.g. Role-play payment objection by Friday..." value={a.action} onChange={e=>{const x=[...ap];x[i]={...x[i],action:e.target.value};setAp(x)}}/></div><div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:3}}>By When</div><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.when} onChange={e=>{const x=[...ap];x[i]={...x[i],when:e.target.value};setAp(x)}}/></div></div>))}</div></div>)}
+const QUADS=[
+  {id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',
+   color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',
+   desc:'Enthusiastic but developing. Invest here.',
+   styleGuide:'Show and Tell — demonstrate first, then let them try.',
+   styleOneLiner:'Your job is to teach and demonstrate — not delegate or demand.',
+   word:"Let me show you exactly how I'd handle that, then we'll practice together.",
+   coaching:'Direct & Guide  -  clear expectations, role-play.',
+   voiceTone:{stability:0.55,similarity_boost:0.80,style:0.40,voiceId:'EXAVITQu4vr4xnSDxMaL'},
+   coachingScriptIds:[1,2,3,4,5,34,35],
+   repPersona:'jake'},
+  {id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',
+   color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',
+   desc:'Skilled, self-motivated. Give them autonomy.',
+   styleGuide:'Challenge and Trust — give bigger targets, recognize publicly.',
+   styleOneLiner:'Your job is to challenge and get out of the way — not manage their process.',
+   word:"I trust you. Here's the outcome - how you get there is yours.",
+   coaching:'Delegate  -  give ownership, recognize publicly.',
+   voiceTone:{stability:0.45,similarity_boost:0.85,style:0.55,voiceId:'ErXwobaYiN019PkySvjV'},
+   coachingScriptIds:[28,29,30,6,7],
+   repPersona:'ashley'},
+  {id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',
+   color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',
+   desc:'Most challenging. Every day unaddressed costs your team.',
+   styleGuide:'State and Document — clear expectations with consequences.',
+   styleOneLiner:'Your job is to be clear and documented — not to hope things improve.',
+   word:"Here are the results I need in 30 days. The change starts now.",
+   coaching:'Direct  -  documented expectations, 30-day plan.',
+   voiceTone:{stability:0.72,similarity_boost:0.82,style:0.20,voiceId:'TxGEqnHWrfWFTfGW9XjX'},
+   coachingScriptIds:[31,32,33,8,9,10],
+   repPersona:'carlos'},
+  {id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',
+   color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',
+   desc:'Most dangerous. Capability without commitment breeds cynicism.',
+   styleGuide:'Ask and Listen — find the root cause before saying anything else.',
+   styleOneLiner:'Your job is to understand what changed — not to demand performance.',
+   word:"I've noticed a shift. Help me understand what's changed.",
+   coaching:'Excite  -  honest 1:1, find root cause.',
+   voiceTone:{stability:0.50,similarity_boost:0.78,style:0.45,voiceId:'onwK4e9ZLuTAKqWW03F9'},
+   coachingScriptIds:[11,12,13,14,15,36,37],
+   repPersona:'marcus'},
+]
 
-const LC_STEPS=[{id:'sell1',n:1,label:'Sell #1',title:'Set the Foundation',focus:'Sell the ownership experience, not just the vehicle.',color:'#e85d4a',actions:['Deliver 5 personalized ownership value points during the sale','Capture complete guest profile  -  email, phone, communication preferences','Introduce the service experience early  -  before the deal is done','Manager turn focused on the ownership journey, not just closing'],metrics:['Closing ratio','Email capture rate (goal: 85%+)','CRM notes quality score']},{id:'deliver',n:2,label:'Deliver',title:'Execute a Premium Delivery',focus:'Slow down the delivery to speed up retention.',color:'#e88b3a',actions:['Complete the Delivery Checklist with the guest  -  every delivery','Manager touchpoint during delivery reinforces brand trust','Confirm technology setup, features walkthrough, and first service intro','Manager signs off on checklist before guest departs'],metrics:['Delivery checklist completion rate (goal: 90%+)','Delivery satisfaction scores']},{id:'schedule',n:3,label:'Schedule',title:'Lock in Retention',focus:'Every delivery equals a future service appointment.',color:C.green,actions:['Schedule first service appointment at delivery  -  every time','Confirm appointment in system before goodbye','Activate automated confirmation texts and reminders','BDC follows up within 24 hours to confirm'],metrics:['Service appts set at delivery (goal: 90 - 100%)','First service show rate (goal: 75%+)']},{id:'reconnect',n:4,label:'ReConnect',title:'Reinforce the Relationship',focus:'This is where loyalty is built.',color:'#3dcfcf',actions:['Schedule the ReConnect during delivery  -  not as an afterthought','Complete within 3 - 7 days while experience is fresh','Review features, confirm satisfaction, validate service appointment','Document the ReConnect outcome in CRM'],metrics:['ReConnect completion rate (goal: 90%+)','ReConnect scheduled at delivery']},{id:'appraise',n:5,label:'Appraise',title:'Activate the Sales Opportunity',focus:'The service drive is your most consistent showroom.',color:C.blueBright,actions:['Send complimentary trade appraisal offer during service appointment confirmation','BDC monitors responses and qualifies interested guests','Service advisor verbally reinforces the appraisal offer','Sales team notified immediately when interest is expressed'],metrics:['Appraisal requests per month','Service-to-sales conversion rate']},{id:'sell2',n:6,label:'Sell #2',title:'Complete the Cycle',focus:'Your next sale is already in your service lane.',color:C.blue,actions:['Engage appraisal-interested guests with personalized follow-up','Present upgrade options, equity position, and loyalty incentives','Highlight ownership benefits of staying with your dealership','Track cycle time: days from Vehicle #1 to Vehicle #2 close'],metrics:['Repeat purchase rate','Service-to-sale conversion rate','Average lifecycle cycle days']}]
+function LeaderGrid(){
+  const[team,setTeam]=useState([])
+  const[nm,setNm]=useState('')
+  const[qid,setQid]=useState('delegate')
+  const[sel,setSel]=useState(null)
+  const[acts,setActs]=useState({})
+  const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}])
+  const[showCoaching,setShowCoaching]=useState(null) // quadrant id for coaching panel
+  const[customSit,setCustomSit]=useState('')
+  const[generatedTrack,setGeneratedTrack]=useState(null)
+  const[genLoading,setGenLoading]=useState(false)
+  const[readingCard,setReadingCard]=useState(null) // script id being read
+  const[autoPlaying,setAutoPlaying]=useState(false)
+
+  // Load saved team
+  useEffect(()=>{
+    try{const s=localStorage.getItem('5md-leadergrid');if(s)setTeam(JSON.parse(s))}catch{}
+  },[])
+  const saveTeam=(t)=>{setTeam(t);try{localStorage.setItem('5md-leadergrid',JSON.stringify(t))}catch{}}
+
+  const addMember=()=>{
+    if(!nm.trim())return
+    saveTeam([...team,{name:nm.trim(),quad:qid,date:new Date().toLocaleDateString()}])
+    setNm('')
+  }
+
+  const removeMember=(idx)=>saveTeam(team.filter((_,i)=>i!==idx))
+
+  // Coaching scripts mapped to IDs — these are the 15 coaching-type scripts
+  const COACHING_SCRIPTS = {
+    1:  {title:'Setting the Daily Gross Goal',situation:'Rep doesnt understand why gross goals matter',wordTrack:'I want to walk through our gross goal for today and why it matters to every deal you work. Your income, my income, and this stores future all tie to gross. Lets talk about what number we are working toward today and how we get there together.'},
+    2:  {title:'Discounting Culture',situation:'Rep immediately offers discounts without building value',wordTrack:'When you discount before the customer asks you are telling them the price was wrong to begin with. I need you to present full value first. If they push back, come get me. Do not start the negotiation yourself.'},
+    3:  {title:'One-Price Mentality',situation:'Rep uses one-price approach without building value first',wordTrack:'One-price works when the customer understands what they are getting. Right now you are giving them the price before they understand the value. Walk me through your presentation and lets find where value is getting lost.'},
+    4:  {title:'Rep Mindset on Gross',situation:'Rep believes customers will not pay sticker',wordTrack:'You are deciding for the customer before they have a chance to decide for themselves. Every time you mentally discount a deal before presenting it you lose gross that was never negotiated away. Present every deal at full value. Let them tell you no.'},
+    5:  {title:'Celebrating Gross Wins',situation:'Need to recognize gross wins publicly to build culture',wordTrack:'I want to call out what happened on that deal. The gross you held was not an accident — it was a result of how you built value and handled the objection. That is exactly what we are working toward as a team. Well done.'},
+    28: {title:'Cash Buyer Tactics',situation:'Rep treats cash buyers differently and loses gross',wordTrack:'A cash buyer has already decided they want the car. Your job does not change. Build value, present full price, let them negotiate if they want to. Cash does not mean discount — it means they can close today.'},
+    29: {title:'Presenting All Options',situation:'Rep skips options and goes straight to one payment',wordTrack:'When you present only one option you are doing the negotiation for them before it starts. I need you presenting at least two structures on every deal. Let the customer choose — that choice gives them ownership of the decision.'},
+    30: {title:'Manager Involvement in Deals',situation:'Rep tries to handle objections alone without manager involvement',wordTrack:'When a deal gets tough I need to know about it. Not because you cannot handle it but because two perspectives close more deals than one. Get me before the customer decides to leave — not after.'},
+    31: {title:'Advisor Write-Up Process',situation:'Advisors skipping MPI presentation or writing orders without selling',wordTrack:'Every car that comes in gets a full write-up. Every time. I need to see the inspection presented to the customer before any work is approved. If you are skipping steps because you think they will say no — that assumption is costing us customer-pay gross every day.'},
+    32: {title:'Customer-Pay Target Awareness',situation:'Advisor does not know their daily customer-pay target',wordTrack:'You need to know your customer-pay number every morning the same way a salesperson knows their gross goal. That number tells you exactly what you need to close today to hit your target. Lets talk about where you are and what you need to get there.'},
+    33: {title:'Presenting Recommendations',situation:'Advisor presents repairs apologetically or does not present at all',wordTrack:'When you apologize for a recommendation before the customer responds you have already lost the close. Present what the car needs confidently. Explain what happens if it is ignored. Then let them decide. Your job is to inform — not to predict their answer.'},
+    34: {title:'MPI Conversion Culture',situation:'Team has low MPI conversion — advisors not following the inspection process',wordTrack:'Our inspection process exists to protect the customer and build trust. When advisors skip it or rush it we are leaving customer-pay gross on the table and telling the customer their safety does not matter. I need every car going through a full inspection every visit.'},
+    35: {title:'Customer-Pay Focus',situation:'Service team focused only on warranty and not customer-pay',wordTrack:'Warranty work keeps the bay full. Customer-pay work keeps this store profitable. I need you thinking about both on every car. What does this customer need that we can help them with today — not just what the warranty covers.'},
+    36: {title:'Daily Gross Awareness - Service',situation:'Service advisors not connecting their work to store profitability',wordTrack:'Every recommendation you make and every job you close contributes directly to this stores gross. I want you to start thinking about your day the way a salesperson thinks about theirs. You have a target. Lets talk about how you hit it.'},
+    37: {title:'Inspection Culture',situation:'Advisors performing inspections but not presenting findings',wordTrack:'An inspection that never gets presented is the same as no inspection. The customer came in trusting us to tell them what their car needs. When we find it and do not tell them we have failed that trust and left money on the table.'},
+  }
+
+  // Generate custom coaching word track via Claude
+  const generateWordTrack = async (situation, quad) => {
+    setGenLoading(true)
+    setGeneratedTrack(null)
+    const q = QUADS.find(q=>q.id===quad)
+    try {
+      const res = await fetch('/ai-proxy', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          system: 'You are an expert automotive dealership management coach. Generate a concise, natural coaching word track for a manager to use in a 1:1 conversation with a rep. The manager should sound human, direct, and supportive — not corporate. 3-5 sentences max. No bullet points. Just the word track the manager says out loud.',
+          messages:[{role:'user',content:'Leadership style: ' + q?.label + ' — ' + q?.styleGuide + '\nApproach: ' + q?.styleOneLiner + '\nSituation: ' + situation + '\n\nGenerate the coaching word track:'}],
+          max_tokens: 150,
+        })
+      })
+      const data = await res.json()
+      const track = data?.content?.[0]?.text?.trim()
+      if(track) {
+        setGeneratedTrack(track)
+        // Auto-play in correct quadrant voice tone
+        const quad_data = QUADS.find(q=>q.id===quad)
+        if(quad_data?.voiceTone) {
+          setAutoPlaying(true)
+          speak(track, ()=>setAutoPlaying(false), quad_data.voiceTone)
+        }
+      }
+    } catch(e) {
+      setGeneratedTrack('Unable to generate. Check your connection and try again.')
+    }
+    setGenLoading(false)
+  }
+
+  // Read a coaching script card aloud
+  const readCard = (scriptId, quadId) => {
+    const script = COACHING_SCRIPTS[scriptId]
+    if(!script) return
+    if(readingCard === scriptId) { stopSpeaking(); setReadingCard(null); return }
+    stopSpeaking()
+    setReadingCard(scriptId)
+    const quad = QUADS.find(q=>q.id===quadId)
+    const fullText = script.situation + '. ' + script.wordTrack
+    speak(fullText, ()=>setReadingCard(null), quad?.voiceTone || {})
+  }
+
+  const q = QUADS.find(q=>q.id===qid)||QUADS[0]
+  const selQ = sel ? QUADS.find(q=>q.id===sel.quad) : null
+  const coachQ = showCoaching ? QUADS.find(q=>q.id===showCoaching) : null
+
+  return(
+    <div style={{padding:'0 0 80px'}}>
+      <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Leadership Grid</div>
+      <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Plot your team. See the leadership style. Get the coaching word track.</div>
+
+      {/* Add team member */}
+      <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}>
+        <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Add Team Member</div>
+        <input style={{...inp,marginBottom:8}} placeholder="Rep name..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addMember()}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+          {QUADS.map(q=>(
+            <button key={q.id} onClick={()=>setQid(q.id)} style={{padding:'8px 6px',borderRadius:8,border:`2px solid ${qid===q.id?q.color:'transparent'}`,background:qid===q.id?q.bg:'rgba(255,255,255,0.03)',color:qid===q.id?q.color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:.5,textTransform:'uppercase',cursor:'pointer',textAlign:'left'}}>
+              <div>{q.label}</div>
+              <div style={{fontSize:9,fontWeight:400,opacity:0.7}}>{q.sub}</div>
+            </button>
+          ))}
+        </div>
+        <button onClick={addMember} style={{width:'100%',background:`${C.green}22`,border:`1px solid ${C.green}44`,color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>+ Add to Grid</button>
+      </div>
+
+      {/* Team grid */}
+      {team.length > 0 && (
+        <div style={{marginBottom:14}}>
+          {QUADS.map(quad=>{
+            const members = team.filter(m=>m.quad===quad.id)
+            if(!members.length) return null
+            return(
+              <div key={quad.id} style={{background:quad.bg,border:`1px solid ${quad.bdr}`,borderRadius:10,padding:'10px 14px',marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <div>
+                    <span style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:quad.color}}>{quad.label}</span>
+                    <span style={{fontSize:10,color:C.gray,marginLeft:8}}>{quad.sub}</span>
+                  </div>
+                  <button onClick={()=>setShowCoaching(showCoaching===quad.id?null:quad.id)} style={{background:'none',border:`1px solid ${quad.color}44`,color:quad.color,fontFamily:fH,fontWeight:700,fontSize:9,letterSpacing:1,textTransform:'uppercase',padding:'4px 8px',borderRadius:6,cursor:'pointer'}}>
+                    {showCoaching===quad.id?'Hide':'Coaching Scripts'}
+                  </button>
+                </div>
+                {/* Leadership style one-liner */}
+                <div style={{background:'rgba(0,0,0,0.15)',borderRadius:6,padding:'6px 10px',marginBottom:8}}>
+                  <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:quad.color,marginBottom:2}}>Leadership Style: {quad.label}</div>
+                  <div style={{fontSize:11,color:C.lightText}}>{quad.styleOneLiner}</div>
+                  <div style={{fontSize:11,color:C.gray,marginTop:2,fontStyle:'italic'}}>{quad.styleGuide}</div>
+                </div>
+                {/* Word track */}
+                <div style={{fontSize:12,color:C.lightText,marginBottom:8,padding:'6px 10px',background:'rgba(255,255,255,0.03)',borderRadius:6,fontStyle:'italic'}}>{quad.word}</div>
+                {/* Members */}
+                {members.map((m,i)=>(
+                  <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderTop:`1px solid ${quad.bdr}`}}>
+                    <span style={{fontSize:13,color:C.white,fontWeight:600}}>{m.name}</span>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <span style={{fontSize:10,color:C.gray}}>{m.date}</span>
+                      <button onClick={()=>removeM(team.indexOf(m))} style={{background:'none',border:'none',color:C.red,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>×</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Coaching Scripts panel — shown when quadrant coaching button tapped */}
+      {showCoaching && coachQ && (
+        <div style={{background:'rgba(255,255,255,0.02)',border:`1px solid ${coachQ.color}33`,borderRadius:12,padding:'14px',marginBottom:14}}>
+          <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:4}}>Coaching Conversations — {coachQ.label}</div>
+          <div style={{fontSize:11,color:C.gray,marginBottom:12}}>{coachQ.styleGuide}</div>
+
+          {/* Pre-written coaching script cards */}
+          {coachQ.coachingScriptIds.map(sid=>{
+            const cs = COACHING_SCRIPTS[sid]
+            if(!cs) return null
+            const isReading = readingCard === sid
+            return(
+              <div key={sid} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:8}}>
+                <div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:C.white,marginBottom:3}}>{cs.title}</div>
+                <div style={{fontSize:11,color:C.gray,marginBottom:6,fontStyle:'italic'}}>Situation: {cs.situation}</div>
+                <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6}}>{cs.wordTrack}</div>
+                <button onClick={()=>readCard(sid, showCoaching)} style={{
+                  background: isReading?'rgba(255,107,107,0.15)':'rgba(184,255,60,0.1)',
+                  border:`1px solid ${isReading?C.red:C.green}44`,
+                  color: isReading?C.red:C.green,
+                  fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+                  padding:'6px 14px',borderRadius:6,cursor:'pointer',width:'100%'
+                }}>
+                  {isReading?'⏹ Stop':'▶ Hear This Script'}
+                </button>
+              </div>
+            )
+          })}
+
+          {/* Free text custom situation */}
+          <div style={{background:'rgba(255,201,71,0.05)',border:'1px solid rgba(255,201,71,0.2)',borderRadius:8,padding:'12px',marginTop:8}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.yellow,marginBottom:6}}>My situation is not listed</div>
+            <textarea
+              style={{...inp,minHeight:48,resize:'vertical',marginBottom:8,fontSize:12}}
+              placeholder="Describe what is happening with this rep in one sentence..."
+              value={customSit}
+              onChange={e=>setCustomSit(e.target.value)}
+            />
+            <button onClick={()=>{if(customSit.trim())generateWordTrack(customSit,showCoaching)}} style={{
+              width:'100%',background:'rgba(255,201,71,0.15)',border:'1px solid rgba(255,201,71,0.3)',
+              color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
+              textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'
+            }}>
+              {genLoading?'Generating...':'Generate Coaching Word Track'}
+            </button>
+
+            {/* Generated word track */}
+            {generatedTrack && (
+              <div style={{marginTop:10,background:'rgba(255,255,255,0.04)',border:`1px solid ${coachQ.color}33`,borderRadius:8,padding:'12px'}}>
+                <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:6}}>
+                  {autoPlaying?'🔊 Reading aloud...':'Generated Word Track'}
+                </div>
+                <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  <button onClick={()=>{
+                    stopSpeaking()
+                    setAutoPlaying(true)
+                    const quad_data = QUADS.find(q=>q.id===showCoaching)
+                    speak(generatedTrack, ()=>setAutoPlaying(false), quad_data?.voiceTone||{})
+                  }} style={{background:'rgba(184,255,60,0.1)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'7px',borderRadius:6,cursor:'pointer'}}>
+                    🔁 Read Again
+                  </button>
+                  <button onClick={()=>{
+                    const edited = prompt('Edit the word track:', generatedTrack)
+                    if(edited && edited.trim()) {
+                      setGeneratedTrack(edited.trim())
+                      stopSpeaking()
+                      setAutoPlaying(true)
+                      const quad_data = QUADS.find(q=>q.id===showCoaching)
+                      speak(edited.trim(), ()=>setAutoPlaying(false), quad_data?.voiceTone||{})
+                    }
+                  }} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'7px',borderRadius:6,cursor:'pointer'}}>
+                    ✏️ Adjust This
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <IPNotice/>
+    </div>
+  )
+
+  function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }
+}
+
 function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Ownership Lifecycle</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
 
 // ── IP Notice shown in Mgr Hub ────────────────────────────
@@ -3223,8 +4121,32 @@ function IPNotice() {
   )
 }
 
-const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Leadership Grid',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Lifecycle',icon:'🔄',C:Lifecycle}]
-function ManagerHub(){const[active,setActive]=useState('shop');const Mod=HUB_MODS.find(m=>m.id===active)?.C;return(<div style={{padding:'16px 16px 80px'}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.blue},${C.green})`,borderRadius:6,padding:'3px 10px',fontFamily:fH,fontSize:10,fontWeight:900,letterSpacing:2,textTransform:'uppercase',color:C.navy}}>Manager Hub</div></div><div style={{display:'flex',gap:2,marginBottom:20,borderBottom:`1px solid ${C.border}`,overflowX:'auto'}}>{HUB_MODS.map(m=>(<button key={m.id} onClick={()=>setActive(m.id)} style={{background:'transparent',border:'none',borderBottom:active===m.id?`2px solid ${C.green}`:'2px solid transparent',color:active===m.id?C.white:C.gray,fontFamily:fH,fontSize:12,fontWeight:active===m.id?900:600,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap',marginBottom:-1}}><span>{m.icon}</span>{m.label}</button>))}</div>{Mod&&<Mod/>}<IPNotice/></div>)}
+const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Lifecycle',icon:'🔄',C:Lifecycle}]
+function ManagerHub(){
+  const[active,setActive]=useState('shop')
+  const Mod=HUB_MODS.find(m=>m.id===active)?.C
+  return(
+    <div style={{padding:'16px 16px 80px'}}>
+      <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:14}}>Manager Tools</div>
+      <div style={{display:'flex',gap:8,marginBottom:20,overflowX:'auto',paddingBottom:4}}>
+        {HUB_MODS.map(m=>(
+          <button key={m.id} onClick={()=>setActive(m.id)} style={{
+            flexShrink:0,
+            background:active===m.id?`rgba(184,255,60,0.12)`:'rgba(255,255,255,0.04)',
+            border:`1px solid ${active===m.id?'rgba(184,255,60,0.3)':'rgba(255,255,255,0.08)'}`,
+            color:active===m.id?C.green:C.gray,
+            fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+            padding:'8px 16px',borderRadius:10,cursor:'pointer',
+            minHeight:40,
+          }}>
+            {m.icon} {m.label}
+          </button>
+        ))}
+      </div>
+      {Mod && <Mod/>}
+    </div>
+  )
+}
 
 // ══════════════════════════════════════════════════════════════
 // APP ROOT
@@ -3676,32 +4598,68 @@ export default function App() {
   const role  = dealer.role||'sales_rep'
   const isMgr = isManager(role)
 
-  const TABS = [
+  // Role-based tab sets — reps get 2 tabs, managers get 3, GM gets 3
+  const TABS = isMgr ? [
     {id:'home',    label:'Home',    icon:'🏠'},
-    {id:'scripts', label:'Scripts', icon:'📋'},
+    {id:'huddle',  label:'Huddle',  icon:'⏱'},
+    {id:'coaching',label:'Coaching',icon:'🎯'},
+    {id:'tracker', label:'Dashboard',icon:'📊'},
+  ] : [
+    {id:'home',    label:'Home',    icon:'🏠'},
     {id:'drill',   label:'Drill',   icon:'🎙'},
-    ...(isMgr?[{id:'huddle',label:'Huddle',icon:'⏱'}]:[]),
-    {id:'tracker', label:'Dashboard',   icon:'📊'},
-    ...(isMgr?[{id:'hub',label:'Mgr Hub',icon:'🏢'}]:[]),
+    {id:'tracker', label:'Progress',icon:'📊'},
   ]
 
   return(
     <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative'}}>
       <div style={{paddingBottom:72}}>
-        {tab==='home'    &&<Home onNav={setTab} dealer={dealer} stats={stats} results={results} streak={streak} milestone={milestone} onDrillNow={handleDrillNow} onHuddleNow={handleHuddleNow} schedule={schedule} onScheduleChange={handleScheduleChange} welcomeMsg={welcomeMsg}/>}
-        {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
-        {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill==='random'?null:preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
+        {/* Role-based home screens */}
+        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}}/>}
+        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab}/>}
+        {/* Rep tabs */}
+        {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
+        {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
+        {/* Manager tabs */}
         {tab==='huddle'  &&isMgr&&<HuddleTimer onLog={logResult} dealer={dealer} preloadScript={preloadHuddle} onClearPreload={()=>setPreloadHuddle(null)}/>}
-        {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} preloadScript={preloadTracker} dealer={dealer}/>}
-        {tab==='hub'     &&isMgr&&<ManagerHub/>}
+        {tab==='coaching'&&isMgr&&<ManagerHub/>}
+        {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
       </div>
 
-      {/* Bottom nav  -  improved visibility */}
-      <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:C.navyMid,borderTop:`1px solid ${C.border}`,display:'flex',zIndex:100}}>
+      {/* Role-based bottom nav */}
+      <div style={{
+        position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:'100%',maxWidth:480,
+        background:'rgba(5,13,31,0.95)',
+        backdropFilter:'blur(20px)',
+        WebkitBackdropFilter:'blur(20px)',
+        borderTop:'1px solid rgba(255,255,255,0.08)',
+        display:'flex',zIndex:999,
+        paddingBottom:'env(safe-area-inset-bottom)',
+      }}>
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,background:tab===t.id?'rgba(184,255,60,0.07)':'none',border:'none',borderTop:tab===t.id?`2px solid ${C.green}`:'2px solid transparent',padding:'10px 2px 8px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-            <span style={{fontSize:16,opacity:tab===t.id?1:0.65}}>{t.icon}</span>
-            <span style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:.5,textTransform:'uppercase',color:tab===t.id?C.green:C.lightText}}>{t.label}</span>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            flex:1,
+            background:'none',border:'none',
+            padding:'10px 4px 12px',
+            cursor:'pointer',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+            opacity: tab===t.id ? 1 : 0.45,
+            transition:'opacity 0.2s',
+          }}>
+            <span style={{fontSize:20}}>{t.icon}</span>
+            <span style={{
+              fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:0.5,
+              textTransform:'uppercase',
+              color: tab===t.id ? C.green : C.gray,
+              transition:'color 0.2s',
+            }}>{t.label}</span>
+            {tab===t.id && (
+              <div style={{
+                position:'absolute',top:0,
+                width:24,height:2,borderRadius:1,
+                background:`linear-gradient(90deg,${C.blue},${C.green})`,
+              }}/>
+            )}
           </button>
         ))}
       </div>
