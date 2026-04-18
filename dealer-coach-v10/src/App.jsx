@@ -6,13 +6,13 @@ const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',
 // ── DESIGN SYSTEM ─────────────────────────────────────────────
 // Glassmorphism card style
 const glass = {
-  background: 'rgba(255,255,255,0.08)',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%)',
   backdropFilter: 'blur(20px) saturate(200%)',
   WebkitBackdropFilter: 'blur(20px) saturate(200%)',
-  border: '1px solid rgba(255,255,255,0.14)',
+  border: '1px solid rgba(255,255,255,0.15)',
   borderRadius: 16,
   position: 'relative',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+  boxShadow: '0 4px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10)',
 }
 
 // Primary action button
@@ -118,17 +118,20 @@ const getSched = dept => dept==='sales'?SALES_SCHED:dept==='service'?SVC_SCHED:B
 
 // ── Hip welcome messages ──────────────────────────────────────
 const WELCOME_NEW = [
-  "Welcome to the system, [N]. Your competition just fell further behind. 🎯",
-  "You're in, [N]. Let's build something they can't touch. 🔥",
-  "[N] is in the building. Time to get to work. ⚡",
-  "Welcome aboard, [N]. The team just got stronger. 💪",
+  "The game just changed, [N]. Your competition doesn't have this. 🎯",
+  "[N] is in. Let's build something they can't touch. 🔥",
+  "Day one, [N]. The reps you put in today pay off on the floor tomorrow. ⚡",
+  "Welcome to the team that outworks everyone else, [N]. 💪",
+  "[N] — every elite closer started exactly where you are right now. 🚀",
 ]
 const WELCOME_BACK = [
-  "Back at it, [N]. Let's get some reps in. 🔥",
-  "Good to see you, [N]. Time to sharpen the edge. 🎯",
-  "You're back, [N]. Let's make today count. 💪",
-  "[N] is in the building. Ready to work? 🚀",
-  "Welcome back, [N]. The grind doesn't stop. ⚡",
+  "[N] — one more rep today is one more deal closed this week. 🔥",
+  "Back in the ring, [N]. Champions train when nobody's watching. 🎯",
+  "[N], the best in the business are drilling right now. You're one of them. 💪",
+  "Every rep sharpens the blade, [N]. Let's get to work. ⚡",
+  "[N] — consistency beats talent every time. Show up again today. 🚀",
+  "The floor rewards the prepared, [N]. Five minutes makes the difference. 🎯",
+  "[N], your next deal is won in practice not on the lot. Start drilling. 🔥",
 ]
 const pickWelcome = (name, isNew) => {
   const pool = isNew ? WELCOME_NEW : WELCOME_BACK
@@ -789,7 +792,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
 // ══════════════════════════════════════════════════════════════
 // MANAGER HOME — huddle launcher + team momentum + quick actions
 // ══════════════════════════════════════════════════════════════
-function ManagerHome({dealer, stats, results, streak, onNav}) {
+function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
   const role = dealer?.role || 'sales_mgr'
   const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
   const isSvcMgr = role === 'svc_mgr'
@@ -819,7 +822,7 @@ function ManagerHome({dealer, stats, results, streak, onNav}) {
 
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
-    {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', color:C.yellow},
+    {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', tabSub:'grid', color:C.yellow},
     {icon:'⏱', label:'Run Huddle', sub:'Morning team drill', tab:'huddle', color:C.green},
   ]
 
@@ -828,11 +831,26 @@ function ManagerHome({dealer, stats, results, streak, onNav}) {
 
       {/* Header */}
       <div style={{marginBottom:20}}>
-        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
-          {ROLES[role]?.label} · {dealer?.dealerName}
-        </div>
-        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
-          Morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div>
+            <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+              {ROLES[role]?.label} · {dealer?.dealerName}
+            </div>
+            <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+              {(() => {
+                const h = new Date().getHours()
+                return h < 12 ? 'Morning,' : h < 17 ? 'Afternoon,' : 'Evening,'
+              })()}<br/><span style={{color:C.green}}>{firstName}</span>
+            </div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontFamily:fH,fontSize:13,fontWeight:700,color:C.green}}>
+              {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+            </div>
+            <div style={{fontSize:11,color:C.gray,marginTop:2}}>
+              {new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -903,7 +921,7 @@ function ManagerHome({dealer, stats, results, streak, onNav}) {
       {/* Quick actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
         {quickActions.map((a,i)=>(
-          <button key={i} className="btn-press card-hover" onClick={()=>onNav(a.tab)}
+          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tabSub&&onNavSub) { onNavSub(a.tabSub) } else { onNav(a.tab) } }}
             style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
               textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
             }}>
@@ -1014,11 +1032,26 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
 
       {/* Header */}
       <div style={{marginBottom:24}}>
-        <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
-          {ROLES[role]?.label} · {dealer?.dealerName}
-        </div>
-        <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
-          Good morning,<br/><span style={{color:C.green}}>{firstName}</span>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div>
+            <div style={{fontSize:13,color:C.gray,marginBottom:2}}>
+              {ROLES[role]?.label} · {dealer?.dealerName}
+            </div>
+            <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>
+              {(() => {
+                const h = new Date().getHours()
+                return h < 12 ? 'Morning,' : h < 17 ? 'Afternoon,' : 'Evening,'
+              })()}<br/><span style={{color:C.green}}>{firstName}</span>
+            </div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontFamily:fH,fontSize:13,fontWeight:700,color:C.green}}>
+              {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+            </div>
+            <div style={{fontSize:11,color:C.gray,marginTop:2}}>
+              {new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4219,8 +4252,9 @@ function IPNotice() {
 }
 
 const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
-function ManagerHub(){
-  const[active,setActive]=useState('shop')
+function ManagerHub({initialTab, onClearInitial}){
+  const[active,setActive]=useState(initialTab||'shop')
+  useEffect(()=>{ if(initialTab){ setActive(initialTab); onClearInitial&&onClearInitial() } },[initialTab])
   const Mod=HUB_MODS.find(m=>m.id===active)?.C
   return(
     <div style={{padding:'16px 16px 80px'}}>
@@ -4617,6 +4651,7 @@ export default function App() {
   const [streak,setStreak]     = useState(()=>loadJSON('5md-streak',{count:0,lastDay:''}))
   const [milestone,setMilestone] = useState(null)
   const [preloadDrill,setPreloadDrill]   = useState(null)
+  const [coachingInitialTab,setCoachingInitialTab] = useState('shop')
   const [preloadHuddle,setPreloadHuddle] = useState(null)
   const [preloadTracker,setPreloadTracker] = useState('')
   const [schedule,setSchedule] = useState(()=>loadJSON('5md-schedule',{}))
@@ -4682,8 +4717,11 @@ export default function App() {
         dept:entry.dept||'sales',
       })
     }
-    // Only navigate to dashboard for drill/huddle completions, not manual quick logs
-    if(entry.type!=='manual'){
+    // Show encouragement when returning home after drill
+    if(entry.type==='voice' || entry.type==='huddle') {
+      const msg = pickWelcome(repName, false)
+      setWelcomeMsg(msg)
+      setTimeout(()=>setWelcomeMsg(null), 5500)
       setPreloadTracker(entry.script||'')
       setTab('tracker')
     }
@@ -4716,13 +4754,13 @@ export default function App() {
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
         {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}}/>}
-        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab}/>}
+        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}}/>}
         {/* Rep tabs */}
         {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
         {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
         {/* Manager tabs */}
         {tab==='huddle'  &&isMgr&&<HuddleTimer onLog={logResult} dealer={dealer} preloadScript={preloadHuddle} onClearPreload={()=>setPreloadHuddle(null)}/>}
-        {tab==='coaching'&&isMgr&&<ManagerHub/>}
+        {tab==='coaching'&&isMgr&&<ManagerHub initialTab={coachingInitialTab} onClearInitial={()=>setCoachingInitialTab('shop')}/>}
         {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
       </div>
 
@@ -4746,6 +4784,9 @@ export default function App() {
             display:'flex',flexDirection:'column',alignItems:'center',gap:3,
             opacity: tab===t.id ? 1 : 0.45,
             transition:'opacity 0.2s',
+            position:'relative',
+            WebkitTapHighlightColor:'transparent',
+            minHeight:56,
           }}>
             <span style={{fontSize:20}}>{t.icon}</span>
             <span style={{
