@@ -6,11 +6,12 @@ const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',
 // ── DESIGN SYSTEM ─────────────────────────────────────────────
 // Glassmorphism card style
 const glass = {
-  background: 'rgba(255,255,255,0.04)',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
-  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(255,255,255,0.07)',
+  backdropFilter: 'blur(16px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: 16,
+  position: 'relative',
 }
 
 // Primary action button
@@ -50,6 +51,11 @@ const btnSecondary = {
 
 // Inject keyframe animations into document head
 if (typeof document !== 'undefined') {
+  // Prevent horizontal scroll at document level
+  document.documentElement.style.overflowX = 'hidden'
+  document.body.style.overflowX = 'hidden'
+  document.body.style.width = '100%'
+  document.body.style.maxWidth = '100vw'
   const styleEl = document.createElement('style')
   styleEl.textContent = `
     @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
@@ -812,12 +818,12 @@ function ManagerHome({dealer, stats, results, streak, onNav}) {
 
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
-    {icon:'🎯', label:'Team Coaching', sub:'C&C Grid + coaching', tab:'hub', color:C.yellow},
+    {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', color:C.yellow},
     {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.green},
   ]
 
   return (
-    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
 
       {/* Header */}
       <div style={{marginBottom:20}}>
@@ -1003,7 +1009,7 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
   const ringCirc = 2 * Math.PI * ringR
 
   return (
-    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both'}}>
+    <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
 
       {/* Header */}
       <div style={{marginBottom:24}}>
@@ -1384,16 +1390,20 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
 
   useEffect(()=>{
     if(preloadScript){
-      const persona = getPersonaForScript(preloadScript)
-      setActiveS(preloadScript)
+      const s = preloadScript === 'random'
+        ? (() => { const pool=SCRIPTS.filter(sc=>!new Set([1,2,3,4,5,28,29,30,31,32,33,34,35,36,37]).has(sc.id)&&(dept==='both'||sc.dept===dept)); return pool[Math.floor(Math.random()*pool.length)] })()
+        : preloadScript
+      if(!s) return
+      const persona = getPersonaForScript(s)
+      setActiveS(s)
       setActivePersId(persona.id)
       setFeedback(null)
       setConfidenceFlags([])
       setCloseEarnedFlag(false)
-      setLivePhase('connecting') // switch screen FIRST
       onClearPreload&&onClearPreload()
-      // Small delay so React renders live screen before async call starts
-      setTimeout(() => startLiveDrill(preloadScript, persona), 100)
+      // Show persona card intro before starting drill
+      setShowPersonaCard(true)
+      setPhase('list')
     }
   },[preloadScript])
 
@@ -2039,6 +2049,8 @@ ${diffMod ? '\n' + diffMod : ''}`
         setAiText(clean)
         setLiveStatus('Listen...')
         const pVoice = getPersonaVoiceOpts(persona)
+        // Clear any pending silence timer — persona is about to speak
+        if(silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
         setSpeaking(true)
         speak(clean, () => {
           setSpeaking(false)
@@ -3920,8 +3932,8 @@ function LeaderGrid(){
       const res = await fetch('/ai-proxy', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          system: 'You are an expert automotive dealership management coach. Generate a concise, natural coaching word track for a manager to use in a 1:1 conversation with a rep. The manager should sound human, direct, and supportive — not corporate. 3-5 sentences max. No bullet points. Just the word track the manager says out loud.',
-          messages:[{role:'user',content:'Leadership style: ' + q?.label + ' — ' + q?.styleGuide + '\nApproach: ' + q?.styleOneLiner + '\nSituation: ' + situation + '\n\nGenerate the coaching word track:'}],
+          system: 'You are an expert automotive dealership management coach. Generate a coaching word track — the exact words a manager says out loud to a rep. Sound human and direct. 3-4 sentences. No bullet points, no labels, no preamble. Start speaking immediately.',
+          messages:[{role:'user',content:'Style: ' + (q?.label||'Coach') + ' — ' + (q?.styleOneLiner||'Be direct and supportive') + '. Situation: ' + situation + '. Write only the word track:'}],
           max_tokens: 150,
         })
       })
@@ -4121,7 +4133,7 @@ function IPNotice() {
   )
 }
 
-const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Lifecycle',icon:'🔄',C:Lifecycle}]
+const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
 function ManagerHub(){
   const[active,setActive]=useState('shop')
   const Mod=HUB_MODS.find(m=>m.id===active)?.C
@@ -4602,7 +4614,7 @@ export default function App() {
   const TABS = isMgr ? [
     {id:'home',    label:'Home',    icon:'🏠'},
     {id:'huddle',  label:'Huddle',  icon:'⏱'},
-    {id:'coaching',label:'Coaching',icon:'🎯'},
+    {id:'coaching',label:'Mgr Hub',icon:'🏢'},
     {id:'tracker', label:'Dashboard',icon:'📊'},
   ] : [
     {id:'home',    label:'Home',    icon:'🏠'},
@@ -4611,7 +4623,7 @@ export default function App() {
   ]
 
   return(
-    <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative'}}>
+    <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative',overflowX:'hidden'}}>
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
         {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}}/>}
