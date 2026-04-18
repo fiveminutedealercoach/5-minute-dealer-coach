@@ -819,7 +819,7 @@ function ManagerHome({dealer, stats, results, streak, onNav}) {
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
     {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', color:C.yellow},
-    {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.green},
+    {icon:'⏱', label:'Run Huddle', sub:'Morning team drill', tab:'huddle', color:C.green},
   ]
 
   return (
@@ -1190,7 +1190,7 @@ function ScriptLibrary({dealer}) {
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:12}}>{filtered.length} scripts</div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {filtered.map(s=>(
+        {filtered.map((s,filteredIdx)=>(
           <div key={s.id} style={{background:C.card,border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:10,overflow:'hidden'}}>
             <div onClick={()=>setOpenId(openId===s.id?null:s.id)} style={{padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:openId===s.id?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}>
               <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.3)':'rgba(184,255,60,0.3)',lineHeight:1,minWidth:32}}>{String(s.id).padStart(2,'0')}</div>
@@ -1758,6 +1758,8 @@ One coaching whisper:`}],
       setTranscript('')
       accumulatedRef.current = ''
       setLiveRecording(false)
+      // Clear silence timer during AI generation — prevents crossover
+      if(silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
       setLiveStatus('Thinking...')
 
       const updatedLive = [...liveTranscriptRef.current, { role: 'rep', text: repText }]
@@ -1825,10 +1827,15 @@ One coaching whisper:`}],
       if (nextResponseRef.current) {
         const preGenerated = nextResponseRef.current
         nextResponseRef.current = null  // consume it
-        speakReply(preGenerated)
-        // Pre-generate NEXT response in background now
-        preGenerateNextResponse(updatedLive, persona, newExCount + 1)
-        return
+        // Only use if valid — must be at least 8 words and not an error message
+        const wordCount = preGenerated.split(' ').length
+        const isValid = wordCount >= 4 && !preGenerated.toLowerCase().includes('error') && !preGenerated.toLowerCase().includes('cannot') && preGenerated.length > 15
+        if(isValid) {
+          speakReply(preGenerated)
+          preGenerateNextResponse(updatedLive, persona, newExCount + 1)
+          return
+        }
+        nextResponseRef.current = null // discard invalid pre-gen, fall through to fresh call
       }
 
       // ── EMOTIONAL ARC ─────────────────────────────────────
@@ -3357,6 +3364,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
         {filtered.map(s=>(
           <div key={s.id} onClick={()=>setSelScript(s)} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):C.card,border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:8,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
+            <div style={{fontFamily:fH,fontSize:12,fontWeight:700,color:C.gray,marginBottom:2}}>Objection {filteredIdx+1}</div>
             <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.4)',minWidth:26}}>{String(s.id).padStart(2,'0')}</div>
             <div style={{flex:1}}>
               <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:2}}>{s.objection.replace(/"/g,'')}</div>
@@ -3476,6 +3484,9 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
   },[dealer?.dealerId])
 
   // preloadScript intentionally not used to auto-open sheet
+
+  // Glass card style matching home screen
+  const dashCard = {...glass, padding:'14px 16px', marginBottom:10}
 
   const won      = results.filter(r=>r.result==='won').length
   const progress = results.filter(r=>r.result==='progress').length
@@ -3949,7 +3960,8 @@ function LeaderGrid(){
         }
       }
     } catch(e) {
-      setGeneratedTrack('Unable to generate. Check your connection and try again.')
+      console.error('generateWordTrack error:', e)
+      setGeneratedTrack('Generation failed. Please check your connection and try again.')
     }
     setGenLoading(false)
   }
@@ -4069,7 +4081,7 @@ function LeaderGrid(){
               value={customSit}
               onChange={e=>setCustomSit(e.target.value)}
             />
-            <button onClick={()=>{if(customSit.trim())generateWordTrack(customSit,showCoaching)}} style={{
+            <button onClick={()=>{if(customSit.trim()&&showCoaching)generateWordTrack(customSit,showCoaching)}} style={{
               width:'100%',background:'rgba(255,201,71,0.15)',border:'1px solid rgba(255,201,71,0.3)',
               color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
               textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'
