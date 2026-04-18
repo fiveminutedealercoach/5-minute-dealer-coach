@@ -1,0 +1,6 @@
+name = "dealer-coach-v10"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "DEALER_KV"
+id = "placeholder"
