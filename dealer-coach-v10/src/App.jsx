@@ -6,13 +6,28 @@ const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',
 // ── DESIGN SYSTEM ─────────────────────────────────────────────
 // Glassmorphism card style
 const glass = {
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%)',
-  backdropFilter: 'blur(20px) saturate(200%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(200%)',
-  border: '1px solid rgba(255,255,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(26,107,255,0.10) 0%, rgba(5,13,31,0.95) 100%)',
+  border: '1px solid rgba(26,107,255,0.20)',
   borderRadius: 16,
   position: 'relative',
-  boxShadow: '0 4px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10)',
+  boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+}
+
+// Colored card variants matching dashboard style
+const glassGreen = {
+  background: 'linear-gradient(135deg, rgba(184,255,60,0.08) 0%, rgba(5,13,31,0.95) 100%)',
+  border: '1px solid rgba(184,255,60,0.20)',
+  borderRadius: 16, position: 'relative', boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+}
+const glassYellow = {
+  background: 'linear-gradient(135deg, rgba(255,201,71,0.08) 0%, rgba(5,13,31,0.95) 100%)',
+  border: '1px solid rgba(255,201,71,0.20)',
+  borderRadius: 16, position: 'relative', boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+}
+const glassRed = {
+  background: 'linear-gradient(135deg, rgba(255,107,107,0.08) 0%, rgba(5,13,31,0.95) 100%)',
+  border: '1px solid rgba(255,107,107,0.20)',
+  borderRadius: 16, position: 'relative', boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
 }
 
 // Primary action button
@@ -855,8 +870,11 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       </div>
 
       {/* Team momentum card */}
-      <div style={{...glass,padding:'16px 18px',marginBottom:16,
-        borderColor:`${momentumColor}33`,
+      <div style={{
+        background:`linear-gradient(135deg, ${momentumColor}12 0%, rgba(5,13,31,0.95) 100%)`,
+        border:`1px solid ${momentumColor}33`,
+        borderRadius:16, padding:'16px 18px', marginBottom:16,
+        boxShadow:'0 2px 16px rgba(0,0,0,0.3)',
         animation:'slideUp 0.4s ease both'
       }}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -883,8 +901,11 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       </div>
 
       {/* Huddle CTA — primary action */}
-      <div style={{...glass,padding:'20px',marginBottom:16,
-        borderColor: huddleToday ? 'rgba(184,255,60,0.15)' : 'rgba(26,107,255,0.2)',
+      <div style={{
+        background: huddleToday ? 'linear-gradient(135deg,rgba(184,255,60,0.08) 0%,rgba(5,13,31,0.95) 100%)' : 'linear-gradient(135deg,rgba(26,107,255,0.10) 0%,rgba(5,13,31,0.95) 100%)',
+        border: huddleToday ? '1px solid rgba(184,255,60,0.25)' : '1px solid rgba(26,107,255,0.25)',
+        borderRadius:16, padding:'20px', marginBottom:16,
+        boxShadow:'0 2px 16px rgba(0,0,0,0.3)',
         animation:'slideUp 0.5s ease both'
       }}>
         {huddleToday ? (
@@ -921,7 +942,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       {/* Quick actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
         {quickActions.map((a,i)=>(
-          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tabSub&&onNavSub) { onNavSub(a.tabSub) } else { onNav(a.tab) } }}
+          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tabSub&&onNavSub){onNavSub(a.tabSub)}else{onNav(a.tab)} }}
             style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
               textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
             }}>
@@ -1112,8 +1133,11 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
 
       {/* Suggested drill card */}
       {suggested ? (
-        <div style={{...glass,padding:'20px',marginBottom:16,
-          borderColor:'rgba(184,255,60,0.15)',
+        <div style={{
+          background:'linear-gradient(135deg,rgba(184,255,60,0.08) 0%,rgba(5,13,31,0.95) 100%)',
+          border:'1px solid rgba(184,255,60,0.22)',
+          borderRadius:16, padding:'20px', marginBottom:16,
+          boxShadow:'0 2px 16px rgba(0,0,0,0.3)',
           animation:'slideUp 0.5s ease both'
         }}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
@@ -3887,7 +3911,7 @@ const QUADS=[
    word:"Let me show you exactly how I'd handle that, then we'll practice together.",
    coaching:'Direct & Guide  -  clear expectations, role-play.',
    voiceTone:{stability:0.55,similarity_boost:0.80,style:0.40,voiceId:'EXAVITQu4vr4xnSDxMaL'},
-   coachingScriptIds:[1,2,3,4,5,34,35],
+   coachingCats:['Mindset & Gross Awareness','Selling the Menu & Recommended Services','MPI Conversion'],
    repPersona:'jake'},
   {id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',
    color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',
@@ -3897,7 +3921,7 @@ const QUADS=[
    word:"I trust you. Here's the outcome - how you get there is yours.",
    coaching:'Delegate  -  give ownership, recognize publicly.',
    voiceTone:{stability:0.45,similarity_boost:0.85,style:0.55,voiceId:'ErXwobaYiN019PkySvjV'},
-   coachingScriptIds:[28,29,30,6,7],
+   coachingCats:['Sales Tactics for Higher Gross','Add-Ons & After-Sale','Menu Selling & Finance'],
    repPersona:'ashley'},
   {id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',
    color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',
@@ -3907,7 +3931,7 @@ const QUADS=[
    word:"Here are the results I need in 30 days. The change starts now.",
    coaching:'Direct  -  documented expectations, 30-day plan.',
    voiceTone:{stability:0.72,similarity_boost:0.82,style:0.20,voiceId:'TxGEqnHWrfWFTfGW9XjX'},
-   coachingScriptIds:[31,32,33,8,9,10],
+   coachingCats:['Mindset & Customer-Pay Focus','Handling Objections & Price Pushback','Phone Ups & Appointment Setting'],
    repPersona:'carlos'},
   {id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',
    color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',
@@ -3917,7 +3941,7 @@ const QUADS=[
    word:"I've noticed a shift. Help me understand what's changed.",
    coaching:'Excite  -  honest 1:1, find root cause.',
    voiceTone:{stability:0.50,similarity_boost:0.78,style:0.45,voiceId:'onwK4e9ZLuTAKqWW03F9'},
-   coachingScriptIds:[11,12,13,14,15,36,37],
+   coachingCats:['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'],
    repPersona:'marcus'},
 ]
 
@@ -3950,65 +3974,20 @@ function LeaderGrid(){
   const removeMember=(idx)=>saveTeam(team.filter((_,i)=>i!==idx))
 
   // Coaching scripts mapped to IDs — these are the 15 coaching-type scripts
-  const COACHING_SCRIPTS = {
-    1:  {title:'Setting the Daily Gross Goal',situation:'Rep doesnt understand why gross goals matter',wordTrack:'I want to walk through our gross goal for today and why it matters to every deal you work. Your income, my income, and this stores future all tie to gross. Lets talk about what number we are working toward today and how we get there together.'},
-    2:  {title:'Discounting Culture',situation:'Rep immediately offers discounts without building value',wordTrack:'When you discount before the customer asks you are telling them the price was wrong to begin with. I need you to present full value first. If they push back, come get me. Do not start the negotiation yourself.'},
-    3:  {title:'One-Price Mentality',situation:'Rep uses one-price approach without building value first',wordTrack:'One-price works when the customer understands what they are getting. Right now you are giving them the price before they understand the value. Walk me through your presentation and lets find where value is getting lost.'},
-    4:  {title:'Rep Mindset on Gross',situation:'Rep believes customers will not pay sticker',wordTrack:'You are deciding for the customer before they have a chance to decide for themselves. Every time you mentally discount a deal before presenting it you lose gross that was never negotiated away. Present every deal at full value. Let them tell you no.'},
-    5:  {title:'Celebrating Gross Wins',situation:'Need to recognize gross wins publicly to build culture',wordTrack:'I want to call out what happened on that deal. The gross you held was not an accident — it was a result of how you built value and handled the objection. That is exactly what we are working toward as a team. Well done.'},
-    28: {title:'Cash Buyer Tactics',situation:'Rep treats cash buyers differently and loses gross',wordTrack:'A cash buyer has already decided they want the car. Your job does not change. Build value, present full price, let them negotiate if they want to. Cash does not mean discount — it means they can close today.'},
-    29: {title:'Presenting All Options',situation:'Rep skips options and goes straight to one payment',wordTrack:'When you present only one option you are doing the negotiation for them before it starts. I need you presenting at least two structures on every deal. Let the customer choose — that choice gives them ownership of the decision.'},
-    30: {title:'Manager Involvement in Deals',situation:'Rep tries to handle objections alone without manager involvement',wordTrack:'When a deal gets tough I need to know about it. Not because you cannot handle it but because two perspectives close more deals than one. Get me before the customer decides to leave — not after.'},
-    31: {title:'Advisor Write-Up Process',situation:'Advisors skipping MPI presentation or writing orders without selling',wordTrack:'Every car that comes in gets a full write-up. Every time. I need to see the inspection presented to the customer before any work is approved. If you are skipping steps because you think they will say no — that assumption is costing us customer-pay gross every day.'},
-    32: {title:'Customer-Pay Target Awareness',situation:'Advisor does not know their daily customer-pay target',wordTrack:'You need to know your customer-pay number every morning the same way a salesperson knows their gross goal. That number tells you exactly what you need to close today to hit your target. Lets talk about where you are and what you need to get there.'},
-    33: {title:'Presenting Recommendations',situation:'Advisor presents repairs apologetically or does not present at all',wordTrack:'When you apologize for a recommendation before the customer responds you have already lost the close. Present what the car needs confidently. Explain what happens if it is ignored. Then let them decide. Your job is to inform — not to predict their answer.'},
-    34: {title:'MPI Conversion Culture',situation:'Team has low MPI conversion — advisors not following the inspection process',wordTrack:'Our inspection process exists to protect the customer and build trust. When advisors skip it or rush it we are leaving customer-pay gross on the table and telling the customer their safety does not matter. I need every car going through a full inspection every visit.'},
-    35: {title:'Customer-Pay Focus',situation:'Service team focused only on warranty and not customer-pay',wordTrack:'Warranty work keeps the bay full. Customer-pay work keeps this store profitable. I need you thinking about both on every car. What does this customer need that we can help them with today — not just what the warranty covers.'},
-    36: {title:'Daily Gross Awareness - Service',situation:'Service advisors not connecting their work to store profitability',wordTrack:'Every recommendation you make and every job you close contributes directly to this stores gross. I want you to start thinking about your day the way a salesperson thinks about theirs. You have a target. Lets talk about how you hit it.'},
-    37: {title:'Inspection Culture',situation:'Advisors performing inspections but not presenting findings',wordTrack:'An inspection that never gets presented is the same as no inspection. The customer came in trusting us to tell them what their car needs. When we find it and do not tell them we have failed that trust and left money on the table.'},
-  }
-
-  // Generate custom coaching word track via Claude
-  const generateWordTrack = async (situation, quad) => {
-    setGenLoading(true)
-    setGeneratedTrack(null)
-    const q = QUADS.find(q=>q.id===quad)
-    try {
-      const res = await fetch('/ai-proxy', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          system: 'You are an expert automotive dealership management coach. Generate a coaching word track — the exact words a manager says out loud to a rep. Sound human and direct. 3-4 sentences. No bullet points, no labels, no preamble. Start speaking immediately.',
-          messages:[{role:'user',content:'Style: ' + (q?.label||'Coach') + ' — ' + (q?.styleOneLiner||'Be direct and supportive') + '. Situation: ' + situation + '. Write only the word track:'}],
-          max_tokens: 150,
-        })
-      })
-      const data = await res.json()
-      const track = data?.content?.[0]?.text?.trim()
-      if(track) {
-        setGeneratedTrack(track)
-        // Auto-play in correct quadrant voice tone
-        const quad_data = QUADS.find(q=>q.id===quad)
-        if(quad_data?.voiceTone) {
-          setAutoPlaying(true)
-          speak(track, ()=>setAutoPlaying(false), quad_data.voiceTone)
-        }
-      }
-    } catch(e) {
-      console.error('generateWordTrack error:', e)
-      setGeneratedTrack('Generation failed. Please check your connection and try again.')
-    }
-    setGenLoading(false)
-  }
-
   // Read a coaching script card aloud
   const readCard = (scriptId, quadId) => {
-    const script = COACHING_SCRIPTS[scriptId]
+    const script = SCRIPTS.find(s => s.id === scriptId)
     if(!script) return
     if(readingCard === scriptId) { stopSpeaking(); setReadingCard(null); return }
     stopSpeaking()
     setReadingCard(scriptId)
     const quad = QUADS.find(q=>q.id===quadId)
-    const fullText = script.situation + '. ' + script.wordTrack
+    // Read: situation (objection) + the word track + followup
+    const fullText = [
+      script.objection?.replace(/['"]/g,'') || '',
+      script.script || '',
+      script.followup || ''
+    ].filter(Boolean).join('. ')
     speak(fullText, ()=>setReadingCard(null), quad?.voiceTone || {})
   }
 
@@ -4083,28 +4062,46 @@ function LeaderGrid(){
           <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:4}}>Coaching Conversations — {coachQ.label}</div>
           <div style={{fontSize:11,color:C.gray,marginBottom:12}}>{coachQ.styleGuide}</div>
 
-          {/* Pre-written coaching script cards */}
-          {coachQ.coachingScriptIds.map(sid=>{
-            const cs = COACHING_SCRIPTS[sid]
-            if(!cs) return null
-            const isReading = readingCard === sid
-            return(
-              <div key={sid} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:8}}>
-                <div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:C.white,marginBottom:3}}>{cs.title}</div>
-                <div style={{fontSize:11,color:C.gray,marginBottom:6,fontStyle:'italic'}}>Situation: {cs.situation}</div>
-                <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6}}>{cs.wordTrack}</div>
-                <button onClick={()=>readCard(sid, showCoaching)} style={{
-                  background: isReading?'rgba(255,107,107,0.15)':'rgba(184,255,60,0.1)',
-                  border:`1px solid ${isReading?C.red:C.green}44`,
-                  color: isReading?C.red:C.green,
-                  fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
-                  padding:'6px 14px',borderRadius:6,cursor:'pointer',width:'100%'
+          {/* Coaching script cards pulled from SCRIPTS data by category */}
+          {(() => {
+            const COACHING_CATS_ALL = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
+            const quadCats = new Set(coachQ.coachingCats || [])
+            // First show quadrant-specific, then fall back to all coaching scripts
+            const coachingPool = SCRIPTS.filter(s => COACHING_CATS_ALL.has(s.category))
+            const quadScripts = coachingPool.filter(s => quadCats.has(s.category))
+            const displayScripts = quadScripts.length > 0 ? quadScripts : coachingPool
+            return displayScripts.slice(0,6).map((s, idx) => {
+              const isReading = readingCard === s.id
+              return (
+                <div key={s.id} style={{
+                  background:'linear-gradient(135deg,rgba(26,107,255,0.06) 0%,rgba(5,13,31,0.95) 100%)',
+                  border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 14px',marginBottom:10
                 }}>
-                  {isReading?'⏹ Stop':'▶ Hear This Script'}
-                </button>
-              </div>
-            )
-          })}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.blueBright}}>{s.category}</div>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept === 'sales' ? 'SALES' : 'SERVICE'}</div>
+                  </div>
+                  <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6,lineHeight:1.2}}>
+                    {s.objection?.replace(/['"]/g,'').substring(0,60)}
+                  </div>
+                  {s.script && (
+                    <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:'italic'}}>
+                      "{s.script.substring(0,120)}..."
+                    </div>
+                  )}
+                  <button onClick={()=>readCard(s.id, showCoaching)} style={{
+                    background: isReading?'rgba(255,107,107,0.12)':'rgba(184,255,60,0.08)',
+                    border:`1px solid ${isReading?C.red+'66':C.green+'44'}`,
+                    color: isReading?C.red:C.green,
+                    fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+                    padding:'8px 14px',borderRadius:8,cursor:'pointer',width:'100%',minHeight:36
+                  }}>
+                    {isReading?'⏹ Stop':'▶ Hear This Script'}
+                  </button>
+                </div>
+              )
+            })
+          })()}
 
           {/* Free text custom situation */}
           <div style={{background:'rgba(255,201,71,0.05)',border:'1px solid rgba(255,201,71,0.2)',borderRadius:8,padding:'12px',marginTop:8}}>
@@ -4115,7 +4112,7 @@ function LeaderGrid(){
               value={customSit}
               onChange={e=>setCustomSit(e.target.value)}
             />
-            <button onClick={()=>{if(customSit.trim()&&showCoaching)generateWordTrack(customSit,showCoaching)}} style={{
+            <button onClick={()=>{ const sit=customSit.trim(); if(sit) generateWordTrack(sit, showCoaching||'guide') }} style={{
               width:'100%',background:'rgba(255,201,71,0.15)',border:'1px solid rgba(255,201,71,0.3)',
               color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
               textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'
@@ -4164,6 +4161,27 @@ function LeaderGrid(){
 
   function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }
 }
+
+// ── Customer Lifecycle Steps ─────────────────────────────────
+const LC_STEPS = [
+  {id:'sell1',n:1,label:'Meet & Greet',title:'First Impression',focus:'Build rapport before asking questions',
+   actions:['Greet within 30 seconds of arrival','Introduce yourself by name','Ask open-ended question about their visit','Offer water or coffee','Avoid desk — stay on the floor']},
+  {id:'sell2',n:2,label:'Discovery',title:'Needs Assessment',focus:'Understand their situation before showing anything',
+   actions:['Ask about current vehicle','Understand their timeline','Clarify budget range without pressure','Identify primary decision maker','Ask about family and lifestyle needs']},
+  {id:'sell3',n:3,label:'Vehicle Selection',title:'Find the Right Fit',focus:'Match vehicle to their specific needs',
+   actions:['Show 2-3 options maximum','Connect features to what they told you','Avoid overwhelming with specs','Let them lead the walk','Ask for reactions at each point']},
+  {id:'sell4',n:4,label:'Walkaround',title:'Build Emotional Value',focus:'Create desire before discussing price',
+   actions:['6-stage walkaround structure','Feature to benefit language','Connect to their lifestyle','Trial close at each stage','Build value before numbers']},
+  {id:'sell5',n:5,label:'Demo Drive',title:'Let Them Feel Ownership',focus:'The drive closes more deals than any word track',
+   actions:['Plan the route in advance','Guide the experience verbally','Ask scale question during drive','Address objections while driving','Transition directly to desk after drive']},
+  {id:'sell6',n:6,label:'Write Up',title:'Present Numbers with Confidence',focus:'Desk work is where gross is won or lost',
+   actions:['Start at full price','Present payment options not price','Use the menu','Never negotiate against yourself','Involve manager before discounting']},
+  {id:'sell7',n:7,label:'Closing',title:'Ask for the Business',focus:'Most salespeople quit before the customer does',
+   actions:['Assume the sale','Use a direct closing question','Handle objections with ACRA','Know when to involve the manager','Get a commitment on every visit']},
+  {id:'sell8',n:8,label:'Delivery',title:'Set the Foundation for CSI',focus:'The delivery creates the next sale',
+   actions:['Review all paperwork clearly','Walk through all vehicle features','Set up phone connectivity','Introduce to service department','Ask for referrals before they leave']},
+]
+
 
 function Lifecycle() {
   const [checked, setChecked] = useState({})
@@ -4251,9 +4269,9 @@ function IPNotice() {
   )
 }
 
-const HUB_MODS=[{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
+const HUB_MODS=[{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
 function ManagerHub({initialTab, onClearInitial}){
-  const[active,setActive]=useState(initialTab||'shop')
+  const[active,setActive]=useState(initialTab||'grid')
   useEffect(()=>{ if(initialTab){ setActive(initialTab); onClearInitial&&onClearInitial() } },[initialTab])
   const Mod=HUB_MODS.find(m=>m.id===active)?.C
   return(
