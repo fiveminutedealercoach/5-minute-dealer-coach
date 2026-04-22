@@ -4287,7 +4287,7 @@ function IPNotice() {
 
 const HUB_MODS=[{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
 function ShopNotes(){
-  const[notes,setNotes]=React.useState(()=>{try{return localStorage.getItem('5md-shopnotes')||''}catch{return ''}})
+  const[notes,setNotes]=useState(()=>{try{return localStorage.getItem('5md-shopnotes')||''}catch{return ''}})
   const save=(v)=>{setNotes(v);try{localStorage.setItem('5md-shopnotes',v)}catch{}}
   return(
     <div style={{background:'rgba(26,107,255,0.08)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:16,padding:'16px',marginTop:16}}>
