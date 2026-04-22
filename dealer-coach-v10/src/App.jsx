@@ -3400,6 +3400,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     </div>
   )
 
+  // Safety guard
+  if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
+
   return(
     <div style={{padding:'16px 16px 80px'}}>
       <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Team Huddle</div>
@@ -4253,21 +4256,21 @@ function LeaderGrid(){
 
 // ── Customer Lifecycle Steps ─────────────────────────────────
 const LC_STEPS = [
-  {id:'sell1',n:1,label:'Meet & Greet',title:'First Impression',focus:'Build rapport before asking questions',
+  {id:'sell1',n:1,label:'Meet & Greet',title:'First Impression',color:'#1a6bff',metrics:'Time to greet',focus:'Build rapport before asking questions',
    actions:['Greet within 30 seconds of arrival','Introduce yourself by name','Ask open-ended question about their visit','Offer water or coffee','Avoid desk — stay on the floor']},
-  {id:'sell2',n:2,label:'Discovery',title:'Needs Assessment',focus:'Understand their situation before showing anything',
+  {id:'sell2',n:2,label:'Discovery',title:'Needs Assessment',color:'#b8ff3c',metrics:'Questions asked',focus:'Understand their situation before showing anything',
    actions:['Ask about current vehicle','Understand their timeline','Clarify budget range without pressure','Identify primary decision maker','Ask about family and lifestyle needs']},
-  {id:'sell3',n:3,label:'Vehicle Selection',title:'Find the Right Fit',focus:'Match vehicle to their specific needs',
+  {id:'sell3',n:3,label:'Vehicle Selection',title:'Find the Right Fit',color:'#ffc947',metrics:'Vehicles shown',focus:'Match vehicle to their specific needs',
    actions:['Show 2-3 options maximum','Connect features to what they told you','Avoid overwhelming with specs','Let them lead the walk','Ask for reactions at each point']},
-  {id:'sell4',n:4,label:'Walkaround',title:'Build Emotional Value',focus:'Create desire before discussing price',
+  {id:'sell4',n:4,label:'Walkaround',title:'Build Emotional Value',color:'#ff9f43',metrics:'Trial closes',focus:'Create desire before discussing price',
    actions:['6-stage walkaround structure','Feature to benefit language','Connect to their lifestyle','Trial close at each stage','Build value before numbers']},
-  {id:'sell5',n:5,label:'Demo Drive',title:'Let Them Feel Ownership',focus:'The drive closes more deals than any word track',
+  {id:'sell5',n:5,label:'Demo Drive',title:'Feel Ownership',color:'#3dcfcf',metrics:'Drive completed',focus:'The drive closes more deals than any word track',
    actions:['Plan the route in advance','Guide the experience verbally','Ask scale question during drive','Address objections while driving','Transition directly to desk after drive']},
-  {id:'sell6',n:6,label:'Write Up',title:'Present Numbers with Confidence',focus:'Desk work is where gross is won or lost',
+  {id:'sell6',n:6,label:'Write Up',title:'Present Numbers',color:'#1a6bff',metrics:'Gross held',focus:'Desk work is where gross is won or lost',
    actions:['Start at full price','Present payment options not price','Use the menu','Never negotiate against yourself','Involve manager before discounting']},
-  {id:'sell7',n:7,label:'Closing',title:'Ask for the Business',focus:'Most salespeople quit before the customer does',
+  {id:'sell7',n:7,label:'Closing',title:'Ask for the Business',color:'#b8ff3c',metrics:'Close rate',focus:'Most salespeople quit before the customer does',
    actions:['Assume the sale','Use a direct closing question','Handle objections with ACRA','Know when to involve the manager','Get a commitment on every visit']},
-  {id:'sell8',n:8,label:'Delivery',title:'Set the Foundation for CSI',focus:'The delivery creates the next sale',
+  {id:'sell8',n:8,label:'Delivery',title:'CSI Foundation',color:'#ff6b6b',metrics:'Referrals asked',focus:'The delivery creates the next sale',
    actions:['Review all paperwork clearly','Walk through all vehicle features','Set up phone connectivity','Introduce to service department','Ask for referrals before they leave']},
 ]
 
@@ -4303,6 +4306,7 @@ function ManagerHub({initialTab, onClearInitial}){
   const[active,setActive]=useState(initialTab||'grid')
   useEffect(()=>{ if(initialTab){ setActive(initialTab); onClearInitial&&onClearInitial() } },[initialTab])
   const Mod=HUB_MODS.find(m=>m.id===active)?.C
+  if(!HUB_MODS || !HUB_MODS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
   return(
     <div style={{padding:'16px 16px 80px'}}>
       <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:14}}>Manager Tools</div>
@@ -4695,15 +4699,7 @@ export default function App() {
   // ── Admin mode detection  -  ?admin=KEY in URL ──────────────
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
-  const [dealer,setDealer]     = useState(()=>{
-    const saved = loadJSON('5md-dealer',null)
-    if(saved) return saved
-    // Local dev bypass — auto-login as GM when no saved dealer
-    if(typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      return {repName:'Tony',role:'gm',dealerName:'Test Dealership',dealerId:'local-test-001'}
-    }
-    return null
-  })
+  const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
   const [tab,setTab]           = useState('home')
   const [results,setResults]   = useState(()=>loadJSON('5md-results',[]))
   const [stats,setStats]       = useState(()=>loadJSON('5md-stats',{drills:0,huddles:0,voices:0}))
