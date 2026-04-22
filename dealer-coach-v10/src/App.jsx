@@ -3994,6 +3994,38 @@ function LeaderGrid(){
     speak(fullText, ()=>setReadingCard(null), quad?.voiceTone || {})
   }
 
+  const generateWordTrack = async (situation, quadId) => {
+    if(!situation.trim()) return
+    setGenLoading(true)
+    setGeneratedTrack(null)
+    const quad = QUADS.find(q=>q.id===(quadId||showCoaching||'guide'))
+    try {
+      const res = await fetch('/ai-proxy', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          system: 'You are an automotive dealership management coach. Generate a coaching word track — the exact words a manager says out loud to a rep in a 1-on-1. Sound human and direct. 3-4 sentences max. No bullet points, no labels. Start speaking immediately.',
+          messages:[{role:'user',content:'Leadership style: '+(quad?.label||'Coach')+' — '+(quad?.styleOneLiner||'Be direct and supportive')+'. Rep situation: '+situation+'. Write only the coaching word track:'}],
+          max_tokens: 180,
+        })
+      })
+      const data = await res.json()
+      const track = data?.content?.[0]?.text?.trim()
+      if(track && track.length > 10) {
+        setGeneratedTrack(track)
+        stopSpeaking()
+        setAutoPlaying(true)
+        speak(track, ()=>setAutoPlaying(false), quad?.voiceTone||{})
+      } else {
+        setGeneratedTrack('Unable to generate — check your connection and try again.')
+      }
+    } catch(e) {
+      console.error('generateWordTrack:', e)
+      setGeneratedTrack('Generation failed. Please try again.')
+    }
+    setGenLoading(false)
+  }
+
   const q = QUADS.find(q=>q.id===qid)||QUADS[0]
   const selQ = sel ? QUADS.find(q=>q.id===sel.quad) : null
   const coachQ = showCoaching ? QUADS.find(q=>q.id===showCoaching) : null
@@ -4202,7 +4234,7 @@ function LeaderGrid(){
     </div>
   )
 
-  function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }(i) { saveTeam(team.filter((_,j)=>j!==i)) }
+  function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }
 }
 
 // ── Customer Lifecycle Steps ─────────────────────────────────
