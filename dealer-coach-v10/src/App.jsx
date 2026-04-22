@@ -837,7 +837,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
 
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
-    {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', tabSub:'grid', color:C.yellow},
+    {icon:'🎯', label:'Team Coaching', sub:'C&C Grid + scripts', tab:'coaching', color:C.yellow},
     {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.blueBright},
   ]
 
@@ -954,7 +954,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       {/* Quick actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
         {quickActions.map((a,i)=>(
-          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tabSub&&onNavSub){onNavSub(a.tabSub)}else{onNav(a.tab)} }}
+          <button key={i} className="btn-press card-hover" onClick={()=>onNav(a.tab)}
             style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
               textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
             }}>
@@ -3903,7 +3903,14 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 
 // ── Manager Hub tools (ShopTime, LeaderGrid, Lifecycle) ───────
 const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
-function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
+function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div>
+<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginTop:14}}>
+<div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}>
+<div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Notes & To-Do</div></div>
+<div style={{padding:14}}>
+<textarea placeholder="Add follow-up actions or coaching notes..." style={{...inp,width:'100%',minHeight:72,resize:'vertical',fontSize:12,lineHeight:1.6}}/>
+</div></div>
+</div></div>)}
 
 const QUADS=[
   {id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',
@@ -4004,24 +4011,36 @@ function LeaderGrid(){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          system: 'You are an automotive dealership management coach. Generate a coaching word track — the exact words a manager says out loud to a rep in a 1-on-1. Sound human and direct. 3-4 sentences max. No bullet points, no labels. Start speaking immediately.',
-          messages:[{role:'user',content:'Leadership style: '+(quad?.label||'Coach')+' — '+(quad?.styleOneLiner||'Be direct and supportive')+'. Rep situation: '+situation+'. Write only the coaching word track:'}],
-          max_tokens: 180,
+          model: 'claude-sonnet-4-20250514',
+          system: 'You are a dealership management coach. Generate the EXACT words a manager says out loud to a rep. Natural, direct, human. 3 sentences only. No labels, no bullet points.',
+          messages:[{role:'user',content:'Style: '+(quad?.label||'Coaching')+'. Situation: '+situation}],
+          max_tokens: 200,
         })
       })
       const data = await res.json()
-      const track = data?.content?.[0]?.text?.trim()
-      if(track && track.length > 10) {
-        setGeneratedTrack(track)
+      // Handle both direct content and nested error responses
+      let track = null
+      if(data?.content?.[0]?.text) track = data.content[0].text.trim()
+      else if(data?.content?.[0]?.value) track = data.content[0].value.trim()
+      else if(typeof data?.content === 'string') track = data.content.trim()
+      else if(data?.text) track = data.text.trim()
+      else if(data?.message) track = data.message.trim()
+
+      if(track && track.length > 8) {
+        // Strip any meta-prefixes the model might add
+        const clean = track.replace(/^(Word Track:|Script:|Manager says:|Here is|Here's|Coaching:)\s*/i,'').trim()
+        setGeneratedTrack(clean)
         stopSpeaking()
         setAutoPlaying(true)
-        speak(track, ()=>setAutoPlaying(false), quad?.voiceTone||{})
+        speak(clean, ()=>setAutoPlaying(false), quad?.voiceTone||{})
       } else {
-        setGeneratedTrack('Unable to generate — check your connection and try again.')
+        // Log the full response to help debug
+        console.warn('generateWordTrack empty response:', JSON.stringify(data))
+        setGeneratedTrack('No response — check API connection in Cloudflare dashboard.')
       }
     } catch(e) {
-      console.error('generateWordTrack:', e)
-      setGeneratedTrack('Generation failed. Please try again.')
+      console.error('generateWordTrack error:', e.message)
+      setGeneratedTrack('Network error: ' + e.message)
     }
     setGenLoading(false)
   }
@@ -4208,8 +4227,11 @@ function LeaderGrid(){
         <div style={{display:'grid',gridTemplateColumns:'1fr',gap:8}}>
           {ap.map((row,i)=>(
             <div key={i} style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 2fr 1fr',gap:6}}>
-              <input placeholder="Rep name" value={row.emp} onChange={e=>{const u=[...ap];u[i]={...u[i],emp:e.target.value};setAp(u)}}
-                style={{...inp,fontSize:12,padding:'6px 8px'}}/>
+              <select value={row.emp} onChange={e=>{const u=[...ap];u[i]={...u[i],emp:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px',cursor:'pointer'}}>
+                <option value="">Rep...</option>
+                {team.map((m,ti)=><option key={ti} value={m.name}>{m.name}</option>)}
+              </select>
               <select value={row.priority} onChange={e=>{const u=[...ap];u[i]={...u[i],priority:e.target.value};setAp(u)}}
                 style={{...inp,fontSize:12,padding:'6px 8px'}}>
                 <option value="">Priority</option>
@@ -4219,8 +4241,8 @@ function LeaderGrid(){
               </select>
               <input placeholder="Action item" value={row.action} onChange={e=>{const u=[...ap];u[i]={...u[i],action:e.target.value};setAp(u)}}
                 style={{...inp,fontSize:12,padding:'6px 8px'}}/>
-              <input placeholder="By when" value={row.when} onChange={e=>{const u=[...ap];u[i]={...u[i],when:e.target.value};setAp(u)}}
-                style={{...inp,fontSize:12,padding:'6px 8px'}}/>
+              <input type="date" value={row.when} onChange={e=>{const u=[...ap];u[i]={...u[i],when:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px',cursor:'pointer',colorScheme:'dark'}}/>
             </div>
           ))}
         </div>
@@ -4258,91 +4280,7 @@ const LC_STEPS = [
 ]
 
 
-function Lifecycle() {
-  const [checked, setChecked] = useState({})
-  const [exp, setExp] = useState('sell1')
-  const [notes, setNotes] = useState({})
-
-  const tog = (sid, ai) => {
-    const k = sid + '-' + ai
-    setChecked(p => ({...p, [k]: !p[k]}))
-  }
-
-  const steps = LC_STEPS || []
-  const selStep = steps.find(s => s.id === exp) || steps[0]
-
-  return (
-    <div style={{padding:'0 0 20px', overflowX:'hidden'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-        <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white}}>Customer Life Cycle</div>
-        <button onClick={()=>{
-          const rows = (LC_STEPS||[]).map(s=>{
-            const done = s.actions.filter((_,ai)=>checked[s.id+'-'+ai]).length
-            return '<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:700">'+s.label+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+done+'/'+s.actions.length+' complete</td><td style="padding:8px;border-bottom:1px solid #eee;font-style:italic">'+(notes[s.id]||'—')+'</td></tr>'
-          }).join('')
-          printPDF('Customer Life Cycle Coaching','<h1 style="color:#050d1f;font-family:sans-serif">Customer Life Cycle</h1><table width="100%" style="border-collapse:collapse;font-family:sans-serif;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:8px;text-align:left">Stage</th><th style="padding:8px;text-align:left">Progress</th><th style="padding:8px;text-align:left">Notes</th></tr></thead><tbody>'+rows+'</tbody></table>')
-        }} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>
-          📄 PDF
-        </button>
-      </div>
-      <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Track rep progress through each stage of the sale.</div>
-
-      {/* Step selector */}
-      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8,marginBottom:16}}>
-        {steps.map(s => (
-          <button key={s.id} onClick={() => setExp(s.id)} style={{
-            flexShrink:0,
-            background: exp===s.id ? 'rgba(184,255,60,0.12)' : 'rgba(255,255,255,0.04)',
-            border: '1px solid ' + (exp===s.id ? 'rgba(184,255,60,0.3)' : 'rgba(255,255,255,0.08)'),
-            color: exp===s.id ? C.green : C.gray,
-            fontFamily:fH, fontWeight:700, fontSize:11, letterSpacing:1,
-            textTransform:'uppercase', padding:'6px 12px', borderRadius:8, cursor:'pointer',
-            minHeight:36,
-          }}>
-            {s.n}. {s.label}
-          </button>
-        ))}
-      </div>
-
-      {selStep && (
-        <div style={{...glass, padding:'16px 18px', marginBottom:12}}>
-          <div style={{fontFamily:fH,fontSize:16,fontWeight:900,color:C.white,marginBottom:4}}>{selStep.title}</div>
-          <div style={{fontSize:12,color:C.gray,marginBottom:12}}>{selStep.focus}</div>
-
-          {(selStep.actions || []).map((action, ai) => {
-            const k = selStep.id + '-' + ai
-            return (
-              <div key={ai} onClick={() => tog(selStep.id, ai)} style={{
-                display:'flex', alignItems:'flex-start', gap:10, padding:'8px 0',
-                borderBottom:'1px solid rgba(255,255,255,0.06)', cursor:'pointer',
-              }}>
-                <div style={{
-                  width:18, height:18, borderRadius:4, flexShrink:0, marginTop:1,
-                  background: checked[k] ? C.green : 'transparent',
-                  border: '2px solid ' + (checked[k] ? C.green : 'rgba(255,255,255,0.2)'),
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                }}>
-                  {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
-                </div>
-                <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,
-                  textDecoration:checked[k]?'line-through':'none'
-                }}>{action}</div>
-              </div>
-            )
-          })}
-
-          {/* Notes */}
-          <textarea
-            placeholder="Add coaching notes for this stage..."
-            value={notes[selStep.id] || ''}
-            onChange={e => setNotes(p => ({...p, [selStep.id]: e.target.value}))}
-            style={{...inp, marginTop:10, minHeight:52, resize:'vertical', fontSize:12}}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
+function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Ownership Lifecycle</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
 
 function IPNotice() {
   return(
@@ -4755,7 +4693,7 @@ export default function App() {
   const [streak,setStreak]     = useState(()=>loadJSON('5md-streak',{count:0,lastDay:''}))
   const [milestone,setMilestone] = useState(null)
   const [preloadDrill,setPreloadDrill]   = useState(null)
-  const [coachingInitialTab,setCoachingInitialTab] = useState('shop')
+  const [coachingInitialTab,setCoachingInitialTab] = useState('grid')
   const [preloadHuddle,setPreloadHuddle] = useState(null)
   const [preloadTracker,setPreloadTracker] = useState('')
   const [schedule,setSchedule] = useState(()=>loadJSON('5md-schedule',{}))
@@ -4845,7 +4783,7 @@ export default function App() {
   const TABS = isMgr ? [
     {id:'home',    label:'Home',    icon:'🏠'},
     {id:'huddle',  label:'Huddle',  icon:'⏱'},
-    {id:'coaching',label:'Coach Hub',icon:'🎯'},
+    {id:'coaching',label:'Mgr Hub',icon:'🏢'},
     {id:'tracker', label:'Dashboard',icon:'📊'},
   ] : [
     {id:'home',    label:'Home',    icon:'🏠'},
