@@ -838,7 +838,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
     {icon:'🎯', label:'Team Coaching', sub:'Grid + word tracks', tab:'coaching', tabSub:'grid', color:C.yellow},
-    {icon:'⏱', label:'Run Huddle', sub:'Morning team drill', tab:'huddle', color:C.green},
+    {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.blueBright},
   ]
 
   return (
@@ -915,7 +915,13 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
               <div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.green}}>Huddle Complete</div>
             </div>
             <div style={{fontSize:12,color:C.gray,marginBottom:12}}>Today's huddle is done. Run another?</div>
-            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnSecondary,minHeight:48}}>
+            <button className="btn-press" onClick={()=>{onNav('huddle')}} style={{
+              background:'rgba(255,255,255,0.06)',color:'#c8d4e8',
+              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,
+              letterSpacing:0.5,textTransform:'uppercase',
+              border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,
+              minHeight:48,cursor:'pointer',width:'100%'
+            }}>
               Run Another Huddle
             </button>
           </>
@@ -932,7 +938,13 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
             <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,marginBottom:14}}>
               Ready to run the morning huddle?
             </div>
-            <button className="btn-press" onClick={()=>onNav('huddle')} style={{...btnPrimary}}>
+            <button className="btn-press" onClick={()=>{onNav('huddle')}} style={{
+              background:'linear-gradient(135deg,#b8ff3c,#7ed321)',color:'#050d1f',
+              fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:16,
+              letterSpacing:1,textTransform:'uppercase',border:'none',borderRadius:14,
+              minHeight:56,cursor:'pointer',width:'100%',
+              boxShadow:'0 0 32px rgba(184,255,60,0.25)'
+            }}>
               ⏱ Set Up Huddle
             </button>
           </>
@@ -998,7 +1010,9 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
       const pool = SCRIPTS.filter(s => !COACHING_CATS_R.has(s.category) && (dept==='both'||s.dept===dept))
       if(!pool.length) return null
       // Check assigned drill first
-      const assigned = loadJSON('5md-assigned-drill', null)
+      const assignedKey = '5md-assigned-' + (dealer?.dealerId||'local')
+      const assignedList = (() => { try { return JSON.parse(localStorage.getItem(assignedKey)||'[]') } catch { return [] } })()
+      const assigned = assignedList.length > 0 ? assignedList[0].scriptId : null
       if(assigned) {
         const s = pool.find(p => p.id === assigned)
         if(s) return {script:s, reason:'Assigned by manager'}
@@ -1882,19 +1896,8 @@ One coaching whisper:`}],
 
       // ── ITEM 4: USE PRE-GENERATED RESPONSE IF AVAILABLE ──
       // Check if we have a pre-generated response ready from last exchange
-      if (nextResponseRef.current) {
-        const preGenerated = nextResponseRef.current
-        nextResponseRef.current = null  // consume it
-        // Only use if valid — must be at least 8 words and not an error message
-        const wordCount = preGenerated.split(' ').length
-        const isValid = wordCount >= 4 && !preGenerated.toLowerCase().includes('error') && !preGenerated.toLowerCase().includes('cannot') && preGenerated.length > 15
-        if(isValid) {
-          speakReply(preGenerated)
-          preGenerateNextResponse(updatedLive, persona, newExCount + 1)
-          return
-        }
-        nextResponseRef.current = null // discard invalid pre-gen, fall through to fresh call
-      }
+      // Pre-gen disabled — always use fresh API call for reliable voice
+      nextResponseRef.current = null
 
       // ── EMOTIONAL ARC ─────────────────────────────────────
       const emotionalStates = {
@@ -4155,11 +4158,51 @@ function LeaderGrid(){
         </div>
       )}
 
+      {/* ── ACTION PLAN ─────────────────────────────── */}
+      <div style={{...glass,padding:'18px',marginTop:24}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+          <div style={{fontFamily:fH,fontSize:16,fontWeight:900,textTransform:'uppercase',color:C.white}}>
+            📋 Team Action Plan
+          </div>
+          <button onClick={()=>{
+            const rows = ap.filter(r=>r.emp||r.action).map(r=>
+              '<tr><td style="padding:8px;border-bottom:1px solid #eee">'+r.emp+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+r.priority+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+r.action+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+r.when+'</td></tr>'
+            ).join('')
+            printPDF('Team Action Plan', '<h1 style="color:#050d1f;font-family:sans-serif">Team Action Plan</h1><table width="100%" style="border-collapse:collapse;font-family:sans-serif;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:8px;text-align:left">Rep</th><th style="padding:8px;text-align:left">Priority</th><th style="padding:8px;text-align:left">Action</th><th style="padding:8px;text-align:left">By When</th></tr></thead><tbody>'+rows+'</tbody></table>')
+          }} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:8,cursor:'pointer'}}>
+            📄 Export PDF
+          </button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr',gap:8}}>
+          {ap.map((row,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 2fr 1fr',gap:6}}>
+              <input placeholder="Rep name" value={row.emp} onChange={e=>{const u=[...ap];u[i]={...u[i],emp:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px'}}/>
+              <select value={row.priority} onChange={e=>{const u=[...ap];u[i]={...u[i],priority:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px'}}>
+                <option value="">Priority</option>
+                <option value="🔴 High">🔴 High</option>
+                <option value="🟡 Medium">🟡 Medium</option>
+                <option value="🟢 Low">🟢 Low</option>
+              </select>
+              <input placeholder="Action item" value={row.action} onChange={e=>{const u=[...ap];u[i]={...u[i],action:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px'}}/>
+              <input placeholder="By when" value={row.when} onChange={e=>{const u=[...ap];u[i]={...u[i],when:e.target.value};setAp(u)}}
+                style={{...inp,fontSize:12,padding:'6px 8px'}}/>
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>setAp(p=>[...p,{emp:'',priority:'',action:'',when:''}])}
+          style={{...btnSecondary,marginTop:10,minHeight:36,fontSize:12}}>
+          + Add Row
+        </button>
+      </div>
+
       <IPNotice/>
     </div>
   )
 
-  function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }
+  function removeM(i) { saveTeam(team.filter((_,j)=>j!==i)) }(i) { saveTeam(team.filter((_,j)=>j!==i)) }
 }
 
 // ── Customer Lifecycle Steps ─────────────────────────────────
@@ -4198,7 +4241,18 @@ function Lifecycle() {
 
   return (
     <div style={{padding:'0 0 20px', overflowX:'hidden'}}>
-      <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Customer Life Cycle</div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+        <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white}}>Customer Life Cycle</div>
+        <button onClick={()=>{
+          const rows = (LC_STEPS||[]).map(s=>{
+            const done = s.actions.filter((_,ai)=>checked[s.id+'-'+ai]).length
+            return '<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:700">'+s.label+'</td><td style="padding:8px;border-bottom:1px solid #eee">'+done+'/'+s.actions.length+' complete</td><td style="padding:8px;border-bottom:1px solid #eee;font-style:italic">'+(notes[s.id]||'—')+'</td></tr>'
+          }).join('')
+          printPDF('Customer Life Cycle Coaching','<h1 style="color:#050d1f;font-family:sans-serif">Customer Life Cycle</h1><table width="100%" style="border-collapse:collapse;font-family:sans-serif;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:8px;text-align:left">Stage</th><th style="padding:8px;text-align:left">Progress</th><th style="padding:8px;text-align:left">Notes</th></tr></thead><tbody>'+rows+'</tbody></table>')
+        }} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>
+          📄 PDF
+        </button>
+      </div>
       <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Track rep progress through each stage of the sale.</div>
 
       {/* Step selector */}
@@ -4764,6 +4818,7 @@ export default function App() {
   ] : [
     {id:'home',    label:'Home',    icon:'🏠'},
     {id:'drill',   label:'Drill',   icon:'🎙'},
+    {id:'scripts', label:'Scripts', icon:'📋'},
     {id:'tracker', label:'Progress',icon:'📊'},
   ]
 
