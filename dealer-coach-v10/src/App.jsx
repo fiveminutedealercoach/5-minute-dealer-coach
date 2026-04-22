@@ -4695,7 +4695,15 @@ export default function App() {
   // ── Admin mode detection  -  ?admin=KEY in URL ──────────────
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
-  const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
+  const [dealer,setDealer]     = useState(()=>{
+    const saved = loadJSON('5md-dealer',null)
+    if(saved) return saved
+    // Local dev bypass — auto-login as GM when no saved dealer
+    if(typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      return {repName:'Tony',role:'gm',dealerName:'Test Dealership',dealerId:'local-test-001'}
+    }
+    return null
+  })
   const [tab,setTab]           = useState('home')
   const [results,setResults]   = useState(()=>loadJSON('5md-results',[]))
   const [stats,setStats]       = useState(()=>loadJSON('5md-stats',{drills:0,huddles:0,voices:0}))
