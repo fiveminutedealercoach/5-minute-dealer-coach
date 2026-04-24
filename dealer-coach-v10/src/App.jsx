@@ -3426,7 +3426,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Pick Today's Script</div>
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
-        {filtered.map(s=>(
+        {filtered.map((s,filteredIdx)=>(
           <div key={s.id} onClick={()=>setSelScript(s)} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):C.card,border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:8,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
             <div style={{fontFamily:fH,fontSize:12,fontWeight:700,color:C.gray,marginBottom:2}}>Objection {filteredIdx+1}</div>
             <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.4)',minWidth:26}}>{String(s.id).padStart(2,'0')}</div>
@@ -3438,6 +3438,14 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
           </div>
         ))}
       </div>
+      {/* Script preview when selected */}
+      {selScript && (
+        <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',borderRadius:12,padding:'14px 16px',marginBottom:12}}>
+          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Script Preview</div>
+          <div style={{fontSize:13,color:C.white,fontStyle:'italic',lineHeight:1.65,marginBottom:8}}>"{selScript.objection?.replace(/['"]/g,'')}"</div>
+          {selScript.script && <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,marginBottom:6}}>{selScript.script.substring(0,200)}...</div>}
+        </div>
+      )}
       <button onClick={startHuddle} disabled={!selScript} style={{width:'100%',background:selScript?C.green:'rgba(255,255,255,0.08)',color:selScript?C.navy:C.gray,fontFamily:fH,fontWeight:900,fontSize:16,letterSpacing:1,textTransform:'uppercase',padding:16,borderRadius:10,border:'none',cursor:selScript?'pointer':'default'}}>
         {selScript?'▶ Start 5-Minute Huddle':'Select a script to start'}
       </button>
@@ -4256,21 +4264,21 @@ function LeaderGrid(){
 
 // ── Customer Lifecycle Steps ─────────────────────────────────
 const LC_STEPS = [
-  {id:'sell1',n:1,label:'Meet & Greet',title:'First Impression',color:'#1a6bff',metrics:'Time to greet',focus:'Build rapport before asking questions',
+  {id:'sell1',n:1,label:'Meet & Greet',title:'First Impression',color:'#1a6bff',metrics:['Time to greet','30-second rule','First impression score'],focus:'Build rapport before asking questions',
    actions:['Greet within 30 seconds of arrival','Introduce yourself by name','Ask open-ended question about their visit','Offer water or coffee','Avoid desk — stay on the floor']},
-  {id:'sell2',n:2,label:'Discovery',title:'Needs Assessment',color:'#b8ff3c',metrics:'Questions asked',focus:'Understand their situation before showing anything',
+  {id:'sell2',n:2,label:'Discovery',title:'Needs Assessment',color:'#b8ff3c',metrics:['Questions asked','Needs uncovered','Pain points identified'],focus:'Understand their situation before showing anything',
    actions:['Ask about current vehicle','Understand their timeline','Clarify budget range without pressure','Identify primary decision maker','Ask about family and lifestyle needs']},
-  {id:'sell3',n:3,label:'Vehicle Selection',title:'Find the Right Fit',color:'#ffc947',metrics:'Vehicles shown',focus:'Match vehicle to their specific needs',
+  {id:'sell3',n:3,label:'Vehicle Selection',title:'Find the Right Fit',color:'#ffc947',metrics:['Vehicles shown','Feature connections made','Customer reactions'],focus:'Match vehicle to their specific needs',
    actions:['Show 2-3 options maximum','Connect features to what they told you','Avoid overwhelming with specs','Let them lead the walk','Ask for reactions at each point']},
-  {id:'sell4',n:4,label:'Walkaround',title:'Build Emotional Value',color:'#ff9f43',metrics:'Trial closes',focus:'Create desire before discussing price',
+  {id:'sell4',n:4,label:'Walkaround',title:'Build Emotional Value',color:'#ff9f43',metrics:['Trial closes used','Value statements made','Buying signals noted'],focus:'Create desire before discussing price',
    actions:['6-stage walkaround structure','Feature to benefit language','Connect to their lifestyle','Trial close at each stage','Build value before numbers']},
-  {id:'sell5',n:5,label:'Demo Drive',title:'Feel Ownership',color:'#3dcfcf',metrics:'Drive completed',focus:'The drive closes more deals than any word track',
+  {id:'sell5',n:5,label:'Demo Drive',title:'Feel Ownership',color:'#3dcfcf',metrics:['Demo drive completed','Scale question asked','Objections handled'],focus:'The drive closes more deals than any word track',
    actions:['Plan the route in advance','Guide the experience verbally','Ask scale question during drive','Address objections while driving','Transition directly to desk after drive']},
-  {id:'sell6',n:6,label:'Write Up',title:'Present Numbers',color:'#1a6bff',metrics:'Gross held',focus:'Desk work is where gross is won or lost',
+  {id:'sell6',n:6,label:'Write Up',title:'Present Numbers',color:'#1a6bff',metrics:['Gross held','Discounts avoided','Menu presented'],focus:'Desk work is where gross is won or lost',
    actions:['Start at full price','Present payment options not price','Use the menu','Never negotiate against yourself','Involve manager before discounting']},
-  {id:'sell7',n:7,label:'Closing',title:'Ask for the Business',color:'#b8ff3c',metrics:'Close rate',focus:'Most salespeople quit before the customer does',
+  {id:'sell7',n:7,label:'Closing',title:'Ask for the Business',color:'#b8ff3c',metrics:['Close rate','Commits obtained','Objections overcome'],focus:'Most salespeople quit before the customer does',
    actions:['Assume the sale','Use a direct closing question','Handle objections with ACRA','Know when to involve the manager','Get a commitment on every visit']},
-  {id:'sell8',n:8,label:'Delivery',title:'CSI Foundation',color:'#ff6b6b',metrics:'Referrals asked',focus:'The delivery creates the next sale',
+  {id:'sell8',n:8,label:'Delivery',title:'CSI Foundation',color:'#ff6b6b',metrics:['Referrals asked','CSI prep done','Service intro completed'],focus:'The delivery creates the next sale',
    actions:['Review all paperwork clearly','Walk through all vehicle features','Set up phone connectivity','Introduce to service department','Ask for referrals before they leave']},
 ]
 
@@ -4797,6 +4805,7 @@ export default function App() {
     {id:'home',    label:'Home',    icon:'🏠'},
     {id:'huddle',  label:'Huddle',  icon:'⏱'},
     {id:'coaching',label:'Mgr Hub',icon:'🏢'},
+    {id:'scripts', label:'Scripts', icon:'📋'},
     {id:'tracker', label:'Dashboard',icon:'📊'},
   ] : [
     {id:'home',    label:'Home',    icon:'🏠'},
