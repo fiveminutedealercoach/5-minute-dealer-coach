@@ -4283,7 +4283,7 @@ const LC_STEPS = [
 ]
 
 
-function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Ownership Lifecycle</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
+function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Sales Experience Assessment</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
 
 function IPNotice() {
   return(
@@ -4296,7 +4296,238 @@ function IPNotice() {
   )
 }
 
-const HUB_MODS=[{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'lifecycle',label:'Customer Life Cycle',icon:'🔄',C:Lifecycle}]
+const HUB_MODS=[{id:'grid',label:'Team Coaching',icon:'🎯',C:LeaderGrid},{id:'shop',label:'Shop Time',icon:'⏱',C:ShopTime},{id:'lifecycle',label:'Sales Experience',icon:'📋',C:Lifecycle},{id:'ownership',label:'Ownership Lifecycle',icon:'🔄',C:OwnershipLifecycle}]
+// ══════════════════════════════════════════════════════════════
+// OWNERSHIP LIFECYCLE — 6-Step Framework (First Sale to Second Sale)
+// ══════════════════════════════════════════════════════════════
+const OLC_STEPS = [
+  {
+    id:'sell1', n:1, color:'#ff6b6b', label:'Sell Vehicle #1', icon:'🚗',
+    subtitle:'Set the Foundation',
+    rootCause:'Sales interactions are often transactional and not positioned for long-term guest retention.',
+    opportunity:'Establish a relationship-driven ownership experience from the very first conversation.',
+    coachFocus:'"Sell the ownership experience, not just the vehicle."',
+    metrics:['Closing ratio','Email capture rate (goal: 85%+)','CRM notes quality score'],
+    actions:[
+      'Deliver 5 personalized ownership value points during the sale',
+      'Capture complete guest profile — email, phone, communication preferences',
+      'Introduce the service experience early — before the deal is done',
+      'Manager turn focused on the ownership journey, not just closing the transaction',
+    ]
+  },
+  {
+    id:'deliver', n:2, color:'#ff9f43', label:'Delivery Checklist', icon:'📋',
+    subtitle:'Execute a Premium Delivery',
+    rootCause:'Inconsistent delivery processes lead to missed steps, lower satisfaction, and reduced retention.',
+    opportunity:'Create a repeatable, elevated delivery experience that sets the standard every time.',
+    coachFocus:'"Slow down the delivery to speed up retention."',
+    metrics:['Delivery checklist completion rate (goal: 90%+)','Delivery satisfaction survey scores'],
+    actions:[
+      'Complete the Delivery Checklist with the guest — every item, every delivery',
+      'Manager touchpoint during delivery reinforces relationship and brand trust',
+      'Confirm technology setup, features walkthrough, and first service introduction',
+      'Manager signs off on checklist completion before the guest departs',
+    ]
+  },
+  {
+    id:'schedule', n:3, color:'#b8ff3c', label:'Set 1st Service Appt', icon:'📅',
+    subtitle:'Lock in Retention',
+    rootCause:'First service appointments are not consistently set at delivery, breaking the retention chain.',
+    opportunity:'Secure the first service appointment before the guest leaves — every single time.',
+    coachFocus:'"Every delivery equals a future service appointment."',
+    metrics:['Service appointments set at delivery (goal: 90-100%)','First service show rate (goal: 75%+)'],
+    actions:[
+      'Schedule the first service appointment at delivery or during the ReConnect call',
+      'Use your scheduling tool to confirm the appointment in the system before goodbye',
+      'Activate automated confirmation texts and service reminders',
+      'BDC follows up within 24 hours to confirm and reinforce the appointment',
+    ]
+  },
+  {
+    id:'reconnect', n:4, color:'#3dcfcf', label:'ReConnect', icon:'🤝',
+    subtitle:'Reinforce the Relationship',
+    rootCause:'The ReConnect touchpoint is inconsistent — many guests never receive a follow-up after delivery.',
+    opportunity:'Deepen guest confidence and ownership satisfaction within the critical first week.',
+    coachFocus:'"This is where loyalty is built."',
+    metrics:['ReConnect completion rate (goal: 90%+)','ReConnect scheduled at delivery (tracked separately)'],
+    actions:[
+      'Schedule the ReConnect during delivery — make it a commitment, not an afterthought',
+      'Complete within 3-7 days of vehicle delivery while the experience is fresh',
+      'Review features, confirm satisfaction, and validate the upcoming service appointment',
+      'Document the ReConnect outcome in CRM for manager review',
+    ]
+  },
+  {
+    id:'appraise', n:5, color:'#1a6bff', label:'Service Visit', icon:'🔧',
+    subtitle:'Activate the Sales Opportunity',
+    rootCause:'The service lane is the most consistent source of warm prospects — and the most underused.',
+    opportunity:'Convert every service visit into a proactive sales touchpoint and pipeline opportunity.',
+    coachFocus:'"The service drive is your most consistent showroom."',
+    metrics:['Appraisal requests per month','Service-to-sales conversion rate'],
+    actions:[
+      'Send complimentary trade appraisal offers to guests during their service visit',
+      'BDC monitors responses and qualifies interested guests for the sales team',
+      'Service advisor verbally reinforces the appraisal offer at the point of check-in',
+      'Sales team is notified immediately when a service guest expresses interest',
+    ]
+  },
+  {
+    id:'sell2', n:6, color:'#b8ff3c', label:'Sell Vehicle #2', icon:'🏆',
+    subtitle:'Complete the Cycle',
+    rootCause:'Equity opportunities are missed because there is no proactive system to act on them.',
+    opportunity:'Turn your most loyal, service-retained guests into repeat buyers — on your timeline.',
+    coachFocus:'"Your next sale is already in your service lane."',
+    metrics:['Repeat purchase rate','Service-to-sale conversion rate','Average lifecycle cycle days'],
+    actions:[
+      'Engage appraisal-interested guests immediately with personalized sales follow-up',
+      'Present upgrade options, equity position, and loyalty incentives clearly',
+      'Highlight the ownership benefits of staying with your dealership',
+      'Track cycle time: days from Vehicle #1 delivery to Vehicle #2 close',
+    ]
+  },
+]
+
+function OwnershipLifecycle() {
+  const [exp, setExp] = useState('sell1')
+  const [checked, setChecked] = useState({})
+  const [notes, setNotes] = useState({})
+
+  const tog = (stepId, ai) => {
+    const k = stepId + '-' + ai
+    setChecked(p => ({...p, [k]: !p[k]}))
+  }
+
+  const pct = (step) => {
+    const done = step.actions.filter((_,i) => checked[step.id+'-'+i]).length
+    return Math.round((done / step.actions.length) * 100)
+  }
+
+  const overall = Math.round(OLC_STEPS.reduce((a,s) => a + pct(s), 0) / OLC_STEPS.length)
+
+  const selStep = OLC_STEPS.find(s => s.id === exp) || OLC_STEPS[0]
+
+  const expPDF = () => {
+    const rows = OLC_STEPS.map(s => {
+      const done = s.actions.filter((_,i) => checked[s.id+'-'+i]).length
+      return '<tr><td style="padding:10px;border-bottom:1px solid #eee;font-weight:700;color:'+s.color+'">'+s.icon+' '+s.label+'</td><td style="padding:10px;border-bottom:1px solid #eee">'+s.subtitle+'</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">'+done+'/'+s.actions.length+'</td><td style="padding:10px;border-bottom:1px solid #eee;font-style:italic;color:#666">'+s.coachFocus+'</td></tr>'
+    }).join('')
+    printPDF('Ownership Lifecycle - ' + new Date().toLocaleDateString(),
+      '<div style="font-family:sans-serif"><h1 style="color:#050d1f;margin-bottom:4px">Ownership Lifecycle</h1><p style="color:#1a6bff;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:0">First Sale to Second Sale — 6-Step Manager Framework</p><div style="background:#f5f5f5;padding:16px;border-radius:8px;margin-bottom:20px"><p style="margin:0;color:#333">Most dealerships focus entirely on the first transaction. This framework gives managers a repeatable, measurable system to guide every guest from their first vehicle purchase all the way back to their next one.</p></div><table width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:10px;text-align:left">Step</th><th style="padding:10px;text-align:left">Focus</th><th style="padding:10px;text-align:center">Progress</th><th style="padding:10px;text-align:left">Coaching Focus</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:20px;padding:16px;background:#f5f5f5;border-radius:8px"><strong>Overall Progress:</strong> '+overall+'% complete</div></div>'
+    )
+  }
+
+  return (
+    <div style={{padding:'0 0 20px', overflowX:'hidden'}}>
+
+      {/* Header */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6}}>
+        <div>
+          <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white}}>Ownership Lifecycle</div>
+          <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>First Sale to Second Sale</div>
+        </div>
+        <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+      </div>
+
+      {/* Overall progress bar */}
+      <div style={{background:'rgba(255,255,255,0.06)',borderRadius:8,height:6,marginBottom:16,overflow:'hidden'}}>
+        <div style={{height:'100%',width:overall+'%',background:'linear-gradient(90deg,#1a6bff,#b8ff3c)',borderRadius:8,transition:'width 0.5s ease'}}/>
+      </div>
+
+      {/* Step tabs */}
+      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8,marginBottom:16}}>
+        {OLC_STEPS.map(s => (
+          <button key={s.id} onClick={()=>setExp(s.id)} style={{
+            flexShrink:0,
+            background: exp===s.id ? s.color+'22' : 'rgba(255,255,255,0.04)',
+            border: '1px solid ' + (exp===s.id ? s.color+'66' : 'rgba(255,255,255,0.08)'),
+            color: exp===s.id ? s.color : C.gray,
+            fontFamily:fH, fontWeight:700, fontSize:10, letterSpacing:0.5,
+            textTransform:'uppercase', padding:'6px 10px', borderRadius:8, cursor:'pointer',
+            minHeight:36, display:'flex', alignItems:'center', gap:4,
+          }}>
+            <span>{s.icon}</span>
+            <span>{s.n}. {s.label}</span>
+            {pct(s)===100 && <span style={{color:C.green}}>✓</span>}
+          </button>
+        ))}
+      </div>
+
+      {selStep && (
+        <div style={{animation:'fadeUp 0.3s ease both'}}>
+
+          {/* Step header */}
+          <div style={{background:'linear-gradient(135deg,'+selStep.color+'18 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid '+selStep.color+'33',borderRadius:16,padding:'16px 18px',marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div>
+                <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:selStep.color,lineHeight:1}}>{selStep.icon} {selStep.label}</div>
+                <div style={{fontFamily:fH,fontSize:12,color:C.lightText,marginTop:2}}>{selStep.subtitle}</div>
+              </div>
+              <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:pct(selStep)===100?C.green:selStep.color}}>{pct(selStep)}%</div>
+            </div>
+            <div style={{background:'rgba(0,0,0,0.2)',borderRadius:6,height:4,overflow:'hidden'}}>
+              <div style={{height:'100%',width:pct(selStep)+'%',background:selStep.color,borderRadius:6,transition:'width 0.4s ease'}}/>
+            </div>
+          </div>
+
+          {/* Root cause + Opportunity */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            <div style={{background:'rgba(255,107,107,0.06)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:12,padding:'12px 14px'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:'#ff6b6b',marginBottom:6}}>Root Cause</div>
+              <div style={{fontSize:11,color:C.lightText,lineHeight:1.6}}>{selStep.rootCause}</div>
+            </div>
+            <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:12,padding:'12px 14px'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:6}}>Opportunity</div>
+              <div style={{fontSize:11,color:C.lightText,lineHeight:1.6}}>{selStep.opportunity}</div>
+            </div>
+          </div>
+
+          {/* Actions checklist */}
+          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white,marginBottom:10}}>Actions</div>
+            {selStep.actions.map((action, ai) => {
+              const k = selStep.id + '-' + ai
+              return (
+                <div key={ai} onClick={()=>tog(selStep.id, ai)}
+                  style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
+                  <div style={{
+                    width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
+                    background:checked[k]?selStep.color:'transparent',
+                    border:'2px solid '+(checked[k]?selStep.color:'rgba(255,255,255,0.2)'),
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    transition:'all 0.2s',
+                  }}>
+                    {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Metrics */}
+          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:10}}>Measurement</div>
+            {selStep.metrics.map((m,i) => (
+              <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,color:C.lightText}}>
+                <div style={{width:6,height:6,borderRadius:'50%',background:selStep.color,flexShrink:0}}/>
+                {m}
+              </div>
+            ))}
+          </div>
+
+          {/* Coaching focus */}
+          <div style={{background:'linear-gradient(135deg,rgba(26,107,255,0.10) 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid rgba(26,107,255,0.25)',borderLeft:'4px solid '+selStep.color,borderRadius:'0 12px 12px 0',padding:'14px 16px'}}>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:selStep.color,marginBottom:6}}>Coaching Focus</div>
+            <div style={{fontSize:14,color:C.white,fontStyle:'italic',lineHeight:1.6}}>{selStep.coachFocus}</div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function ShopNotes(){
   const[notes,setNotes]=useState(()=>{try{return localStorage.getItem('5md-shopnotes')||''}catch{return ''}})
   const save=(v)=>{setNotes(v);try{localStorage.setItem('5md-shopnotes',v)}catch{}}
