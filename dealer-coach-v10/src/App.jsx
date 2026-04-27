@@ -4020,25 +4020,22 @@ function LeaderGrid(){
         })
       })
       const data = await res.json()
-      // Handle both direct content and nested error responses
-      let track = null
-      if(data?.content?.[0]?.text) track = data.content[0].text.trim()
-      else if(data?.content?.[0]?.value) track = data.content[0].value.trim()
-      else if(typeof data?.content === 'string') track = data.content.trim()
-      else if(data?.text) track = data.text.trim()
-      else if(data?.message) track = data.message.trim()
-
-      if(track && track.length > 8) {
-        // Strip any meta-prefixes the model might add
-        const clean = track.replace(/^(Word Track:|Script:|Manager says:|Here is|Coaching:)\s*/i,'').trim()
+      // Surface any Anthropic error directly
+      if(data?.error) {
+        setGeneratedTrack('API error: ' + (data.error?.message || data.error || JSON.stringify(data.error)))
+        setGenLoading(false)
+        return
+      }
+      // Standard Anthropic response format: content[0].text
+      const track = data?.content?.[0]?.text?.trim()
+      if(track && track.length > 4) {
+        const clean = track.replace(/^(Word Track:|Script:|Manager:|Here is|Here's|Coaching:)/i,'').trim()
         setGeneratedTrack(clean)
         stopSpeaking()
         setAutoPlaying(true)
         speak(clean, ()=>setAutoPlaying(false), quad?.voiceTone||{})
       } else {
-        // Log the full response to help debug
-        console.warn('generateWordTrack empty response:', JSON.stringify(data))
-        setGeneratedTrack('No response — check API connection in Cloudflare dashboard.')
+        setGeneratedTrack('Empty response. Raw: ' + JSON.stringify(data).substring(0,120))
       }
     } catch(e) {
       console.error('generateWordTrack error:', e.message)
