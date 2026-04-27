@@ -3965,6 +3965,7 @@ function LeaderGrid(){
   const[sel,setSel]=useState(null)
   const[acts,setActs]=useState({})
   const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}])
+  const[coachDept,setCoachDept]=useState('both') // 'sales' | 'service' | 'both'
   const[showCoaching,setShowCoaching]=useState(null) // quadrant id for coaching panel
   const[customSit,setCustomSit]=useState('')
   const[generatedTrack,setGeneratedTrack]=useState(null)
@@ -4115,14 +4116,29 @@ function LeaderGrid(){
           <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:4}}>Coaching Conversations — {coachQ.label}</div>
           <div style={{fontSize:11,color:C.gray,marginBottom:12}}>{coachQ.styleGuide}</div>
 
+          {/* Dept filter toggle */}
+          <div style={{display:'flex',gap:6,marginBottom:12}}>
+            {[['both','Both'],['sales','Sales'],['service','Service']].map(([val,lbl])=>(
+              <button key={val} onClick={()=>setCoachDept(val)} style={{
+                flex:1,
+                background:coachDept===val?'rgba(26,107,255,0.15)':'rgba(255,255,255,0.04)',
+                border:`1px solid ${coachDept===val?'rgba(26,107,255,0.4)':'rgba(255,255,255,0.08)'}`,
+                color:coachDept===val?C.blueBright:C.gray,
+                fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+                padding:'7px 0',borderRadius:8,cursor:'pointer',minHeight:36,
+              }}>{lbl}</button>
+            ))}
+          </div>
           {/* Coaching script cards pulled from SCRIPTS data by category */}
           {(() => {
             const COACHING_CATS_ALL = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
             const quadCats = new Set(coachQ.coachingCats || [])
-            // First show quadrant-specific, then fall back to all coaching scripts
+            // Filter by quadrant categories, then by dept if set
             const coachingPool = SCRIPTS.filter(s => COACHING_CATS_ALL.has(s.category))
             const quadScripts = coachingPool.filter(s => quadCats.has(s.category))
-            const displayScripts = quadScripts.length > 0 ? quadScripts : coachingPool
+            const deptFiltered = (quadScripts.length > 0 ? quadScripts : coachingPool)
+              .filter(s => !coachDept || coachDept==='both' || s.dept===coachDept)
+            const displayScripts = deptFiltered.length > 0 ? deptFiltered : (quadScripts.length > 0 ? quadScripts : coachingPool)
             return displayScripts.slice(0,6).map((s, idx) => {
               const isReading = readingCard === s.id
               return (
@@ -4537,34 +4553,70 @@ function ShopNotes(){
   )
 }
 
+// ── Department filter banner for Team Coaching ───────────────
+function MgrHubDeptFilter(){
+  return null // LeaderGrid manages its own dept filter internally
+}
+
+
 function ManagerHub({initialTab, onClearInitial}){
-  const[active,setActive]=useState(initialTab||'grid')
-  useEffect(()=>{ if(initialTab){ setActive(initialTab); onClearInitial&&onClearInitial() } },[initialTab])
-  const Mod=HUB_MODS.find(m=>m.id===active)?.C
-  if(!HUB_MODS || !HUB_MODS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
+  const[active,setActive]=useState(null)
+
+  useEffect(()=>{
+    if(initialTab){ setActive(initialTab); onClearInitial&&onClearInitial() }
+  },[initialTab])
+
+  const HUB_CARDS = [
+    {id:'grid',     label:'Team Coaching',       icon:'🎯', color:C.blue,    desc:'C&C Leadership grid, coaching scripts & word track generator'},
+    {id:'shop',     label:'Shop Time',            icon:'⏱', color:C.yellow,  desc:'Lost time calculator, action planning & session notes'},
+    {id:'lifecycle',label:'Sales Experience',     icon:'📋', color:'#ff9f43', desc:'8-stage sales process assessment & checklist'},
+    {id:'ownership',label:'Ownership Lifecycle',  icon:'🔄', color:C.green,   desc:'6-step retention system — first sale to second sale'},
+  ]
+
+  if(active){
+    const Mod = HUB_MODS.find(m=>m.id===active)?.C
+    const card = HUB_CARDS.find(c=>c.id===active)
+    return(
+      <div style={{padding:'0 0 80px',animation:'fadeUp 0.3s ease both'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,paddingBottom:16,marginBottom:16,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+          <button onClick={()=>setActive(null)} style={{
+            background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
+            color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,
+            textTransform:'uppercase',padding:'6px 14px',borderRadius:8,cursor:'pointer',minHeight:36,flexShrink:0
+          }}>← Back</button>
+          <div>
+            <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:card?.color||C.white,lineHeight:1}}>
+              {card?.icon} {card?.label}
+            </div>
+            <div style={{fontSize:11,color:C.gray,marginTop:2}}>{card?.desc}</div>
+          </div>
+        </div>
+        {Mod && <Mod/>}
+        {active==='shop' && <ShopNotes/>}
+      </div>
+    )
+  }
+
   return(
-    <div style={{padding:'16px 16px 80px'}}>
-      <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:14}}>Manager Tools</div>
-      <div style={{display:'flex',gap:8,marginBottom:20,overflowX:'auto',paddingBottom:4}}>
-        {HUB_MODS.map(m=>(
-          <button key={m.id} onClick={()=>setActive(m.id)} style={{
-            flexShrink:0,
-            background:active===m.id?`rgba(184,255,60,0.12)`:'rgba(255,255,255,0.04)',
-            border:`1px solid ${active===m.id?'rgba(184,255,60,0.3)':'rgba(255,255,255,0.08)'}`,
-            color:active===m.id?C.green:C.gray,
-            fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
-            padding:'8px 16px',borderRadius:10,cursor:'pointer',
-            minHeight:40,
+    <div style={{padding:'0 0 80px',animation:'fadeUp 0.3s ease both'}}>
+      <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Manager Hub</div>
+      <div style={{fontSize:12,color:C.gray,marginBottom:20}}>Select a coaching tool</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        {HUB_CARDS.map((card,i)=>(
+          <button key={card.id} onClick={()=>setActive(card.id)} style={{
+            background:`linear-gradient(135deg,${card.color}18 0%,rgba(5,13,31,0.95) 100%)`,
+            border:`1px solid ${card.color}33`,
+            borderRadius:16,padding:'20px 16px',cursor:'pointer',textAlign:'left',
+            animation:`slideUp ${0.3+i*0.08}s ease both`,
+            position:'relative',overflow:'hidden',WebkitTapHighlightColor:'transparent',
           }}>
-            {m.icon} {m.label}
+            <div style={{fontSize:32,marginBottom:8}}>{card.icon}</div>
+            <div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:6}}>{card.label}</div>
+            <div style={{fontSize:11,color:C.gray,lineHeight:1.5}}>{card.desc}</div>
+            <div style={{position:'absolute',bottom:12,right:14,fontFamily:fH,fontSize:11,fontWeight:700,color:card.color,opacity:0.8}}>OPEN →</div>
           </button>
         ))}
       </div>
-      {Mod && <Mod/>}
-      {/* Shop Time Notes — shown only when Shop Time tab is active */}
-      {active==='shop' && (
-        <ShopNotes/>
-      )}
     </div>
   )
 }
