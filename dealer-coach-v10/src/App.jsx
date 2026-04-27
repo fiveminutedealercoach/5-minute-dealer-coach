@@ -3965,7 +3965,8 @@ function LeaderGrid(){
   const[sel,setSel]=useState(null)
   const[acts,setActs]=useState({})
   const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}])
-  const[coachDept,setCoachDept]=useState('both') // 'sales' | 'service' | 'both'
+  const[coachDept,setCoachDept]=useState('both')
+  const[quickWin,setQuickWin]=useState('') // 'sales' | 'service' | 'both'
   const[showCoaching,setShowCoaching]=useState(null) // quadrant id for coaching panel
   const[customSit,setCustomSit]=useState('')
   const[generatedTrack,setGeneratedTrack]=useState(null)
@@ -4227,8 +4228,11 @@ function LeaderGrid(){
       {/* ── ACTION PLAN ─────────────────────────────── */}
       <div style={{...glass,padding:'18px',marginTop:24}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-          <div style={{fontFamily:fH,fontSize:16,fontWeight:900,textTransform:'uppercase',color:C.white}}>
-            📋 Team Action Plan
+          <div>
+            <div style={{fontFamily:fH,fontSize:16,fontWeight:900,textTransform:'uppercase',color:C.white}}>
+              📋 Team Action Plan
+            </div>
+            <div style={{fontSize:11,color:C.gray,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
           </div>
           <button onClick={()=>{
             const rows = ap.filter(r=>r.emp||r.action).map(r=>
@@ -4265,6 +4269,19 @@ function LeaderGrid(){
           style={{...btnSecondary,marginTop:10,minHeight:36,fontSize:12}}>
           + Add Row
         </button>
+
+        {/* Quick Win Capture */}
+        <div style={{marginTop:16,paddingTop:14,borderTop:'1px solid rgba(255,255,255,0.07)'}}>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>
+            ⚡ Quick Win — What's Working
+          </div>
+          <textarea
+            placeholder="Log what's working well this week — wins to recognize, momentum to build on..."
+            value={quickWin||''}
+            onChange={e=>setQuickWin(e.target.value)}
+            style={{...inp,width:'100%',minHeight:60,resize:'vertical',fontSize:12,lineHeight:1.6}}
+          />
+        </div>
       </div>
 
       <IPNotice/>
@@ -4295,7 +4312,200 @@ const LC_STEPS = [
 ]
 
 
-function Lifecycle(){const[checked,setChecked]=useState({});const[exp,setExp]=useState('sell1');const[notes,setNotes]=useState({});const tog=(sid,ai)=>{const k=`${sid}-${ai}`;setChecked(p=>({...p,[k]:!p[k]}))};const pct=step=>Math.round((step.actions.filter((_,i)=>checked[`${step.id}-${i}`]).length/step.actions.length)*100);const overall=Math.round(LC_STEPS.reduce((a,s)=>a+pct(s),0)/LC_STEPS.length);const expPDF=()=>{const items=LC_STEPS.map(step=>{const unc=step.actions.filter((_,i)=>!checked[`${step.id}-${i}`]);if(!unc.length)return'';return`<div class="card red"><div style="font-size:15px;font-weight:700;color:#e85d4a;margin-bottom:4px;">${step.n}. ${step.label}  -  ${step.title}</div><div style="font-size:12px;color:#666;font-style:italic;margin-bottom:8px;">"${step.focus}"</div>${unc.map(a=>`<div class="cb-row"><div class="cb"></div><div style="font-size:13px;color:#333;">${a}</div></div>`).join('')}${notes[step.id]?`<div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;padding:10px 12px;margin-top:8px;font-size:13px;color:#444;">${notes[step.id]}</div>`:''}</div>`}).filter(Boolean).join('');printPDF('Ownership Lifecycle',`<h1>Ownership Lifecycle</h1><div class="sub">Improvement Plan  -  ${overall}% Overall</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${items||'<p style="color:#999;text-align:center;padding:20px;">All actions complete!</p>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Sales Experience Assessment</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>First Sale to Second Sale</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray}}>Overall</div><div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:overall>70?C.green:overall>30?C.yellow:C.gray}}>{overall}%</div></div><div style={{height:5,background:'rgba(255,255,255,0.08)',borderRadius:100,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${overall}%`,background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:100}}/></div><div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{LC_STEPS.map(step=>{const p=pct(step);return<div key={step.id} onClick={()=>setExp(exp===step.id?null:step.id)} style={{background:p===100?'rgba(184,255,60,0.1)':C.card,border:`1px solid ${p===100?'rgba(184,255,60,0.4)':C.border}`,borderRadius:6,padding:'3px 7px',cursor:'pointer'}}><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:p===100?C.green:step.color}}>{step.label}</div><div style={{fontSize:10,color:C.gray}}>{p}%</div></div>})}</div></div>{LC_STEPS.map(step=>{const p=pct(step);const isO=exp===step.id;return(<div key={step.id} style={{background:C.card,border:`1px solid ${isO?step.color+'66':C.border}`,borderRadius:10,overflow:'hidden',marginBottom:8}}><div onClick={()=>setExp(isO?null:step.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',cursor:'pointer',background:isO?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}><div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:step.color,minWidth:24,lineHeight:1}}>{step.n}</div><div style={{flex:1}}><div style={{fontFamily:fH,fontSize:14,fontWeight:900,textTransform:'uppercase',color:C.white}}>{step.label}  -  {step.title}</div><div style={{fontSize:11,color:C.gray,fontStyle:'italic'}}>"{step.focus}"</div></div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:36,height:3,background:'rgba(255,255,255,0.1)',borderRadius:100,overflow:'hidden'}}><div style={{height:'100%',width:`${p}%`,background:step.color,borderRadius:100}}/></div><div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:p===100?C.green:C.gray}}>{p}%</div><div style={{color:C.gray,fontSize:12}}>{isO?'▲':'▼'}</div></div></div>{isO&&(<div style={{padding:'12px 14px 14px'}}><div style={{marginBottom:10}}>{step.actions.map((a,i)=>{const k=`${step.id}-${i}`;const d=checked[k];return<label key={i} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,cursor:'pointer'}}><input type="checkbox" checked={!!d} onChange={()=>tog(step.id,i)} style={{marginTop:2,accentColor:step.color}}/><span style={{fontSize:12,color:d?C.gray:C.lightText,textDecoration:d?'line-through':'none',lineHeight:1.55}}>{a}</span></label>})}</div><div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>{step.metrics.map((m,i)=><div key={i} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:100,padding:'2px 8px',fontSize:11,color:C.blueBright,fontFamily:fH,fontWeight:700}}>{m}</div>)}</div><textarea style={{...inp,minHeight:40,resize:'vertical',lineHeight:1.5}} placeholder="Notes..." value={notes[step.id]||''} onChange={e=>setNotes({...notes,[step.id]:e.target.value})}/></div>)}</div>)})}</div>)}
+function Lifecycle() {
+  const [repName, setRepName] = useState('')
+  const storageKey = 'se-' + (repName.trim().replace(/\s+/g,'-').toLowerCase() || 'unsaved')
+  const [checked, setChecked] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem('5md-se-checked')||'{}')}catch{return {}}
+  })
+  const [exp, setExp] = useState(LC_STEPS[0]?.id || 'sell1')
+  const [notes, setNotes] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem('5md-se-notes')||'{}')}catch{return {}}
+  })
+  const [assessDate] = useState(new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}))
+
+  const saveChecked = (val) => {
+    setChecked(val)
+    try{localStorage.setItem('5md-se-checked', JSON.stringify(val))}catch{}
+  }
+  const saveNotes = (val) => {
+    setNotes(val)
+    try{localStorage.setItem('5md-se-notes', JSON.stringify(val))}catch{}
+  }
+  const clearAssessment = () => {
+    saveChecked({})
+    saveNotes({})
+    setRepName('')
+  }
+
+  const tog = (stepId, ai) => {
+    const k = stepId + '-' + ai
+    saveChecked({...checked, [k]: !checked[k]})
+  }
+
+  const pct = (step) => {
+    const done = step.actions.filter((_,i) => checked[step.id+'-'+i]).length
+    return Math.round((done / step.actions.length) * 100)
+  }
+
+  const overall = LC_STEPS.length > 0
+    ? Math.round(LC_STEPS.reduce((a,s) => a + pct(s), 0) / LC_STEPS.length)
+    : 0
+
+  const selStep = LC_STEPS.find(s => s.id === exp) || LC_STEPS[0]
+
+  const expPDF = () => {
+    const repLabel = repName ? ` — ${repName}` : ''
+    const rows = LC_STEPS.map(s => {
+      const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
+      const checkedItems = s.actions.filter((_,i) => checked[s.id+'-'+i])
+      const actionRows = [
+        ...unchecked.map(a => `<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="color:#e85d4a;margin-right:6px">☐</span>${a}</td></tr>`),
+        ...checkedItems.map(a => `<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#999;text-decoration:line-through"><span style="color:#4caf50;margin-right:6px">☑</span>${a}</td></tr>`),
+      ].join('')
+      return `<div style="margin-bottom:16px;page-break-inside:avoid">
+        <div style="background:${s.color||'#1a6bff'};color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">${s.n||''} · ${s.label} — ${s.title||''}</div>
+        <div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden">
+          <table width="100%"><tbody>${actionRows}</tbody></table>
+        </div>
+        ${notes[s.id] ? `<div style="margin-top:4px;padding:6px 10px;background:#f9f9f9;font-size:11px;color:#666;border-radius:4px;font-style:italic">Notes: ${notes[s.id]}</div>` : ''}
+      </div>`
+    }).join('')
+    printPDF(
+      `Sales Experience Assessment${repLabel} — ${assessDate} — ${new Date().toLocaleDateString()}`,
+      `<div style="font-family:sans-serif">
+        <h1 style="color:#050d1f;margin-bottom:2px">Sales Experience Assessment</h1>
+        ${repName ? `<div style="color:#1a6bff;font-weight:700;font-size:14px;margin-bottom:4px">Rep: ${repName}</div>` : ''}
+        <div style="color:#8a9ab5;font-size:12px;margin-bottom:16px">Overall: ${overall}% complete · ${new Date().toLocaleDateString()}</div>
+        <div style="margin-bottom:12px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#555">
+          ☐ Unchecked items are your coaching priorities for this rep.
+        </div>
+        ${rows}
+      </div>`
+    )
+  }
+
+  return (
+    <div style={{padding:'0 0 20px', overflowX:'hidden'}}>
+
+      {/* Header */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6}}>
+        <div>
+          <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white}}>Sales Experience</div>
+          <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>8-Stage Assessment</div>
+        </div>
+        <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+      </div>
+
+      {/* Rep name + date + clear */}
+      <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
+        <input
+          value={repName}
+          onChange={e=>setRepName(e.target.value)}
+          placeholder="Rep name (appears on PDF)"
+          style={{...inp,flex:1,fontSize:13}}
+        />
+        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,flexShrink:0,textAlign:'right'}}>
+          <div style={{color:C.lightText}}>{assessDate}</div>
+          <div style={{cursor:'pointer',color:C.red,marginTop:2}} onClick={clearAssessment}>Clear</div>
+        </div>
+      </div>
+
+      {/* Overall progress bar */}
+      <div style={{background:'rgba(255,255,255,0.06)',borderRadius:8,height:6,marginBottom:16,overflow:'hidden'}}>
+        <div style={{height:'100%',width:overall+'%',background:'linear-gradient(90deg,#1a6bff,#b8ff3c)',borderRadius:8,transition:'width 0.5s ease'}}/>
+      </div>
+
+      {/* Step tabs */}
+      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8,marginBottom:16}}>
+        {LC_STEPS.map(s => (
+          <button key={s.id} onClick={()=>setExp(s.id)} style={{
+            flexShrink:0,
+            background: exp===s.id ? (s.color||C.blue)+'22' : 'rgba(255,255,255,0.04)',
+            border: '1px solid ' + (exp===s.id ? (s.color||C.blue)+'66' : 'rgba(255,255,255,0.08)'),
+            color: exp===s.id ? (s.color||C.blue) : C.gray,
+            fontFamily:fH, fontWeight:700, fontSize:10, letterSpacing:0.5,
+            textTransform:'uppercase', padding:'6px 10px', borderRadius:8, cursor:'pointer',
+            minHeight:36, display:'flex', alignItems:'center', gap:4,
+          }}>
+            <span>{s.n}.</span>
+            <span>{s.label}</span>
+            {pct(s)===100 && <span style={{color:C.green}}>✓</span>}
+          </button>
+        ))}
+      </div>
+
+      {selStep && (
+        <div style={{animation:'fadeUp 0.3s ease both'}}>
+
+          {/* Step header */}
+          <div style={{background:'linear-gradient(135deg,'+(selStep.color||C.blue)+'18 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid '+(selStep.color||C.blue)+'33',borderRadius:16,padding:'16px 18px',marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div>
+                <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:selStep.color||C.blue,lineHeight:1}}>{selStep.n}. {selStep.label}</div>
+                <div style={{fontFamily:fH,fontSize:12,color:C.lightText,marginTop:2}}>{selStep.title}</div>
+              </div>
+              <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:pct(selStep)===100?C.green:(selStep.color||C.blue)}}>{pct(selStep)}%</div>
+            </div>
+            <div style={{background:'rgba(0,0,0,0.2)',borderRadius:6,height:4,overflow:'hidden'}}>
+              <div style={{height:'100%',width:pct(selStep)+'%',background:selStep.color||C.blue,borderRadius:6,transition:'width 0.4s ease'}}/>
+            </div>
+          </div>
+
+          {/* Focus */}
+          <div style={{...glass,padding:'12px 14px',marginBottom:12}}>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.blueBright,marginBottom:4}}>Coaching Focus</div>
+            <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,fontStyle:'italic'}}>"{selStep.focus}"</div>
+          </div>
+
+          {/* Actions checklist */}
+          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white,marginBottom:10}}>Actions</div>
+            {selStep.actions.map((action, ai) => {
+              const k = selStep.id + '-' + ai
+              return (
+                <div key={ai} onClick={()=>tog(selStep.id, ai)}
+                  style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
+                  <div style={{
+                    width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
+                    background:checked[k]?(selStep.color||C.blue):'transparent',
+                    border:'2px solid '+(checked[k]?(selStep.color||C.blue):'rgba(255,255,255,0.2)'),
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    transition:'all 0.2s',
+                  }}>
+                    {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Metrics */}
+          {selStep.metrics && (
+            <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:10}}>Metrics</div>
+              {(Array.isArray(selStep.metrics)?selStep.metrics:[selStep.metrics]).map((m,i) => (
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,color:C.lightText}}>
+                  <div style={{width:6,height:6,borderRadius:'50%',background:selStep.color||C.blue,flexShrink:0}}/>
+                  {m}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Notes */}
+          <textarea
+            placeholder="Add coaching notes for this stage..."
+            value={notes[selStep.id]||''}
+            onChange={e=>saveNotes({...notes,[selStep.id]:e.target.value})}
+            style={{...inp,width:'100%',minHeight:52,resize:'vertical',fontSize:12,marginBottom:4}}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
 
 function IPNotice() {
   return(
@@ -4400,13 +4610,29 @@ const OLC_STEPS = [
 ]
 
 function OwnershipLifecycle() {
-  const [exp, setExp] = useState('sell1')
-  const [checked, setChecked] = useState({})
-  const [notes, setNotes] = useState({})
+  const [exp, setExp] = useState(OLC_STEPS[0]?.id || 'sell1')
+  const [repName, setRepName] = useState('')
+  const [checked, setChecked] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem('5md-olc-checked')||'{}')}catch{return {}}
+  })
+  const [notes, setNotes] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem('5md-olc-notes')||'{}')}catch{return {}}
+  })
+  const [assessDate] = useState(new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}))
+
+  const saveChecked = (val) => {
+    setChecked(val)
+    try{localStorage.setItem('5md-olc-checked', JSON.stringify(val))}catch{}
+  }
+  const saveNotes = (val) => {
+    setNotes(val)
+    try{localStorage.setItem('5md-olc-notes', JSON.stringify(val))}catch{}
+  }
+  const clearAssessment = () => { saveChecked({}); saveNotes({}); }
 
   const tog = (stepId, ai) => {
     const k = stepId + '-' + ai
-    setChecked(p => ({...p, [k]: !p[k]}))
+    saveChecked({...checked, [k]: !checked[k]})
   }
 
   const pct = (step) => {
@@ -4420,8 +4646,13 @@ function OwnershipLifecycle() {
 
   const expPDF = () => {
     const rows = OLC_STEPS.map(s => {
-      const done = s.actions.filter((_,i) => checked[s.id+'-'+i]).length
-      return '<tr><td style="padding:10px;border-bottom:1px solid #eee;font-weight:700;color:'+s.color+'">'+s.icon+' '+s.label+'</td><td style="padding:10px;border-bottom:1px solid #eee">'+s.subtitle+'</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:center">'+done+'/'+s.actions.length+'</td><td style="padding:10px;border-bottom:1px solid #eee;font-style:italic;color:#666">'+s.coachFocus+'</td></tr>'
+      const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
+      const checkedActs = s.actions.filter((_,i) => checked[s.id+'-'+i])
+      const actionRows = [
+        ...unchecked.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="color:#e85d4a;margin-right:6px">☐</span>'+a+'</td></tr>'),
+        ...checkedActs.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#999;text-decoration:line-through"><span style="color:#4caf50;margin-right:6px">☑</span>'+a+'</td></tr>'),
+      ].join('')
+      return '<div style="margin-bottom:16px;page-break-inside:avoid"><div style="background:'+s.color+';color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">'+s.icon+' '+s.label+' — '+s.subtitle+'</div><div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden"><table width=100%><tbody>'+actionRows+'</tbody></table></div><div style="padding:6px 10px;background:#f0f8ff;font-size:11px;font-style:italic;color:#555">'+s.coachFocus+'</div></div>'
     }).join('')
     printPDF('Ownership Lifecycle - ' + new Date().toLocaleDateString(),
       '<div style="font-family:sans-serif"><h1 style="color:#050d1f;margin-bottom:4px">Ownership Lifecycle</h1><p style="color:#1a6bff;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:0">First Sale to Second Sale — 6-Step Manager Framework</p><div style="background:#f5f5f5;padding:16px;border-radius:8px;margin-bottom:20px"><p style="margin:0;color:#333">Most dealerships focus entirely on the first transaction. This framework gives managers a repeatable, measurable system to guide every guest from their first vehicle purchase all the way back to their next one.</p></div><table width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:10px;text-align:left">Step</th><th style="padding:10px;text-align:left">Focus</th><th style="padding:10px;text-align:center">Progress</th><th style="padding:10px;text-align:left">Coaching Focus</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:20px;padding:16px;background:#f5f5f5;border-radius:8px"><strong>Overall Progress:</strong> '+overall+'% complete</div></div>'
@@ -4438,6 +4669,16 @@ function OwnershipLifecycle() {
           <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>First Sale to Second Sale</div>
         </div>
         <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+      </div>
+      {/* Rep name + date + clear */}
+      <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
+        <input value={repName} onChange={e=>setRepName(e.target.value)}
+          placeholder="Rep / customer name (appears on PDF)"
+          style={{...inp,flex:1,fontSize:13}}/>
+        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,flexShrink:0,textAlign:'right'}}>
+          <div style={{color:C.lightText}}>{assessDate}</div>
+          <div style={{cursor:'pointer',color:C.red,marginTop:2}} onClick={clearAssessment}>Clear</div>
+        </div>
       </div>
 
       {/* Overall progress bar */}
@@ -5104,7 +5345,7 @@ export default function App() {
         {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
         {/* Manager tabs */}
         {tab==='huddle'  &&isMgr&&<HuddleTimer onLog={logResult} dealer={dealer} preloadScript={preloadHuddle} onClearPreload={()=>setPreloadHuddle(null)}/>}
-        {tab==='coaching'&&isMgr&&<ManagerHub initialTab={coachingInitialTab} onClearInitial={()=>setCoachingInitialTab('shop')}/>}
+        {tab==='coaching'&&isMgr&&<ManagerHub initialTab={coachingInitialTab} onClearInitial={()=>setCoachingInitialTab('grid')}/>}
         {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
       </div>
 
