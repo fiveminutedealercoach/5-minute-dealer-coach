@@ -4313,30 +4313,19 @@ const LC_STEPS = [
 
 
 function Lifecycle() {
-  const [repName, setRepName] = useState('')
-  const storageKey = 'se-' + (repName.trim().replace(/\s+/g,'-').toLowerCase() || 'unsaved')
+  const [expanded, setExpanded] = useState(LC_STEPS[0]?.id || 'sell1')
   const [checked, setChecked] = useState(()=>{
     try{return JSON.parse(localStorage.getItem('5md-se-checked')||'{}')}catch{return {}}
   })
-  const [exp, setExp] = useState(LC_STEPS[0]?.id || 'sell1')
   const [notes, setNotes] = useState(()=>{
     try{return JSON.parse(localStorage.getItem('5md-se-notes')||'{}')}catch{return {}}
   })
+  const [repName, setRepName] = useState('')
   const [assessDate] = useState(new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}))
 
-  const saveChecked = (val) => {
-    setChecked(val)
-    try{localStorage.setItem('5md-se-checked', JSON.stringify(val))}catch{}
-  }
-  const saveNotes = (val) => {
-    setNotes(val)
-    try{localStorage.setItem('5md-se-notes', JSON.stringify(val))}catch{}
-  }
-  const clearAssessment = () => {
-    saveChecked({})
-    saveNotes({})
-    setRepName('')
-  }
+  const saveChecked = (val) => { setChecked(val); try{localStorage.setItem('5md-se-checked',JSON.stringify(val))}catch{} }
+  const saveNotes = (val) => { setNotes(val); try{localStorage.setItem('5md-se-notes',JSON.stringify(val))}catch{} }
+  const clearAssessment = () => { saveChecked({}); saveNotes({}); setRepName('') }
 
   const tog = (stepId, ai) => {
     const k = stepId + '-' + ai
@@ -4352,36 +4341,39 @@ function Lifecycle() {
     ? Math.round(LC_STEPS.reduce((a,s) => a + pct(s), 0) / LC_STEPS.length)
     : 0
 
-  const selStep = LC_STEPS.find(s => s.id === exp) || LC_STEPS[0]
+  const shareAssessment = () => {
+    const text = LC_STEPS.map(s => {
+      const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
+      if(!unchecked.length) return null
+      return s.label + ':\n' + unchecked.map(a => '  ☐ ' + a).join('\n')
+    }).filter(Boolean).join('\n\n')
+    const shareText = 'Sales Experience Assessment' + (repName ? ' — ' + repName : '') + '\n' + assessDate + '\n\nCoaching Priorities:\n\n' + text
+    if(navigator.share) {
+      navigator.share({ title: 'Sales Experience Assessment', text: shareText }).catch(()=>{})
+    } else {
+      navigator.clipboard?.writeText(shareText)
+      alert('Copied to clipboard!')
+    }
+  }
 
   const expPDF = () => {
-    const repLabel = repName ? ` — ${repName}` : ''
+    const repLabel = repName ? ' — ' + repName : ''
     const rows = LC_STEPS.map(s => {
       const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
-      const checkedItems = s.actions.filter((_,i) => checked[s.id+'-'+i])
+      const checkedActs = s.actions.filter((_,i) => checked[s.id+'-'+i])
       const actionRows = [
-        ...unchecked.map(a => `<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="color:#e85d4a;margin-right:6px">☐</span>${a}</td></tr>`),
-        ...checkedItems.map(a => `<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#999;text-decoration:line-through"><span style="color:#4caf50;margin-right:6px">☑</span>${a}</td></tr>`),
+        ...unchecked.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="color:#e85d4a;margin-right:6px">☐</span>'+a+'</td></tr>'),
+        ...checkedActs.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#999;text-decoration:line-through"><span style="color:#4caf50;margin-right:6px">☑</span>'+a+'</td></tr>'),
       ].join('')
-      return `<div style="margin-bottom:16px;page-break-inside:avoid">
-        <div style="background:${s.color||'#1a6bff'};color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">${s.n||''} · ${s.label} — ${s.title||''}</div>
-        <div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden">
-          <table width="100%"><tbody>${actionRows}</tbody></table>
-        </div>
-        ${notes[s.id] ? `<div style="margin-top:4px;padding:6px 10px;background:#f9f9f9;font-size:11px;color:#666;border-radius:4px;font-style:italic">Notes: ${notes[s.id]}</div>` : ''}
-      </div>`
+      return '<div style="margin-bottom:16px;page-break-inside:avoid"><div style="background:'+(s.color||'#1a6bff')+';color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">'+s.n+'. '+s.label+' — '+s.title+'</div><div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden"><table width=100%><tbody>'+actionRows+'</tbody></table></div>'+(notes[s.id]?'<div style="padding:6px 10px;background:#f9f9f9;font-size:11px;color:#666;font-style:italic">Notes: '+notes[s.id]+'</div>':'')+'</div>'
     }).join('')
     printPDF(
-      `Sales Experience Assessment${repLabel} — ${assessDate} — ${new Date().toLocaleDateString()}`,
-      `<div style="font-family:sans-serif">
-        <h1 style="color:#050d1f;margin-bottom:2px">Sales Experience Assessment</h1>
-        ${repName ? `<div style="color:#1a6bff;font-weight:700;font-size:14px;margin-bottom:4px">Rep: ${repName}</div>` : ''}
-        <div style="color:#8a9ab5;font-size:12px;margin-bottom:16px">Overall: ${overall}% complete · ${new Date().toLocaleDateString()}</div>
-        <div style="margin-bottom:12px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#555">
-          ☐ Unchecked items are your coaching priorities for this rep.
-        </div>
-        ${rows}
-      </div>`
+      'Sales Experience Assessment' + repLabel + ' — ' + assessDate,
+      '<div style="font-family:sans-serif"><h1 style="color:#050d1f;margin-bottom:2px">Sales Experience Assessment</h1>' +
+      (repName ? '<div style="color:#1a6bff;font-weight:700;font-size:14px;margin-bottom:4px">Rep: '+repName+'</div>' : '') +
+      '<div style="color:#8a9ab5;font-size:12px;margin-bottom:16px">Overall: '+overall+'% complete · '+assessDate+'</div>' +
+      '<div style="margin-bottom:12px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#555">☐ Unchecked items are coaching priorities for this rep.</div>' +
+      rows + '</div>'
     )
   }
 
@@ -4394,18 +4386,18 @@ function Lifecycle() {
           <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white}}>Sales Experience</div>
           <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>8-Stage Assessment</div>
         </div>
-        <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+        <div style={{display:'flex',gap:6}}>
+          <button onClick={shareAssessment} style={{background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>↗ Share</button>
+          <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+        </div>
       </div>
 
       {/* Rep name + date + clear */}
       <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
-        <input
-          value={repName}
-          onChange={e=>setRepName(e.target.value)}
-          placeholder="Rep name (appears on PDF)"
-          style={{...inp,flex:1,fontSize:13}}
-        />
-        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,flexShrink:0,textAlign:'right'}}>
+        <input value={repName} onChange={e=>setRepName(e.target.value)}
+          placeholder="Rep name (appears on PDF & Share)"
+          style={{...inp,flex:1,fontSize:13}}/>
+        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,flexShrink:0,textAlign:'right'}}>
           <div style={{color:C.lightText}}>{assessDate}</div>
           <div style={{cursor:'pointer',color:C.red,marginTop:2}} onClick={clearAssessment}>Clear</div>
         </div>
@@ -4415,94 +4407,80 @@ function Lifecycle() {
       <div style={{background:'rgba(255,255,255,0.06)',borderRadius:8,height:6,marginBottom:16,overflow:'hidden'}}>
         <div style={{height:'100%',width:overall+'%',background:'linear-gradient(90deg,#1a6bff,#b8ff3c)',borderRadius:8,transition:'width 0.5s ease'}}/>
       </div>
-
-      {/* Step tabs */}
-      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8,marginBottom:16}}>
-        {LC_STEPS.map(s => (
-          <button key={s.id} onClick={()=>setExp(s.id)} style={{
-            flexShrink:0,
-            background: exp===s.id ? (s.color||C.blue)+'22' : 'rgba(255,255,255,0.04)',
-            border: '1px solid ' + (exp===s.id ? (s.color||C.blue)+'66' : 'rgba(255,255,255,0.08)'),
-            color: exp===s.id ? (s.color||C.blue) : C.gray,
-            fontFamily:fH, fontWeight:700, fontSize:10, letterSpacing:0.5,
-            textTransform:'uppercase', padding:'6px 10px', borderRadius:8, cursor:'pointer',
-            minHeight:36, display:'flex', alignItems:'center', gap:4,
-          }}>
-            <span>{s.n}.</span>
-            <span>{s.label}</span>
-            {pct(s)===100 && <span style={{color:C.green}}>✓</span>}
-          </button>
-        ))}
+      <div style={{display:'flex',justifyContent:'space-between',fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,marginBottom:16}}>
+        <span>Overall Progress</span>
+        <span style={{color:overall===100?C.green:C.lightText}}>{overall}%</span>
       </div>
 
-      {selStep && (
-        <div style={{animation:'fadeUp 0.3s ease both'}}>
-
-          {/* Step header */}
-          <div style={{background:'linear-gradient(135deg,'+(selStep.color||C.blue)+'18 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid '+(selStep.color||C.blue)+'33',borderRadius:16,padding:'16px 18px',marginBottom:12}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <div>
-                <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:selStep.color||C.blue,lineHeight:1}}>{selStep.n}. {selStep.label}</div>
-                <div style={{fontFamily:fH,fontSize:12,color:C.lightText,marginTop:2}}>{selStep.title}</div>
+      {/* Vertical accordion steps */}
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {LC_STEPS.map(s => {
+          const isOpen = expanded === s.id
+          const p = pct(s)
+          const stepColor = s.color || C.blue
+          return (
+            <div key={s.id} style={{
+              background: isOpen ? `linear-gradient(135deg,${stepColor}18 0%,rgba(5,13,31,0.95) 100%)` : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${isOpen ? stepColor+'44' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius:14, overflow:'hidden', transition:'all 0.2s',
+            }}>
+              {/* Step header — always visible, tap to expand */}
+              <div onClick={()=>setExpanded(isOpen ? null : s.id)}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer'}}>
+                {/* Progress circle */}
+                <div style={{position:'relative',width:40,height:40,flexShrink:0}}>
+                  <svg width={40} height={40}>
+                    <circle cx={20} cy={20} r={16} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={3}/>
+                    <circle cx={20} cy={20} r={16} fill="none" stroke={p===100?C.green:stepColor} strokeWidth={3}
+                      strokeDasharray={100.5} strokeDashoffset={100.5*(1-p/100)}
+                      strokeLinecap="round" transform="rotate(-90 20 20)"
+                      style={{transition:'stroke-dashoffset 0.4s ease'}}/>
+                    <text x={20} y={24} textAnchor="middle" fill={p===100?C.green:C.white}
+                      style={{fontFamily:'Barlow Condensed',fontWeight:900,fontSize:11}}>{p===100?'✓':s.n}</text>
+                  </svg>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:fH,fontSize:14,fontWeight:900,color:isOpen?stepColor:C.white,textTransform:'uppercase'}}>{s.label}</div>
+                  <div style={{fontSize:11,color:C.gray,marginTop:1}}>{s.title} · {p}% complete</div>
+                </div>
+                <div style={{color:C.gray,fontSize:16,flexShrink:0}}>{isOpen?'▲':'▼'}</div>
               </div>
-              <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:pct(selStep)===100?C.green:(selStep.color||C.blue)}}>{pct(selStep)}%</div>
-            </div>
-            <div style={{background:'rgba(0,0,0,0.2)',borderRadius:6,height:4,overflow:'hidden'}}>
-              <div style={{height:'100%',width:pct(selStep)+'%',background:selStep.color||C.blue,borderRadius:6,transition:'width 0.4s ease'}}/>
-            </div>
-          </div>
 
-          {/* Focus */}
-          <div style={{...glass,padding:'12px 14px',marginBottom:12}}>
-            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.blueBright,marginBottom:4}}>Coaching Focus</div>
-            <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,fontStyle:'italic'}}>"{selStep.focus}"</div>
-          </div>
-
-          {/* Actions checklist */}
-          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
-            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white,marginBottom:10}}>Actions</div>
-            {selStep.actions.map((action, ai) => {
-              const k = selStep.id + '-' + ai
-              return (
-                <div key={ai} onClick={()=>tog(selStep.id, ai)}
-                  style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
-                  <div style={{
-                    width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
-                    background:checked[k]?(selStep.color||C.blue):'transparent',
-                    border:'2px solid '+(checked[k]?(selStep.color||C.blue):'rgba(255,255,255,0.2)'),
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    transition:'all 0.2s',
-                  }}>
-                    {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
+              {/* Expanded content */}
+              {isOpen && (
+                <div style={{padding:'0 16px 16px',animation:'fadeUp 0.2s ease both'}}>
+                  {/* Focus */}
+                  <div style={{fontSize:12,color:C.lightText,fontStyle:'italic',marginBottom:12,paddingTop:4,borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:10}}>
+                    "{s.focus}"
                   </div>
-                  <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+                  {/* Actions */}
+                  {s.actions.map((action,ai) => {
+                    const k = s.id+'-'+ai
+                    return (
+                      <div key={ai} onClick={()=>tog(s.id,ai)}
+                        style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
+                        <div style={{
+                          width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
+                          background:checked[k]?stepColor:'transparent',
+                          border:'2px solid '+(checked[k]?stepColor:'rgba(255,255,255,0.2)'),
+                          display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.2s',
+                        }}>
+                          {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
+                        </div>
+                        <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+                      </div>
+                    )
+                  })}
+                  {/* Notes */}
+                  <textarea placeholder="Coaching notes..." value={notes[s.id]||''}
+                    onChange={e=>saveNotes({...notes,[s.id]:e.target.value})}
+                    style={{...inp,width:'100%',minHeight:48,resize:'vertical',fontSize:12,marginTop:10}}/>
                 </div>
-              )
-            })}
-          </div>
-
-          {/* Metrics */}
-          {selStep.metrics && (
-            <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
-              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:10}}>Metrics</div>
-              {(Array.isArray(selStep.metrics)?selStep.metrics:[selStep.metrics]).map((m,i) => (
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,color:C.lightText}}>
-                  <div style={{width:6,height:6,borderRadius:'50%',background:selStep.color||C.blue,flexShrink:0}}/>
-                  {m}
-                </div>
-              ))}
+              )}
             </div>
-          )}
-
-          {/* Notes */}
-          <textarea
-            placeholder="Add coaching notes for this stage..."
-            value={notes[selStep.id]||''}
-            onChange={e=>saveNotes({...notes,[selStep.id]:e.target.value})}
-            style={{...inp,width:'100%',minHeight:52,resize:'vertical',fontSize:12,marginBottom:4}}
-          />
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -4610,7 +4588,7 @@ const OLC_STEPS = [
 ]
 
 function OwnershipLifecycle() {
-  const [exp, setExp] = useState(OLC_STEPS[0]?.id || 'sell1')
+  const [expanded, setExpanded] = useState(OLC_STEPS[0]?.id || 'sell1')
   const [repName, setRepName] = useState('')
   const [checked, setChecked] = useState(()=>{
     try{return JSON.parse(localStorage.getItem('5md-olc-checked')||'{}')}catch{return {}}
@@ -4620,15 +4598,9 @@ function OwnershipLifecycle() {
   })
   const [assessDate] = useState(new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}))
 
-  const saveChecked = (val) => {
-    setChecked(val)
-    try{localStorage.setItem('5md-olc-checked', JSON.stringify(val))}catch{}
-  }
-  const saveNotes = (val) => {
-    setNotes(val)
-    try{localStorage.setItem('5md-olc-notes', JSON.stringify(val))}catch{}
-  }
-  const clearAssessment = () => { saveChecked({}); saveNotes({}); }
+  const saveChecked = (val) => { setChecked(val); try{localStorage.setItem('5md-olc-checked',JSON.stringify(val))}catch{} }
+  const saveNotes = (val) => { setNotes(val); try{localStorage.setItem('5md-olc-notes',JSON.stringify(val))}catch{} }
+  const clearAssessment = () => { saveChecked({}); saveNotes({}) }
 
   const tog = (stepId, ai) => {
     const k = stepId + '-' + ai
@@ -4642,9 +4614,23 @@ function OwnershipLifecycle() {
 
   const overall = Math.round(OLC_STEPS.reduce((a,s) => a + pct(s), 0) / OLC_STEPS.length)
 
-  const selStep = OLC_STEPS.find(s => s.id === exp) || OLC_STEPS[0]
+  const shareAssessment = () => {
+    const text = OLC_STEPS.map(s => {
+      const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
+      if(!unchecked.length) return null
+      return s.icon + ' ' + s.label + ':\n' + unchecked.map(a => '  ☐ ' + a).join('\n')
+    }).filter(Boolean).join('\n\n')
+    const shareText = 'Ownership Lifecycle' + (repName ? ' — ' + repName : '') + '\n' + assessDate + '\n\nCoaching Priorities:\n\n' + text
+    if(navigator.share) {
+      navigator.share({ title: 'Ownership Lifecycle', text: shareText }).catch(()=>{})
+    } else {
+      navigator.clipboard?.writeText(shareText)
+      alert('Copied to clipboard!')
+    }
+  }
 
   const expPDF = () => {
+    const repLabel = repName ? ' — ' + repName : ''
     const rows = OLC_STEPS.map(s => {
       const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
       const checkedActs = s.actions.filter((_,i) => checked[s.id+'-'+i])
@@ -4652,10 +4638,15 @@ function OwnershipLifecycle() {
         ...unchecked.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0"><span style="color:#e85d4a;margin-right:6px">☐</span>'+a+'</td></tr>'),
         ...checkedActs.map(a => '<tr><td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#999;text-decoration:line-through"><span style="color:#4caf50;margin-right:6px">☑</span>'+a+'</td></tr>'),
       ].join('')
-      return '<div style="margin-bottom:16px;page-break-inside:avoid"><div style="background:'+s.color+';color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">'+s.icon+' '+s.label+' — '+s.subtitle+'</div><div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden"><table width=100%><tbody>'+actionRows+'</tbody></table></div><div style="padding:6px 10px;background:#f0f8ff;font-size:11px;font-style:italic;color:#555">'+s.coachFocus+'</div></div>'
+      return '<div style="margin-bottom:16px;page-break-inside:avoid"><div style="background:'+s.color+';color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">'+s.icon+' '+s.label+' — '+s.subtitle+'</div><div style="border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;overflow:hidden"><table width=100%><tbody>'+actionRows+'</tbody></table></div><div style="padding:6px 10px;background:#f0f8ff;font-size:11px;font-style:italic;color:#555">'+s.coachFocus+'</div>'+(notes[s.id]?'<div style="padding:6px 10px;background:#f9f9f9;font-size:11px;color:#666;font-style:italic">Notes: '+notes[s.id]+'</div>':'')+'</div>'
     }).join('')
-    printPDF('Ownership Lifecycle - ' + new Date().toLocaleDateString(),
-      '<div style="font-family:sans-serif"><h1 style="color:#050d1f;margin-bottom:4px">Ownership Lifecycle</h1><p style="color:#1a6bff;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:0">First Sale to Second Sale — 6-Step Manager Framework</p><div style="background:#f5f5f5;padding:16px;border-radius:8px;margin-bottom:20px"><p style="margin:0;color:#333">Most dealerships focus entirely on the first transaction. This framework gives managers a repeatable, measurable system to guide every guest from their first vehicle purchase all the way back to their next one.</p></div><table width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr style="background:#050d1f;color:white"><th style="padding:10px;text-align:left">Step</th><th style="padding:10px;text-align:left">Focus</th><th style="padding:10px;text-align:center">Progress</th><th style="padding:10px;text-align:left">Coaching Focus</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:20px;padding:16px;background:#f5f5f5;border-radius:8px"><strong>Overall Progress:</strong> '+overall+'% complete</div></div>'
+    printPDF(
+      'Ownership Lifecycle' + repLabel + ' - ' + assessDate,
+      '<div style="font-family:sans-serif"><h1 style="color:#050d1f;margin-bottom:2px">Ownership Lifecycle</h1>' +
+      (repName ? '<div style="color:#1a6bff;font-weight:700;font-size:14px;margin-bottom:4px">Rep / Customer: '+repName+'</div>' : '') +
+      '<div style="color:#8a9ab5;font-size:12px;margin-bottom:16px">First Sale to Second Sale · '+assessDate+' · '+overall+'% complete</div>' +
+      '<div style="margin-bottom:12px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#555">☐ Unchecked items are your coaching priorities.</div>' +
+      rows + '</div>'
     )
   }
 
@@ -4668,114 +4659,110 @@ function OwnershipLifecycle() {
           <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white}}>Ownership Lifecycle</div>
           <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>First Sale to Second Sale</div>
         </div>
-        <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+        <div style={{display:'flex',gap:6}}>
+          <button onClick={shareAssessment} style={{background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>↗ Share</button>
+          <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+        </div>
       </div>
+
       {/* Rep name + date + clear */}
       <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
         <input value={repName} onChange={e=>setRepName(e.target.value)}
-          placeholder="Rep / customer name (appears on PDF)"
+          placeholder="Rep / customer name (appears on PDF & Share)"
           style={{...inp,flex:1,fontSize:13}}/>
-        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,flexShrink:0,textAlign:'right'}}>
+        <div style={{fontFamily:fH,fontSize:10,fontWeight:700,flexShrink:0,textAlign:'right'}}>
           <div style={{color:C.lightText}}>{assessDate}</div>
           <div style={{cursor:'pointer',color:C.red,marginTop:2}} onClick={clearAssessment}>Clear</div>
         </div>
       </div>
 
-      {/* Overall progress bar */}
-      <div style={{background:'rgba(255,255,255,0.06)',borderRadius:8,height:6,marginBottom:16,overflow:'hidden'}}>
+      {/* Overall progress */}
+      <div style={{background:'rgba(255,255,255,0.06)',borderRadius:8,height:6,marginBottom:4,overflow:'hidden'}}>
         <div style={{height:'100%',width:overall+'%',background:'linear-gradient(90deg,#1a6bff,#b8ff3c)',borderRadius:8,transition:'width 0.5s ease'}}/>
       </div>
-
-      {/* Step tabs */}
-      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8,marginBottom:16}}>
-        {OLC_STEPS.map(s => (
-          <button key={s.id} onClick={()=>setExp(s.id)} style={{
-            flexShrink:0,
-            background: exp===s.id ? s.color+'22' : 'rgba(255,255,255,0.04)',
-            border: '1px solid ' + (exp===s.id ? s.color+'66' : 'rgba(255,255,255,0.08)'),
-            color: exp===s.id ? s.color : C.gray,
-            fontFamily:fH, fontWeight:700, fontSize:10, letterSpacing:0.5,
-            textTransform:'uppercase', padding:'6px 10px', borderRadius:8, cursor:'pointer',
-            minHeight:36, display:'flex', alignItems:'center', gap:4,
-          }}>
-            <span>{s.icon}</span>
-            <span>{s.n}. {s.label}</span>
-            {pct(s)===100 && <span style={{color:C.green}}>✓</span>}
-          </button>
-        ))}
+      <div style={{display:'flex',justifyContent:'space-between',fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray,marginBottom:16}}>
+        <span>Overall Progress</span>
+        <span style={{color:overall===100?C.green:C.lightText}}>{overall}%</span>
       </div>
 
-      {selStep && (
-        <div style={{animation:'fadeUp 0.3s ease both'}}>
-
-          {/* Step header */}
-          <div style={{background:'linear-gradient(135deg,'+selStep.color+'18 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid '+selStep.color+'33',borderRadius:16,padding:'16px 18px',marginBottom:12}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <div>
-                <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:selStep.color,lineHeight:1}}>{selStep.icon} {selStep.label}</div>
-                <div style={{fontFamily:fH,fontSize:12,color:C.lightText,marginTop:2}}>{selStep.subtitle}</div>
-              </div>
-              <div style={{fontFamily:fH,fontSize:28,fontWeight:900,color:pct(selStep)===100?C.green:selStep.color}}>{pct(selStep)}%</div>
-            </div>
-            <div style={{background:'rgba(0,0,0,0.2)',borderRadius:6,height:4,overflow:'hidden'}}>
-              <div style={{height:'100%',width:pct(selStep)+'%',background:selStep.color,borderRadius:6,transition:'width 0.4s ease'}}/>
-            </div>
-          </div>
-
-          {/* Root cause + Opportunity */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-            <div style={{background:'rgba(255,107,107,0.06)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:12,padding:'12px 14px'}}>
-              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:'#ff6b6b',marginBottom:6}}>Root Cause</div>
-              <div style={{fontSize:11,color:C.lightText,lineHeight:1.6}}>{selStep.rootCause}</div>
-            </div>
-            <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:12,padding:'12px 14px'}}>
-              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:6}}>Opportunity</div>
-              <div style={{fontSize:11,color:C.lightText,lineHeight:1.6}}>{selStep.opportunity}</div>
-            </div>
-          </div>
-
-          {/* Actions checklist */}
-          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
-            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white,marginBottom:10}}>Actions</div>
-            {selStep.actions.map((action, ai) => {
-              const k = selStep.id + '-' + ai
-              return (
-                <div key={ai} onClick={()=>tog(selStep.id, ai)}
-                  style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
-                  <div style={{
-                    width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
-                    background:checked[k]?selStep.color:'transparent',
-                    border:'2px solid '+(checked[k]?selStep.color:'rgba(255,255,255,0.2)'),
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    transition:'all 0.2s',
-                  }}>
-                    {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
-                  </div>
-                  <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+      {/* Vertical accordion */}
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {OLC_STEPS.map(s => {
+          const isOpen = expanded === s.id
+          const p = pct(s)
+          return (
+            <div key={s.id} style={{
+              background: isOpen ? `linear-gradient(135deg,${s.color}18 0%,rgba(5,13,31,0.95) 100%)` : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${isOpen ? s.color+'44' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius:14, overflow:'hidden', transition:'all 0.2s',
+            }}>
+              {/* Step header */}
+              <div onClick={()=>setExpanded(isOpen ? null : s.id)}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer'}}>
+                <div style={{position:'relative',width:40,height:40,flexShrink:0}}>
+                  <svg width={40} height={40}>
+                    <circle cx={20} cy={20} r={16} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={3}/>
+                    <circle cx={20} cy={20} r={16} fill="none" stroke={p===100?C.green:s.color} strokeWidth={3}
+                      strokeDasharray={100.5} strokeDashoffset={100.5*(1-p/100)}
+                      strokeLinecap="round" transform="rotate(-90 20 20)"
+                      style={{transition:'stroke-dashoffset 0.4s ease'}}/>
+                    <text x={20} y={24} textAnchor="middle" fill={p===100?C.green:C.white}
+                      style={{fontFamily:'Barlow Condensed',fontWeight:900,fontSize:14}}>{p===100?'✓':s.icon}</text>
+                  </svg>
                 </div>
-              )
-            })}
-          </div>
-
-          {/* Metrics */}
-          <div style={{...glass,padding:'14px 16px',marginBottom:12}}>
-            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:10}}>Measurement</div>
-            {selStep.metrics.map((m,i) => (
-              <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,color:C.lightText}}>
-                <div style={{width:6,height:6,borderRadius:'50%',background:selStep.color,flexShrink:0}}/>
-                {m}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:fH,fontSize:14,fontWeight:900,color:isOpen?s.color:C.white,textTransform:'uppercase'}}>{s.n}. {s.label}</div>
+                  <div style={{fontSize:11,color:C.gray,marginTop:1}}>{s.subtitle} · {p}% complete</div>
+                </div>
+                <div style={{color:C.gray,fontSize:16,flexShrink:0}}>{isOpen?'▲':'▼'}</div>
               </div>
-            ))}
-          </div>
 
-          {/* Coaching focus */}
-          <div style={{background:'linear-gradient(135deg,rgba(26,107,255,0.10) 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid rgba(26,107,255,0.25)',borderLeft:'4px solid '+selStep.color,borderRadius:'0 12px 12px 0',padding:'14px 16px'}}>
-            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:selStep.color,marginBottom:6}}>Coaching Focus</div>
-            <div style={{fontSize:14,color:C.white,fontStyle:'italic',lineHeight:1.6}}>{selStep.coachFocus}</div>
-          </div>
-
-        </div>
-      )}
+              {/* Expanded */}
+              {isOpen && (
+                <div style={{padding:'0 16px 16px',animation:'fadeUp 0.2s ease both'}}>
+                  {/* Root cause + Opportunity */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10,paddingTop:4,borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:10}}>
+                    <div style={{background:'rgba(255,107,107,0.06)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:10,padding:'10px 12px'}}>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:'#ff6b6b',marginBottom:4}}>Root Cause</div>
+                      <div style={{fontSize:11,color:C.lightText,lineHeight:1.5}}>{s.rootCause}</div>
+                    </div>
+                    <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:10,padding:'10px 12px'}}>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:4}}>Opportunity</div>
+                      <div style={{fontSize:11,color:C.lightText,lineHeight:1.5}}>{s.opportunity}</div>
+                    </div>
+                  </div>
+                  {/* Actions */}
+                  {s.actions.map((action,ai) => {
+                    const k = s.id+'-'+ai
+                    return (
+                      <div key={ai} onClick={()=>tog(s.id,ai)}
+                        style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',cursor:'pointer'}}>
+                        <div style={{
+                          width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
+                          background:checked[k]?s.color:'transparent',
+                          border:'2px solid '+(checked[k]?s.color:'rgba(255,255,255,0.2)'),
+                          display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.2s',
+                        }}>
+                          {checked[k] && <span style={{fontSize:11,color:C.navy,fontWeight:900}}>✓</span>}
+                        </div>
+                        <div style={{fontSize:13,color:checked[k]?C.gray:C.lightText,textDecoration:checked[k]?'line-through':'none',lineHeight:1.5}}>{action}</div>
+                      </div>
+                    )
+                  })}
+                  {/* Coaching focus */}
+                  <div style={{background:'rgba(26,107,255,0.08)',borderLeft:'3px solid '+s.color,padding:'8px 12px',borderRadius:'0 8px 8px 0',marginTop:10,fontSize:12,color:C.lightText,fontStyle:'italic'}}>
+                    {s.coachFocus}
+                  </div>
+                  {/* Notes */}
+                  <textarea placeholder="Coaching notes..." value={notes[s.id]||''}
+                    onChange={e=>saveNotes({...notes,[s.id]:e.target.value})}
+                    style={{...inp,width:'100%',minHeight:48,resize:'vertical',fontSize:12,marginTop:10}}/>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -5234,7 +5221,7 @@ export default function App() {
   const [streak,setStreak]     = useState(()=>loadJSON('5md-streak',{count:0,lastDay:''}))
   const [milestone,setMilestone] = useState(null)
   const [preloadDrill,setPreloadDrill]   = useState(null)
-  const [coachingInitialTab,setCoachingInitialTab] = useState('grid')
+  const [coachingInitialTab,setCoachingInitialTab] = useState(null)
   const [preloadHuddle,setPreloadHuddle] = useState(null)
   const [preloadTracker,setPreloadTracker] = useState('')
   const [schedule,setSchedule] = useState(()=>loadJSON('5md-schedule',{}))
