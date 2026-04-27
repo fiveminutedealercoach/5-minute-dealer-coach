@@ -45,7 +45,7 @@ const btnPrimary = {
   cursor: 'pointer',
   width: '100%',
   boxShadow: '0 0 32px rgba(184,255,60,0.25)',
-  transition: 'transform 0.15s, box-shadow 0.15s',
+  transition: 'transform 0.15s, box-shadow 0.15s', 
 }
 
 // Secondary button
