@@ -4014,9 +4014,8 @@ function LeaderGrid(){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          system: 'You are a dealership management coach. Generate the EXACT words a manager says out loud to a rep. Natural, direct, human. 3 sentences only. No labels, no bullet points.',
-          messages:[{role:'user',content:'Style: '+(quad?.label||'Coaching')+'. Situation: '+situation}],
+          system: 'You are a dealership management coach. Write the exact words a manager says out loud to a rep — natural, direct, human. 3 sentences only. No labels, no preamble, no bullet points. Start speaking immediately.',
+          messages:[{role:'user', content:'Leadership style: '+(quad?.label||'Coach')+'. Situation: '+situation+'. Write only the word track:'}],
           max_tokens: 200,
         })
       })
