@@ -837,7 +837,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
 
   const quickActions = [
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
-    {icon:'🎯', label:'Team Coaching', sub:'C&C Grid + scripts', tab:'coaching', color:C.yellow},
+    {icon:'🎯', label:'Team Coaching', sub:'Commitment & Capability Grid + scripts', tab:'coaching', color:C.yellow},
     {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.blueBright},
   ]
 
@@ -954,7 +954,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       {/* Quick actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
         {quickActions.map((a,i)=>(
-          <button key={i} className="btn-press card-hover" onClick={()=>onNav(a.tab)}
+          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tab==='coaching'&&onNavSub){onNavSub('grid')}else{onNav(a.tab)} }}
             style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
               textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
             }}>
@@ -4567,7 +4567,7 @@ function ManagerHub({initialTab, onClearInitial}){
   },[initialTab])
 
   const HUB_CARDS = [
-    {id:'grid',     label:'Team Coaching',       icon:'🎯', color:C.blue,    desc:'C&C Leadership grid, coaching scripts & word track generator'},
+    {id:'grid',     label:'Team Coaching',       icon:'🎯', color:C.blue,    desc:'Commitment & Capability Leadership grid, coaching scripts & word track generator'},
     {id:'shop',     label:'Shop Time',            icon:'⏱', color:C.yellow,  desc:'Lost time calculator, action planning & session notes'},
     {id:'lifecycle',label:'Sales Experience',     icon:'📋', color:'#ff9f43', desc:'8-stage sales process assessment & checklist'},
     {id:'ownership',label:'Ownership Lifecycle',  icon:'🔄', color:C.green,   desc:'6-step retention system — first sale to second sale'},
