@@ -3465,6 +3465,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const paceColor = stepPct < 0.5 ? C.green : stepPct < 0.8 ? C.yellow : C.red
   const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
 
+  if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
   if(phase==='running') return(
     <div style={{padding: presentMode ? '32px 40px 40px' : '16px 16px 80px', background: presentMode ? C.navy : 'transparent', minHeight: presentMode ? '100vh' : 'auto'}}>
       {/* Present Mode toggle + pace indicator */}
@@ -3552,9 +3553,6 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       </div>
     </div>
   )
-
-  // Safety guard
-  if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
 
   return(
     <div style={{padding:'16px 16px 80px'}}>
