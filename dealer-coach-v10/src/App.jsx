@@ -3449,6 +3449,13 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     return true
   })
 
+  // Pace indicator — green/yellow/red based on time remaining in current step
+  const stepTimeUsed = elapsed - STEP_STARTS[step]
+  const stepDuration = step < STEPS.length-1 ? STEP_STARTS[step+1] - STEP_STARTS[step] : TOTAL_H - STEP_STARTS[step]
+  const stepPct = stepTimeUsed / stepDuration
+  const paceColor = stepPct < 0.5 ? C.green : stepPct < 0.8 ? C.yellow : C.red
+  const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
+
   if(phase==='done') return(
     <HuddleComplete
       selScript={selScript}
@@ -3457,13 +3464,6 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       onNew={()=>{setPhase('setup');setSelScript(null);setTimeLeft(TOTAL_H);setRunning(false)}}
     />
   )
-
-  // Pace indicator — green/yellow/red based on time remaining in current step
-  const stepTimeUsed = elapsed - STEP_STARTS[step]
-  const stepDuration = step < STEPS.length-1 ? STEP_STARTS[step+1] - STEP_STARTS[step] : TOTAL_H - STEP_STARTS[step]
-  const stepPct = stepTimeUsed / stepDuration
-  const paceColor = stepPct < 0.5 ? C.green : stepPct < 0.8 ? C.yellow : C.red
-  const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
 
   if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
   if(phase==='running') return(
