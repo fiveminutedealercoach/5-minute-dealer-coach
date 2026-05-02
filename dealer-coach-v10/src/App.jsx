@@ -3456,14 +3456,14 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const paceColor = stepPct < 0.5 ? C.green : stepPct < 0.8 ? C.yellow : C.red
   const paceLabel = stepPct < 0.5 ? 'On Track' : stepPct < 0.8 ? 'Pick Up Pace' : 'Move On'
 
-  if(phase==='done') return(
+  if(phase==='done') { return(
     <HuddleComplete
       selScript={selScript}
       dealer={dealer}
       onLog={logResult}
-      onNew={()=>{setPhase('setup');setSelScript(null);setTimeLeft(TOTAL_H);setRunning(false)}}
+      onNew={()=>{setPhase('setup');setSelScript(null);setTimeLeft(TOTAL_H);setRunning(false);setStep(0);setElapsed(0)}}
     />
-  )
+  )}
 
   if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
   if(phase==='running') { return(
