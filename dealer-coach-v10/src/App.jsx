@@ -3466,7 +3466,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   )
 
   if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
-  if(phase==='running') return(
+  if(phase==='running') { return(
     <div style={{padding: presentMode ? '32px 40px 40px' : '16px 16px 80px', background: presentMode ? C.navy : 'transparent', minHeight: presentMode ? '100vh' : 'auto'}}>
       {/* Present Mode toggle + pace indicator */}
       {!presentMode && (
@@ -3552,7 +3552,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
         <button onClick={skipStep} style={{background:'rgba(255,255,255,0.05)',color:C.gray,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'10px 24px',borderRadius:8,border:`1px solid ${C.border}`,cursor:'pointer'}}>Skip →</button>
       </div>
     </div>
-  )
+  )}
 
   return(
     <div style={{padding:'16px 16px 80px'}}>
