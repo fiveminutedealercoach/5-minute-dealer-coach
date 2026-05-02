@@ -45,7 +45,7 @@ const btnPrimary = {
   cursor: 'pointer',
   width: '100%',
   boxShadow: '0 0 32px rgba(184,255,60,0.25)',
-  transition: 'transform 0.15s, box-shadow 0.15s', 
+  transition: 'transform 0.15s, box-shadow 0.15s',
 }
 
 // Secondary button
@@ -1285,6 +1285,9 @@ function ScriptLibrary({dealer}) {
           </div>
         ))}
       </div>
+
+      {/* ── Custom Objection Generator ─────────────────── */}
+      <CustomObjGen onDrill={(script)=>launch(script)} dept={dept}/>
     </div>
   )
 }
@@ -1375,6 +1378,144 @@ function PersonaCard({persona, script, onStart, onBack}) {
     </div>
   )
 }
+
+// ══════════════════════════════════════════════════════════════
+// CUSTOM OBJECTION GENERATOR — rep types objection, Claude responds
+// ══════════════════════════════════════════════════════════════
+function CustomObjGen({onDrill, dept}) {
+  const [objText, setObjText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+  const [playing, setPlaying] = useState(false)
+
+  const generate = async () => {
+    if(!objText.trim()) return
+    setLoading(true)
+    setResult(null)
+    try {
+      const deptLabel = dept==='service' ? 'automotive service advisor' : 'automotive sales consultant'
+      const res = await fetch('/ai-proxy', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          system: 'You are an expert automotive sales and service coach. Generate a confident, natural word track response to a customer objection. Sound human and conversational. Format: 3 parts separated by | character: ACKNOWLEDGE (1 sentence) | RESPOND (2-3 sentences word track) | FOLLOWUP (1 closing question). No labels, no bullet points.',
+          messages: [{role:'user', content:'I am a '+deptLabel+'. The customer said: "'+objText.trim()+'". Give me my word track response in the format: acknowledge|respond|followup'}]
+        })
+      })
+      const data = await res.json()
+      if(data?.error) { setResult({error: data.error}); setLoading(false); return }
+      const text = data?.content?.[0]?.text?.trim()
+      if(text) {
+        const parts = text.split('|').map(p=>p.trim())
+        setResult({
+          objection: objText.trim(),
+          acknowledge: parts[0] || '',
+          script: parts[1] || text,
+          followup: parts[2] || '',
+          dept: dept||'sales',
+          id: 'custom-'+Date.now(),
+          category: 'Custom Objection',
+        })
+      } else {
+        setResult({error: 'No response received. Try again.'})
+      }
+    } catch(e) {
+      setResult({error: e.message})
+    }
+    setLoading(false)
+  }
+
+  const readAloud = () => {
+    if(playing) { stopSpeaking(); setPlaying(false); return }
+    if(!result || result.error) return
+    setPlaying(true)
+    const fullText = [result.acknowledge, result.script, result.followup].filter(Boolean).join('. ')
+    const tone = dept==='service'
+      ? {stability:0.55,similarity_boost:0.75,style:0.2}
+      : {stability:0.45,similarity_boost:0.8,style:0.3}
+    speak(fullText, ()=>setPlaying(false), tone)
+  }
+
+  return (
+    <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.06) 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:16,padding:'18px',marginTop:8}}>
+      <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:10}}>
+        🎯 My Objection Isn't Listed
+      </div>
+      <div style={{fontSize:12,color:C.gray,marginBottom:10,lineHeight:1.5}}>
+        Type an objection you heard and Claude will generate your word track response.
+      </div>
+      <textarea
+        value={objText}
+        onChange={e=>setObjText(e.target.value)}
+        placeholder="Type the objection you heard... e.g. I need to think about it"
+        style={{...inp,width:'100%',minHeight:60,resize:'vertical',fontSize:13,marginBottom:10}}
+      />
+      <button onClick={generate} disabled={loading||!objText.trim()} style={{
+        width:'100%',
+        background:loading?'rgba(255,255,255,0.06)':'linear-gradient(135deg,#b8ff3c,#7ed321)',
+        color:loading?C.gray:C.navy,
+        fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',
+        border:'none',borderRadius:12,minHeight:48,cursor:loading?'not-allowed':'pointer',
+        marginBottom:result?12:0,
+      }}>
+        {loading ? 'Generating...' : '⚡ Generate My Word Track'}
+      </button>
+
+      {result && !result.error && (
+        <div style={{animation:'fadeUp 0.3s ease both'}}>
+          {/* Acknowledge */}
+          {result.acknowledge && (
+            <div style={{marginBottom:8}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Acknowledge</div>
+              <div style={{fontSize:13,color:C.lightText,lineHeight:1.6,fontStyle:'italic'}}>"{result.acknowledge}"</div>
+            </div>
+          )}
+          {/* Word track */}
+          <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.06),rgba(184,255,60,0.02))',border:'1px solid rgba(184,255,60,0.2)',borderLeft:'4px solid #b8ff3c',borderRadius:'0 10px 10px 0',padding:'12px 14px',marginBottom:8}}>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>Word Track</div>
+            <div style={{fontSize:13,color:C.white,lineHeight:1.7,fontStyle:'italic'}}>"{result.script}"</div>
+          </div>
+          {/* Followup */}
+          {result.followup && (
+            <div style={{background:'rgba(255,201,71,0.06)',border:'1px solid rgba(255,201,71,0.15)',borderRadius:10,padding:'10px 14px',marginBottom:10}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:4}}>Follow-Up</div>
+              <div style={{fontSize:13,color:'#ffe08a',lineHeight:1.6,fontStyle:'italic'}}>"{result.followup}"</div>
+            </div>
+          )}
+          {/* Action buttons */}
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={readAloud} style={{
+              flex:1,
+              background:playing?'rgba(255,107,107,0.12)':'rgba(26,107,255,0.12)',
+              border:`1px solid ${playing?'rgba(255,107,107,0.3)':'rgba(26,107,255,0.3)'}`,
+              color:playing?C.red:C.blueBright,
+              fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+              padding:'10px',borderRadius:10,cursor:'pointer',minHeight:44,
+            }}>
+              {playing ? '⏹ Stop' : '🔊 Hear It'}
+            </button>
+            <button onClick={()=>onDrill&&onDrill(result)} style={{
+              flex:1,
+              background:'linear-gradient(135deg,#b8ff3c,#7ed321)',
+              color:C.navy,
+              fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+              border:'none',borderRadius:10,cursor:'pointer',minHeight:44,
+            }}>
+              ▶ Drill This
+            </button>
+          </div>
+        </div>
+      )}
+
+      {result?.error && (
+        <div style={{fontSize:12,color:C.red,marginTop:8,padding:'8px 12px',background:'rgba(255,107,107,0.08)',borderRadius:8}}>
+          {result.error}
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // VOICE DRILL  -  Rebuilt AI coaching with strict ACRA grading
@@ -3373,10 +3514,22 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
               </div>
             </div>
             <div style={{fontSize:presentMode?20:13,color:C.white,marginBottom:8,lineHeight:1.6,fontStyle:'italic',padding:'8px 12px',background:'rgba(255,255,255,0.04)',borderRadius:8}}>"{selScript.objection.replace(/['"]/g,'')}"</div>
-            <button onClick={readObjectionAloud} style={{width:'100%',background:objPlaying?'rgba(255,107,107,0.1)':'rgba(26,107,255,0.1)',border:`1px solid ${objPlaying?C.red:'rgba(26,107,255,0.3)'}`,color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>
-              {objPlaying ? '⏹ Stop' : '🔊 Hear the Objection'}
-            </button>
-          </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={readObjectionAloud} style={{flex:1,background:objPlaying?'rgba(255,107,107,0.15)':'rgba(26,107,255,0.12)',border:`1px solid ${objPlaying?C.red:C.blue}44`,color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
+                {objPlaying ? '⏹ Stop' : '🔊 Objection'}
+              </button>
+              <button onClick={()=>{
+                if(objPlaying){stopSpeaking();setObjPlaying(false);return}
+                if(!selScript)return
+                setObjPlaying(true)
+                const scDept=selScript.dept||'sales'
+                const tone=scDept==='service'?{stability:0.55,similarity_boost:0.75,style:0.2}:{stability:0.45,similarity_boost:0.8,style:0.3}
+                const fullTxt=[selScript.objection?.replace(/['"]'/g,'')||'',selScript.script||'',selScript.followup||''].filter(Boolean).join('. ')
+                speak(fullTxt,()=>setObjPlaying(false),tone)
+              }} style={{flex:1,background:'rgba(184,255,60,0.10)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
+                🎯 Full Script
+              </button>
+            </div>
         )}
       {showScriptForStep&&selScript&&<ScriptCard script={selScript} mode='scriptonly' defaultOpen={true}/>}
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:16}}>
