@@ -1518,7 +1518,7 @@ function CustomObjGen({onDrill, dept}) {
         </div>
       )}
     </div>
-      </div>)}
+      )}
   )
 }
 
