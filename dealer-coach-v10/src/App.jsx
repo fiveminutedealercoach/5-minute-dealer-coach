@@ -3979,27 +3979,6 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
   const myProgress = results.filter(r=>r.result==='progress').length
   const myPractice = results.filter(r=>r.result==='practice').length
 
-  if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
-
-  if(phase==='done') return(
-      selScript={selScript}
-      dealer={dealer}
-      onLog={logResult}
-      onNew={()=>{setPhase('setup');setSelScript(null);setTimeLeft(TOTAL_H);setRunning(false);setStep(0);setElapsed(0)}}
-    />
-  )}
-  )
-
-  if(phase==='done') return(
-    <HuddleComplete
-      selScript={selScript}
-      dealer={dealer}
-      onLog={logResult}
-      onNew={()=>{setPhase('setup');setSelScript(null);setTimeLeft(TOTAL_H);setRunning(false);setStep(0);setElapsed(0)}}
-    />
-  )
-
-  if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
 
   if(phase==='running') return(
       {/* Present Mode toggle + pace indicator */}
