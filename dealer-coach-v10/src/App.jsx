@@ -1517,8 +1517,8 @@ function CustomObjGen({onDrill, dept}) {
           {result.error}
         </div>
       )}
-    </div>
       )}
+    </div>
   )
 }
 
