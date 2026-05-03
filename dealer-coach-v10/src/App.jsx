@@ -1414,6 +1414,8 @@ function CustomObjGen({onDrill, dept}) {
           id: "custom-" + Date.now(),
           category: "Custom Objection",
           difficulty: "medium",
+          situation: "Customer raised this objection during the sales process.",
+          mistake: "Caving to the objection without presenting value first.",
         })
       } else {
         setResult({error: "No response. Try again."})
@@ -3345,6 +3347,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const [running,setRunning]     = useState(false)
   const [huddleTab,setHuddleTab] = useState('scripts')  // scripts | leaderboard
   const[presentMode,setPresentMode] = useState(false)
+  const[teamView,setTeamView]     = useState(false)
   const[autoPlayObj,setAutoPlayObj] = useState(true)
   const[objPlaying,setObjPlaying]   = useState(false)
   const intRef = useRef(null)
@@ -3444,52 +3447,113 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
 
   if(phase==='running') return(
-    <div style={{padding:'16px 16px 80px'}}>
-      <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:12}}>Team Huddle</div>
-      <div style={{display:'flex',gap:4,overflowX:'auto',paddingBottom:10,marginBottom:14}}>
-        {STEPS.map((s,i)=>(
-          <div key={i} style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:2,opacity:i===step?1:0.4,transition:'opacity 0.3s'}}>
-            <div style={{fontSize:16}}>{s.icon}</div>
-            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:i===step?SCOLS[i]:C.gray}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{background:`${col}18`,border:`1px solid ${col}44`,borderRadius:12,padding:16,marginBottom:16,textAlign:'center'}}>
-        <div style={{fontSize:28,marginBottom:8}}>{stepData.icon}</div>
-        <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:col,marginBottom:4}}>{stepData.label}</div>
-        <div style={{fontSize:13,color:C.lightText,lineHeight:1.65}}>{stepData.desc}</div>
-      </div>
-      {step === 2 && selScript && (
-        <div style={{marginBottom:12}}>
-          <div style={{fontSize:presentMode?20:13,color:C.white,marginBottom:8,lineHeight:1.6,fontStyle:'italic'}}>"{ selScript.objection?.replace(/['\"\\']/g,'') }"</div>
-          <div style={{display:'flex',gap:8}}>
-            <button onClick={readObjectionAloud} style={{flex:1,background:objPlaying?'rgba(255,107,107,0.15)':'rgba(26,107,255,0.12)',border:`1px solid ${objPlaying?C.red:C.blue}44`,color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
-              {objPlaying ? '⏹ Stop' : '🔊 Objection'}
-            </button>
-            <button onClick={()=>{
-              if(objPlaying){stopSpeaking();setObjPlaying(false);return}
-              if(!selScript)return
-              setObjPlaying(true)
-              const scDept=selScript.dept||'sales'
-              const tone=scDept==='service'?{stability:0.55,similarity_boost:0.75,style:0.2}:{stability:0.45,similarity_boost:0.8,style:0.3}
-              const fullTxt=[selScript.objection?.replace(/['"]'/g,'')||'',selScript.script||'',selScript.followup||''].filter(Boolean).join('. ')
-              speak(fullTxt,()=>setObjPlaying(false),tone)
-            }} style={{flex:1,background:'rgba(184,255,60,0.10)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
-              🎯 Full Script
-            </button>
-          </div>
+    <div style={{padding:teamView?0:'16px 16px 80px',background:teamView?C.navy:'transparent',
+      position:teamView?'fixed':'relative',inset:teamView?0:'auto',zIndex:teamView?9999:'auto',
+      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:teamView?'center':'flex-start'}}>
+
+      {/* Exit team view */}
+      {teamView && (
+        <button onClick={()=>setTeamView(false)}
+          style={{position:'fixed',top:16,right:16,background:'rgba(255,255,255,0.1)',
+            border:'1px solid rgba(255,255,255,0.2)',color:C.gray,fontFamily:fH,
+            fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',
+            padding:'6px 12px',borderRadius:8,cursor:'pointer',zIndex:10000}}>✕ Exit</button>
+      )}
+
+      {/* Step dots — hidden in team view */}
+      {!teamView && (
+        <div style={{display:'flex',gap:6,justifyContent:'center',marginBottom:16}}>
+          {STEPS.map((_,i)=>(
+            <div key={i} style={{width:i===step?24:8,height:8,borderRadius:4,
+              background:i===step?SCOLS[i]:'rgba(255,255,255,0.15)',
+              transition:'all 0.3s ease'}}/>))}
         </div>
       )}
-      <div style={{textAlign:'center',marginBottom:16}}>
-        <div style={{fontFamily:fH,fontSize:64,fontWeight:900,color:col,lineHeight:1}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,'0')}</div>
-        <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginTop:4}}>minutes remaining</div>
+
+      {/* Step header */}
+      <div style={{textAlign:'center',marginBottom:teamView?32:20,padding:teamView?'0 24px':0}}>
+        <div style={{fontSize:teamView?72:36,marginBottom:teamView?16:8}}>{stepData.icon}</div>
+        <div style={{fontFamily:fH,fontSize:teamView?48:22,fontWeight:900,
+          textTransform:'uppercase',color:col,lineHeight:1,marginBottom:8}}>{stepData.label}</div>
+        {!teamView && (
+          <div style={{fontSize:13,color:C.lightText,lineHeight:1.6,maxWidth:320,margin:'0 auto'}}>{stepData.desc}</div>
+        )}
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <button onClick={()=>{if(running){clearInterval(intRef.current);setRunning(false)}else{intRef.current=setInterval(()=>setElapsed(p=>p+1),1000);setRunning(true)}}} style={{background:`${col}22`,border:`1px solid ${col}44`,color:col,fontFamily:fH,fontWeight:700,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'12px',borderRadius:8,cursor:'pointer',minHeight:48}}>
-          {running?'⏸ Pause':timeLeft===TOTAL_H?'▶ Start':'▶ Resume'}
-        </button>
-        <button onClick={skipStep} style={{background:'rgba(255,255,255,0.05)',color:C.gray,fontFamily:fH,fontWeight:700,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'12px',borderRadius:8,cursor:'pointer',border:'1px solid rgba(255,255,255,0.08)',minHeight:48}}>⏭ Skip</button>
+
+      {/* Script content — Steps 1 and 2 */}
+      {(step===1||step===2) && selScript && (
+        <div style={{width:'100%',maxWidth:teamView?700:400,marginBottom:teamView?40:16,padding:teamView?'0 32px':0}}>
+          {/* Objection */}
+          <div style={{background:`${col}18`,border:`1px solid ${col}44`,borderRadius:12,
+            padding:teamView?'20px 28px':'14px 16px',marginBottom:teamView?16:10}}>
+            <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
+              textTransform:'uppercase',color:col,marginBottom:6}}>Customer Says</div>
+            <div style={{fontSize:teamView?28:15,color:C.white,fontStyle:'italic',
+              lineHeight:1.5,fontWeight:teamView?700:400}}>"{ selScript.objection?.replace(/["']/g,'') }"</div>
+          </div>
+          {/* Word track — only step 1 */}
+          {step===1 && (
+            <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',
+              borderLeft:`4px solid ${C.green}`,borderRadius:'0 12px 12px 0',
+              padding:teamView?'20px 28px':'14px 16px',marginBottom:teamView?16:10}}>
+              <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
+                textTransform:'uppercase',color:C.green,marginBottom:6}}>Word Track</div>
+              <div style={{fontSize:teamView?24:13,color:C.white,lineHeight:1.7,
+                fontStyle:'italic'}}>"{ selScript.script }"</div>
+            </div>
+          )}
+          {/* Follow-up — step 1 only */}
+          {step===1 && selScript.followup && (
+            <div style={{background:'rgba(255,201,71,0.06)',border:'1px solid rgba(255,201,71,0.2)',
+              borderRadius:10,padding:teamView?'16px 24px':'10px 14px'}}>
+              <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
+                textTransform:'uppercase',color:C.yellow,marginBottom:6}}>Follow-Up</div>
+              <div style={{fontSize:teamView?20:12,color:'#ffe08a',lineHeight:1.6,
+                fontStyle:'italic'}}>"{ selScript.followup }"</div>
+            </div>
+          )}
+          {/* Read aloud button — hidden in team view */}
+          {!teamView && (
+            <button onClick={readObjectionAloud}
+              style={{width:'100%',marginTop:10,background:objPlaying?'rgba(255,107,107,0.12)':'rgba(26,107,255,0.12)',
+                border:`1px solid ${objPlaying?'rgba(255,107,107,0.3)':'rgba(26,107,255,0.3)'}`,
+                color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,
+                letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:10,
+                cursor:'pointer',minHeight:44}}>
+              {objPlaying ? '⏹ Stop' : '🔊 Read Aloud'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Timer */}
+      <div style={{textAlign:'center',marginBottom:teamView?48:20}}>
+        <div style={{fontFamily:fH,fontSize:teamView?120:72,fontWeight:900,color:col,
+          lineHeight:1,letterSpacing:-2}}>
+          {Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,'0')}
+        </div>
+        <div style={{fontFamily:fH,fontSize:teamView?18:11,fontWeight:700,letterSpacing:2,
+          textTransform:'uppercase',color:C.gray,marginTop:4}}>minutes remaining</div>
       </div>
+
+      {/* Controls — hidden in team view */}
+      {!teamView && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,width:'100%',maxWidth:360}}>
+          <button onClick={()=>{if(running){clearInterval(intRef.current);setRunning(false)}
+            else{intRef.current=setInterval(()=>setTimeLeft(p=>Math.max(0,p-1)),1000);setRunning(true)}}}
+            style={{background:`${col}22`,border:`1px solid ${col}44`,color:col,
+              fontFamily:fH,fontWeight:700,fontSize:14,letterSpacing:1,textTransform:'uppercase',
+              padding:'14px',borderRadius:10,cursor:'pointer',minHeight:52}}>
+            {running?'⏸ Pause':timeLeft===TOTAL_H?'▶ Start':'▶ Resume'}
+          </button>
+          <button onClick={skipStep}
+            style={{background:'rgba(255,255,255,0.05)',color:C.gray,
+              fontFamily:fH,fontWeight:700,fontSize:14,letterSpacing:1,textTransform:'uppercase',
+              padding:'14px',borderRadius:10,cursor:'pointer',
+              border:'1px solid rgba(255,255,255,0.08)',minHeight:52}}>Next Step ⏭</button>
+        </div>
+      )}
+
     </div>
   )
 
@@ -3536,9 +3600,23 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
           {selScript.script && <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,marginBottom:6}}>{selScript.script.substring(0,200)}...</div>}
         </div>
       )}
-      <button onClick={startHuddle} disabled={!selScript} style={{width:'100%',background:selScript?C.green:'rgba(255,255,255,0.08)',color:selScript?C.navy:C.gray,fontFamily:fH,fontWeight:900,fontSize:16,letterSpacing:1,textTransform:'uppercase',padding:16,borderRadius:10,border:'none',cursor:selScript?'pointer':'default'}}>
-        {selScript?'▶ Start 5-Minute Huddle':'Select a script to start'}
-      </button>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:8}}>
+        <button onClick={startHuddle} disabled={!selScript}
+          style={{background:selScript?'linear-gradient(135deg,#b8ff3c,#7ed321)':'rgba(255,255,255,0.06)',
+            color:selScript?C.navy:C.gray,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,
+            textTransform:'uppercase',border:'none',borderRadius:12,minHeight:52,cursor:selScript?'pointer':'not-allowed'}}>
+          {selScript?'▶ Start Huddle':'Select a Script'}
+        </button>
+        <button onClick={()=>{if(!selScript)return;startHuddle();setTimeout(()=>setTeamView(true),100)}}
+          disabled={!selScript}
+          style={{background:selScript?'rgba(26,107,255,0.15)':'rgba(255,255,255,0.04)',
+            border:`1px solid ${selScript?'rgba(26,107,255,0.4)':'rgba(255,255,255,0.08)'}`,
+            color:selScript?C.blueBright:C.gray,fontFamily:fH,fontWeight:700,fontSize:14,
+            letterSpacing:1,textTransform:'uppercase',borderRadius:12,minHeight:52,
+            cursor:selScript?'pointer':'not-allowed'}}>
+          📺 Team View
+        </button>
+      </div>
     </div>
   )
 }
@@ -5439,7 +5517,7 @@ export default function App() {
         paddingBottom:'env(safe-area-inset-bottom)',
       }}>
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+          <button key={t.id} onClick={()=>{if(t.id==="coaching")setCoachingInitialTab(null);setTab(t.id)}} style={{
             flex:1,
             background:'none',border:'none',
             padding:'10px 4px 12px',
