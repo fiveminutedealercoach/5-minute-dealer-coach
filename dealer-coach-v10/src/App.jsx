@@ -1260,12 +1260,11 @@ function ScriptLibrary({dealer}) {
       <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Script Library</div>
       <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>60 Word Tracks  -  Sales & Service</div>
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
-      <div style={{fontSize:12,color:C.gray,marginBottom:12}}>{filtered.length} scripts</div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map((s,filteredIdx)=>(
           <div key={s.id} style={{background:C.card,border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:10,overflow:'hidden'}}>
             <div onClick={()=>setOpenId(openId===s.id?null:s.id)} style={{padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:openId===s.id?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}>
-              <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.3)':'rgba(184,255,60,0.3)',lineHeight:1,minWidth:32}}>{String(s.id).padStart(2,'0')}</div>
+
               <div style={{flex:1}}>
                 <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag></div>
                 <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.replace(/"/g,'')}</div>
@@ -1286,8 +1285,6 @@ function ScriptLibrary({dealer}) {
         ))}
       </div>
 
-      {/* ── Custom Objection Generator ─────────────────── */}
-      <CustomObjGen onDrill={(script)=>launch(script)} dept={dept}/>
     </div>
   )
 }
@@ -1384,6 +1381,7 @@ function PersonaCard({persona, script, onStart, onBack}) {
 // ══════════════════════════════════════════════════════════════
 function CustomObjGen({onDrill, dept}) {
   const [objText, setObjText] = useState('')
+  const [collapsed, setCollapsed] = useState(true)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [playing, setPlaying] = useState(false)
@@ -1415,6 +1413,7 @@ function CustomObjGen({onDrill, dept}) {
           dept: dept||'sales',
           id: 'custom-'+Date.now(),
           category: 'Custom Objection',
+          difficulty: 'medium',
         })
       } else {
         setResult({error: 'No response received. Try again.'})
@@ -1438,6 +1437,12 @@ function CustomObjGen({onDrill, dept}) {
 
   return (
     <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.06) 0%,rgba(5,13,31,0.95) 100%)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:16,padding:'18px',marginTop:8}}>
+      <div onClick={()=>setCollapsed(!collapsed)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',marginBottom:collapsed?0:12}}>
+        <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>🎯 My Objection Isn't Listed</div>
+        <div style={{color:C.gray,fontSize:14}}>{collapsed?'+':'−'}</div>
+      </div>
+      {!collapsed && (
+      <div>
       <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:10}}>
         🎯 My Objection Isn't Listed
       </div>
@@ -1513,6 +1518,7 @@ function CustomObjGen({onDrill, dept}) {
         </div>
       )}
     </div>
+      </div>)}
   )
 }
 
@@ -3092,12 +3098,13 @@ RETURN ONLY valid JSON:
 
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
+      <CustomObjGen onDrill={(script)=>launch(script)} dept={filterDept}/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map(s=>{
           const matchPersona = getPersonaForScript(s)
           return(
             <div key={s.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
-              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.35)':'rgba(184,255,60,0.35)',minWidth:30,lineHeight:1}}>{String(s.id).padStart(2,'0')}</div>
+              
               <div style={{flex:1}}>
                 <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:3}}>{s.objection.replace(/"/g,'')}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
@@ -3542,8 +3549,8 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
         {filtered.map((s,filteredIdx)=>(
           <div key={s.id} onClick={()=>setSelScript(s)} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):C.card,border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:8,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
-            <div style={{fontFamily:fH,fontSize:12,fontWeight:700,color:C.gray,marginBottom:2}}>Objection {filteredIdx+1}</div>
-            <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.4)',minWidth:26}}>{String(s.id).padStart(2,'0')}</div>
+
+            
             <div style={{flex:1}}>
               <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:2}}>{s.objection.replace(/"/g,'')}</div>
               <div style={{display:'flex',gap:5,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><span style={{fontSize:10,color:C.gray,alignSelf:'center'}}>{s.category}</span></div>
@@ -3615,7 +3622,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
             <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:16,maxHeight:200,overflowY:'auto',border:`1px solid ${C.border}`,borderRadius:10,padding:'6px'}}>
               {filteredScripts.map(s=>(
                 <div key={s.id} onClick={()=>setSelObj(s)} style={{background:selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.15)':'rgba(184,255,60,0.1)'):'transparent',border:`1px solid ${selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):'transparent'}`,borderRadius:8,padding:'9px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
-                  <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.4)',minWidth:24}}>{String(s.id).padStart(2,'0')}</div>
+                  
                   <div style={{fontSize:12,color:selObj?.id===s.id?C.white:C.lightText,lineHeight:1.3}}>{s.objection.replace(/"/g,'')}</div>
                   {selObj?.id===s.id&&<div style={{marginLeft:'auto',color:C.green,flexShrink:0}}>✓</div>}
                 </div>
