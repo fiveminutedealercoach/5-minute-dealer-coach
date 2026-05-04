@@ -1294,7 +1294,7 @@ function ScriptLibrary({dealer}) {
   })
 
   return (
-    <div style={{padding:'16px 16px 80px'}}>
+    <div style={{padding:'16px 16px 96px'}}>
       <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Script Library</div>
       <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>60 Word Tracks  -  Sales & Service</div>
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
@@ -1560,6 +1560,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [liveStatus,setLiveStatus]     = useState('')
   const [liveError,setLiveError]       = useState('')
   const [exchangeCount,setExchangeCount]   = useState(0)
+  const [interimTranscript,setInterimTranscript] = useState('')
   const [liveRecording,setLiveRecording]   = useState(false) // true = rep's turn, show Send button
   const pcRef              = useRef(null)  // RTCPeerConnection
   const dcRef              = useRef(null)  // RTCDataChannel
@@ -1855,35 +1856,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         clearInterval(tick)
         setTimeout(() => {
           playTurnCue(); startRec()
-          // Item 8: silence detection — if no speech after 12 seconds, persona reacts
-          if(silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-          silenceTimerRef.current = setTimeout(() => {
-            const hasSpoken = accumulatedRef.current.trim().length > 3
-            if(recordingRef.current && !hasSpoken) {
-              // Rep went silent — persona reacts
-              const sPersona = PERSONAS.find(p => p.id === activePersId)
-              const silenceReactions = [
-                "Hello? Are you still there?",
-                "I am waiting...",
-                "Take your time. I have got all day.",
-                "Did you have something to say or...?",
-              ]
-              const reaction = silenceReactions[Math.floor(Math.random()*silenceReactions.length)]
-              stopRec()
-              setLiveRecording(false)
-              const withSilence = [...liveTranscriptRef.current, { role: 'customer', text: reaction }]
-              setLiveTranscript(withSilence)
-              liveTranscriptRef.current = withSilence
-              setAiText(reaction)
-              const pVoice = getPersonaVoiceOpts(sPersona)
-              setSpeaking(true)
-              speak(reaction, () => {
-                setSpeaking(false)
-                setLiveStatus('Your turn  -  speak your response')
-                setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 1200)
-              }, pVoice)
-            }
-          }, 25000)
+          // No silence detection — rep controls when to send
         }, 100)
       }
     }, 1000)
@@ -1901,19 +1874,23 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       rec.lang = 'en-US'
       let lastResultIndex = 0
       rec.onresult = e => {
-        // Clear silence timer when speech detected
-        if(silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
-        // Only process NEW final results to prevent repetition loops
+        // Show interim results immediately so rep sees their words live
+        let interim = ''
         let newFinal = ''
         for(let i=lastResultIndex; i<e.results.length; i++){
           if(e.results[i].isFinal){
             newFinal += e.results[i][0].transcript + ' '
             lastResultIndex = i + 1
+          } else {
+            interim += e.results[i][0].transcript
           }
         }
         if(newFinal) {
           accumulatedRef.current += newFinal
           setTranscript(accumulatedRef.current.trim())
+          setInterimTranscript('')
+        } else if(interim) {
+          setInterimTranscript(interim)
         }
       }
       rec.onend = () => {
@@ -1937,16 +1914,11 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       rec.start()
     },400)
   }
-  const stopRec = (autoSubmit=false) => {
+  const stopRec = () => {
     recordingRef.current = false
     if(recRef.current){ try { recRef.current.stop() } catch {} recRef.current=null }
     setRecording(false)
-    // Auto-submit after a short delay to let final transcript settle
-    if(autoSubmit){
-      setTimeout(()=>{
-        if(submitRef.current) submitRef.current()
-      }, 500)
-    }
+    setInterimTranscript('')
   }
 
   // ── SILENT COACH ─────────────────────────────────────────────
@@ -1999,7 +1971,6 @@ One coaching whisper:`}],
       accumulatedRef.current = ''
       setLiveRecording(false)
       // Clear silence timer during AI generation — prevents crossover
-      if(silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
       setLiveStatus('Thinking...')
 
       const updatedLive = [...liveTranscriptRef.current, { role: 'rep', text: repText }]
@@ -2732,7 +2703,7 @@ RETURN ONLY valid JSON:
   if(phase==='feedback'&&activeS&&feedback) {
     const persona = PERSONAS.find(p=>p.id===activePersId)
     return(
-      <div style={{padding:'16px 16px 80px', animation:'fadeUp 0.3s ease both'}}>
+      <div style={{padding:'16px 16px 96px', animation:'fadeUp 0.3s ease both'}}>
         <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← Back</button>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
 
@@ -3047,12 +3018,12 @@ RETURN ONLY valid JSON:
               </div>
             </div>
           ))}
-          {transcript && liveRecording && (
-            <div style={{display:'flex',alignItems:'flex-start',flexDirection:'column'}}>
-              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,marginBottom:3}}>You (typing...)</div>
-              <div style={{background:'rgba(184,255,60,0.05)',border:'1px dashed rgba(184,255,60,0.3)',
-                borderRadius:'12px 12px 0 12px',padding:'8px 12px',fontSize:13,color:C.gray,fontStyle:'italic'}}>
-                {transcript}
+          {(transcript || interimTranscript) && (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,marginBottom:3}}>You</div>
+              <div style={{maxWidth:'85%',background:'rgba(184,255,60,0.08)',border:'1px dashed rgba(184,255,60,0.3)',
+                borderRadius:'12px 12px 0 12px',padding:'8px 12px',fontSize:13,color:C.white,lineHeight:1.5}}>
+                {transcript}{interimTranscript && <span style={{color:C.gray,fontStyle:'italic'}}>{interimTranscript}</span>}
               </div>
             </div>
           )}
