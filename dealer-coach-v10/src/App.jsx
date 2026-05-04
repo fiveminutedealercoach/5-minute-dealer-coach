@@ -816,7 +816,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
   const teamMomentum = (() => {
     try {
       const weekAgo = Date.now() - 7*24*60*60*1000
-      const recentDrills = results.filter(r => r.type==='voice' && new Date(r.date).getTime() > weekAgo)
+      const recentDrills = results.filter(r => (r.type==='voice'||r.type==='voice_drill') && new Date(r.date).getTime() > weekAgo)
       const uniqueReps = new Set(recentDrills.map(r=>r.rep||dealer?.repName)).size
       return {drills: recentDrills.length, reps: uniqueReps}
     } catch { return {drills:0, reps:0} }
@@ -1041,7 +1041,7 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
   const suggested = getSuggestedScript()
   const drillsThisWeek = results.filter(r => {
     const d = new Date(r.date); const now = new Date()
-    return (now - d) < 7*24*60*60*1000 && r.type === 'voice'
+    return (now - d) < 7*24*60*60*1000 && (r.type === 'voice' || r.type === 'voice_drill' || r.result !== undefined)
   }).length
   const weeklyGoal = 5
   const avgScore = (() => {
@@ -1596,6 +1596,17 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       setPhase('list')
     }
   },[preloadScript])
+
+  // Listen for launch-drill event from HuddleComplete
+  useEffect(()=>{
+    const handler = (e) => {
+      const script = e.detail
+      if(!script) return
+      launch(script)
+    }
+    window.addEventListener('5md-launch-drill', handler)
+    return () => window.removeEventListener('5md-launch-drill', handler)
+  },[])
 
   const filtered = SCRIPTS.filter(s=>{
     const ed = lockDept||filterDept
@@ -3348,6 +3359,10 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const [huddleTab,setHuddleTab] = useState('scripts')  // scripts | leaderboard
   const[presentMode,setPresentMode] = useState(false)
   const[teamView,setTeamView]     = useState(false)
+  const[showControls,setShowControls] = useState(true)
+  const controlTimerRef = useRef(null)
+  const[scriptPlaying,setScriptPlaying] = useState(false)
+  const[scriptPaused,setScriptPaused] = useState(false)
   const[autoPlayObj,setAutoPlayObj] = useState(true)
   const[objPlaying,setObjPlaying]   = useState(false)
   const intRef = useRef(null)
@@ -3383,6 +3398,45 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.60}
     setObjPlaying(true)
     speak(selScript.objection.replace(/['"]/g,''), () => setObjPlaying(false), voiceOpts)
+  }
+
+  const readFullScript = () => {
+    if(!selScript) return
+    if(scriptPlaying) {
+      stopSpeaking()
+      setScriptPlaying(false)
+      setScriptPaused(false)
+      return
+    }
+    const voiceOpts = selScript.dept === 'service'
+      ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.2}
+      : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.35}
+    setScriptPlaying(true)
+    setScriptPaused(false)
+    // Read objection first
+    const obj = (selScript.objection || '').replace(/["']/g, '')
+    const script = (selScript.script || '').replace(/["']/g, '')
+    const followup = (selScript.followup || '').replace(/["']/g, '')
+    // Chain: objection -> pause -> word track -> pause -> followup
+    speak(obj + '  ', () => {
+      if(!scriptPlaying) return
+      setTimeout(() => {
+        speak(script + '  ', () => {
+          if(!scriptPlaying) return
+          if(!followup) { setScriptPlaying(false); return }
+          setTimeout(() => {
+            speak(followup, () => setScriptPlaying(false), voiceOpts)
+          }, 800)
+        }, voiceOpts)
+      }, 800)
+    }, voiceOpts)
+  }
+
+  const tapTeamView = () => {
+    if(showControls) return
+    setShowControls(true)
+    clearTimeout(controlTimerRef.current)
+    controlTimerRef.current = setTimeout(() => setShowControls(false), 3000)
   }
 
   // Auto-play objection when drill step is reached
@@ -3447,17 +3501,37 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   if(!STEPS || !STEPS.length) return <div style={{padding:20,color:C.gray}}>Loading...</div>
 
   if(phase==='running') return(
-    <div style={{padding:teamView?0:'16px 16px 80px',background:teamView?C.navy:'transparent',
-      position:teamView?'fixed':'relative',inset:teamView?0:'auto',zIndex:teamView?9999:'auto',
-      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:teamView?'center':'flex-start'}}>
+    <div onClick={teamView ? tapTeamView : undefined}
+      style={{padding:teamView?0:'16px 16px 80px',background:teamView?C.navy:'transparent',
+        position:teamView?'fixed':'relative',inset:teamView?0:'auto',zIndex:teamView?9999:'auto',
+        display:'flex',flexDirection:'column',alignItems:'center',
+        justifyContent:teamView?'center':'flex-start',minHeight:teamView?'100vh':'auto'}}>
 
-      {/* Exit team view */}
-      {teamView && (
-        <button onClick={()=>setTeamView(false)}
-          style={{position:'fixed',top:16,right:16,background:'rgba(255,255,255,0.1)',
-            border:'1px solid rgba(255,255,255,0.2)',color:C.gray,fontFamily:fH,
-            fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',
-            padding:'6px 12px',borderRadius:8,cursor:'pointer',zIndex:10000}}>✕ Exit</button>
+      {/* Team View controls — tap to reveal, auto-hide after 3s */}
+      {teamView && showControls && (
+        <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:10000,
+          background:'rgba(5,13,31,0.92)',borderTop:'1px solid rgba(255,255,255,0.1)',
+          padding:'12px 20px',display:'flex',gap:10,alignItems:'center'}}>
+          <button onClick={()=>setTeamView(false)}
+            style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',
+              color:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,
+              textTransform:'uppercase',padding:'8px 14px',borderRadius:8,cursor:'pointer'}}>
+            ✕ Exit
+          </button>
+          <button onClick={()=>{if(running){clearInterval(intRef.current);setRunning(false)}
+            else{intRef.current=setInterval(()=>setTimeLeft(p=>Math.max(0,p-1)),1000);setRunning(true)}}}
+            style={{flex:1,background:`${col}22`,border:`1px solid ${col}44`,color:col,
+              fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,textTransform:'uppercase',
+              padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
+            {running?'⏸ Pause':timeLeft===TOTAL_H?'▶ Start':'▶ Resume'}
+          </button>
+          <button onClick={skipStep}
+            style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
+              color:C.lightText,fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,
+              textTransform:'uppercase',padding:'10px',borderRadius:8,cursor:'pointer',minHeight:44}}>
+            Next ⏭
+          </button>
+        </div>
       )}
 
       {/* Step dots — hidden in team view */}
@@ -3471,72 +3545,99 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       )}
 
       {/* Step header */}
-      <div style={{textAlign:'center',marginBottom:teamView?32:20,padding:teamView?'0 24px':0}}>
-        <div style={{fontSize:teamView?72:36,marginBottom:teamView?16:8}}>{stepData.icon}</div>
-        <div style={{fontFamily:fH,fontSize:teamView?48:22,fontWeight:900,
-          textTransform:'uppercase',color:col,lineHeight:1,marginBottom:8}}>{stepData.label}</div>
+      <div style={{textAlign:'center',marginBottom:teamView?32:16,padding:teamView?'0 32px':0}}>
+        <div style={{fontSize:teamView?64:32,marginBottom:8}}>{stepData.icon}</div>
+        <div style={{fontFamily:fH,fontSize:teamView?42:20,fontWeight:900,
+          textTransform:'uppercase',color:col,lineHeight:1,marginBottom:6}}>{stepData.label}</div>
         {!teamView && (
-          <div style={{fontSize:13,color:C.lightText,lineHeight:1.6,maxWidth:320,margin:'0 auto'}}>{stepData.desc}</div>
+          <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,maxWidth:300,margin:'0 auto'}}>{stepData.desc}</div>
         )}
       </div>
 
-      {/* Script content — Steps 1 and 2 */}
-      {(step===1||step===2) && selScript && (
-        <div style={{width:'100%',maxWidth:teamView?700:400,marginBottom:teamView?40:16,padding:teamView?'0 32px':0}}>
-          {/* Objection */}
+      {/* Step 2 — Script of the Day: objection + word track + followup */}
+      {step===1 && selScript && (
+        <div style={{width:'100%',maxWidth:teamView?680:400,marginBottom:teamView?40:14,padding:teamView?'0 24px':0}}>
           <div style={{background:`${col}18`,border:`1px solid ${col}44`,borderRadius:12,
-            padding:teamView?'20px 28px':'14px 16px',marginBottom:teamView?16:10}}>
-            <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
+            padding:teamView?'20px 24px':'12px 16px',marginBottom:teamView?14:10}}>
+            <div style={{fontFamily:fH,fontSize:teamView?13:9,fontWeight:700,letterSpacing:2,
               textTransform:'uppercase',color:col,marginBottom:6}}>Customer Says</div>
-            <div style={{fontSize:teamView?28:15,color:C.white,fontStyle:'italic',
-              lineHeight:1.5,fontWeight:teamView?700:400}}>"{ selScript.objection?.replace(/["']/g,'') }"</div>
+            <div style={{fontSize:teamView?26:14,color:C.white,fontStyle:'italic',lineHeight:1.5,
+              fontWeight:teamView?700:400}}>"{ (selScript.objection||'').replace(/["']/g,'') }"</div>
           </div>
-          {/* Word track — only step 1 */}
-          {step===1 && (
-            <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',
-              borderLeft:`4px solid ${C.green}`,borderRadius:'0 12px 12px 0',
-              padding:teamView?'20px 28px':'14px 16px',marginBottom:teamView?16:10}}>
-              <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
-                textTransform:'uppercase',color:C.green,marginBottom:6}}>Word Track</div>
-              <div style={{fontSize:teamView?24:13,color:C.white,lineHeight:1.7,
-                fontStyle:'italic'}}>"{ selScript.script }"</div>
+          <div style={{background:'rgba(184,255,60,0.06)',border:'1px solid rgba(184,255,60,0.2)',
+            borderLeft:'4px solid #b8ff3c',borderRadius:'0 12px 12px 0',
+            padding:teamView?'18px 24px':'12px 14px',marginBottom:teamView?14:10}}>
+            <div style={{fontFamily:fH,fontSize:teamView?13:9,fontWeight:700,letterSpacing:2,
+              textTransform:'uppercase',color:C.green,marginBottom:6}}>Word Track</div>
+            <div style={{fontSize:teamView?22:13,color:C.white,lineHeight:1.7,fontStyle:'italic'}}>
+              "{ selScript.script }"
             </div>
-          )}
-          {/* Follow-up — step 1 only */}
-          {step===1 && selScript.followup && (
+          </div>
+          {selScript.followup && (
             <div style={{background:'rgba(255,201,71,0.06)',border:'1px solid rgba(255,201,71,0.2)',
-              borderRadius:10,padding:teamView?'16px 24px':'10px 14px'}}>
-              <div style={{fontFamily:fH,fontSize:teamView?14:9,fontWeight:700,letterSpacing:2,
+              borderRadius:10,padding:teamView?'16px 24px':'10px 14px',marginBottom:10}}>
+              <div style={{fontFamily:fH,fontSize:teamView?13:9,fontWeight:700,letterSpacing:2,
                 textTransform:'uppercase',color:C.yellow,marginBottom:6}}>Follow-Up</div>
-              <div style={{fontSize:teamView?20:12,color:'#ffe08a',lineHeight:1.6,
-                fontStyle:'italic'}}>"{ selScript.followup }"</div>
+              <div style={{fontSize:teamView?18:12,color:'#ffe08a',lineHeight:1.6,fontStyle:'italic'}}>
+                "{ selScript.followup }"
+              </div>
             </div>
           )}
-          {/* Read aloud button — hidden in team view */}
           {!teamView && (
-            <button onClick={readObjectionAloud}
-              style={{width:'100%',marginTop:10,background:objPlaying?'rgba(255,107,107,0.12)':'rgba(26,107,255,0.12)',
-                border:`1px solid ${objPlaying?'rgba(255,107,107,0.3)':'rgba(26,107,255,0.3)'}`,
-                color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,
+            <button onClick={readFullScript}
+              style={{width:'100%',background:scriptPlaying?'rgba(255,107,107,0.12)':'rgba(184,255,60,0.10)',
+                border:`1px solid ${scriptPlaying?'rgba(255,107,107,0.3)':'rgba(184,255,60,0.3)'}`,
+                color:scriptPlaying?C.red:C.green,fontFamily:fH,fontWeight:700,fontSize:12,
                 letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:10,
                 cursor:'pointer',minHeight:44}}>
-              {objPlaying ? '⏹ Stop' : '🔊 Read Aloud'}
+              {scriptPlaying ? '⏹ Stop Reading' : '🔊 Read Full Script'}
             </button>
           )}
         </div>
       )}
 
-      {/* Timer */}
-      <div style={{textAlign:'center',marginBottom:teamView?48:20}}>
-        <div style={{fontFamily:fH,fontSize:teamView?120:72,fontWeight:900,color:col,
+      {/* Step 3 — Live Drill: objection only */}
+      {step===2 && selScript && (
+        <div style={{width:'100%',maxWidth:teamView?680:400,marginBottom:teamView?40:14,padding:teamView?'0 24px':0}}>
+          <div style={{background:`${col}18`,border:`1px solid ${col}44`,borderRadius:12,
+            padding:teamView?'20px 24px':'12px 16px',marginBottom:10}}>
+            <div style={{fontFamily:fH,fontSize:teamView?13:9,fontWeight:700,letterSpacing:2,
+              textTransform:'uppercase',color:col,marginBottom:6}}>The Objection</div>
+            <div style={{fontSize:teamView?26:14,color:C.white,fontStyle:'italic',lineHeight:1.5,
+              fontWeight:teamView?700:400}}>"{ (selScript.objection||'').replace(/["']/g,'') }"</div>
+          </div>
+          {!teamView && (
+            <button onClick={readObjectionAloud}
+              style={{width:'100%',background:objPlaying?'rgba(255,107,107,0.12)':'rgba(26,107,255,0.12)',
+                border:`1px solid ${objPlaying?'rgba(255,107,107,0.3)':'rgba(26,107,255,0.3)'}`,
+                color:objPlaying?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,
+                letterSpacing:1,textTransform:'uppercase',padding:'10px',borderRadius:10,
+                cursor:'pointer',minHeight:44}}>
+              {objPlaying ? '⏹ Stop' : '🔊 Read Objection'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Timer — always dominant */}
+      <div style={{textAlign:'center',marginBottom:teamView?60:20}}>
+        <div style={{fontFamily:fH,fontSize:teamView?130:72,fontWeight:900,color:col,
           lineHeight:1,letterSpacing:-2}}>
           {Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,'0')}
         </div>
-        <div style={{fontFamily:fH,fontSize:teamView?18:11,fontWeight:700,letterSpacing:2,
-          textTransform:'uppercase',color:C.gray,marginTop:4}}>minutes remaining</div>
+        {teamView && (
+          <div style={{fontFamily:fH,fontSize:16,fontWeight:700,letterSpacing:3,
+            textTransform:'uppercase',color:'rgba(255,255,255,0.3)',marginTop:8}}>
+            tap screen for controls
+          </div>
+        )}
+        {!teamView && (
+          <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,
+            textTransform:'uppercase',color:C.gray,marginTop:4}}>minutes remaining</div>
+        )}
       </div>
 
-      {/* Controls — hidden in team view */}
+      {/* Manager controls — hidden in team view (tap to show) */}
       {!teamView && (
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,width:'100%',maxWidth:360}}>
           <button onClick={()=>{if(running){clearInterval(intRef.current);setRunning(false)}
@@ -4287,18 +4388,27 @@ function LeaderGrid(){
           <div style={{fontSize:11,color:C.gray,marginBottom:12}}>{coachQ.styleGuide}</div>
 
           {/* Dept filter toggle */}
-          <div style={{display:'flex',gap:6,marginBottom:12}}>
-            {[['both','Both'],['sales','Sales'],['service','Service']].map(([val,lbl])=>(
-              <button key={val} onClick={()=>setCoachDept(val)} style={{
-                flex:1,
-                background:coachDept===val?'rgba(26,107,255,0.15)':'rgba(255,255,255,0.04)',
-                border:`1px solid ${coachDept===val?'rgba(26,107,255,0.4)':'rgba(255,255,255,0.08)'}`,
-                color:coachDept===val?C.blueBright:C.gray,
-                fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
-                padding:'7px 0',borderRadius:8,cursor:'pointer',minHeight:36,
-              }}>{lbl}</button>
-            ))}
-          </div>
+          {(()=>{
+            const pool = SCRIPTS.filter(s=>new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus']).has(s.category))
+            const counts = {both:pool.length, sales:pool.filter(s=>s.dept==='sales').length, service:pool.filter(s=>s.dept==='service').length}
+            return (
+              <div style={{display:'flex',gap:6,marginBottom:12}}>
+                {[['both','Both'],['sales','Sales'],['service','Service']].map(([val,lbl])=>(
+                  <button key={val} onClick={()=>setCoachDept(val)} style={{
+                    flex:1,
+                    background:coachDept===val?'rgba(26,107,255,0.15)':'rgba(255,255,255,0.04)',
+                    border:`1px solid ${coachDept===val?'rgba(26,107,255,0.4)':'rgba(255,255,255,0.08)'}`,
+                    color:coachDept===val?C.blueBright:C.gray,
+                    fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+                    padding:'7px 0',borderRadius:8,cursor:'pointer',minHeight:44,
+                  }}>
+                    <div>{lbl}</div>
+                    <div style={{fontSize:9,opacity:0.7,marginTop:2}}>{counts[val]} scripts</div>
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
           {/* Coaching script cards pulled from SCRIPTS data by category */}
           {(() => {
             const COACHING_CATS_ALL = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
