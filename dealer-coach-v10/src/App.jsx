@@ -1858,7 +1858,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
           // Item 8: silence detection — if no speech after 12 seconds, persona reacts
           if(silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
           silenceTimerRef.current = setTimeout(() => {
-            if(recordingRef.current && accumulatedRef.current.trim().length < 3) {
+            const hasSpoken = accumulatedRef.current.trim().length > 3
+            if(recordingRef.current && !hasSpoken) {
               // Rep went silent — persona reacts
               const sPersona = PERSONAS.find(p => p.id === activePersId)
               const silenceReactions = [
@@ -1879,10 +1880,10 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
               speak(reaction, () => {
                 setSpeaking(false)
                 setLiveStatus('Your turn  -  speak your response')
-                setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 600)
+                setTimeout(() => { setLiveRecording(true); startRecWithCountdown() }, 1200)
               }, pVoice)
             }
-          }, 12000)
+          }, 25000)
         }, 100)
       }
     }, 1000)
@@ -1991,7 +1992,7 @@ One coaching whisper:`}],
     // ── LIVE DRILL MODE ──────────────────────────────────────
     if(livePhase === 'live' && activeS) {
       const repText = transcript.trim()
-      if (!repText) { setLiveRecording(true); startRec(); return }
+      if (!repText) { setLiveRecording(true); if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null} startRec(); return }
 
       stopRec()
       setTranscript('')
@@ -2008,7 +2009,7 @@ One coaching whisper:`}],
       setExchangeCount(newExCount)
       getSilentCoach(repText, newExCount - 1, activeS)
 
-      if (newExCount >= 5) {
+      if (newExCount >= 6) {
         setTimeout(() => endLiveDrill(activeS, liveTranscriptRef.current), 800)
         return
       }
