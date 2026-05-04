@@ -1866,6 +1866,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     if(!supported){setError('Use Chrome or Edge for voice. Type below.');return}
     stopSpeaking(); setSpeaking(false)
     accumulatedRef.current = ''   // reset accumulator for fresh recording
+    setInterimTranscript('')
     setTimeout(()=>{
       const SR = window.SpeechRecognition||window.webkitSpeechRecognition
       const rec = new SR()
@@ -1963,11 +1964,12 @@ One coaching whisper:`}],
 
     // ── LIVE DRILL MODE ──────────────────────────────────────
     if(livePhase === 'live' && activeS) {
-      const repText = transcript.trim()
-      if (!repText) { setLiveRecording(true); if(silenceTimerRef.current){clearTimeout(silenceTimerRef.current);silenceTimerRef.current=null} startRec(); return }
+      const repText = (transcript || interimTranscript).trim()
+      if (!repText) { return }  // nothing spoken yet, do nothing
 
       stopRec()
       setTranscript('')
+      setInterimTranscript('')
       accumulatedRef.current = ''
       setLiveRecording(false)
       // Clear silence timer during AI generation — prevents crossover
