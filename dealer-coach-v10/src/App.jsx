@@ -3383,6 +3383,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const[teamView,setTeamView]     = useState(false)
   const[showControls,setShowControls] = useState(true)
   const controlTimerRef = useRef(null)
+  const scriptPlayingRef = useRef(false)
   const[scriptPlaying,setScriptPlaying] = useState(false)
   const[scriptPaused,setScriptPaused] = useState(false)
   const[autoPlayObj,setAutoPlayObj] = useState(true)
@@ -3424,34 +3425,43 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 
   const readFullScript = () => {
     if(!selScript) return
-    if(scriptPlaying) {
+    if(scriptPlayingRef.current) {
       stopSpeaking()
+      scriptPlayingRef.current = false
       setScriptPlaying(false)
-      setScriptPaused(false)
       return
     }
-    const voiceOpts = selScript.dept === 'service'
-      ? {voiceId:'Myb1gsDenT3mlMlj7vib', stability:0.55, similarity_boost:0.80, style:0.2}
-      : {voiceId:'vSjOBQp24DUB2COr2xI9', stability:0.30, similarity_boost:0.88, style:0.35}
+    scriptPlayingRef.current = true
     setScriptPlaying(true)
-    setScriptPaused(false)
-    // Read objection first
-    const obj = (selScript.objection || '').replace(/["']/g, '')
-    const script = (selScript.script || '').replace(/["']/g, '')
-    const followup = (selScript.followup || '').replace(/["']/g, '')
-    // Chain: objection -> pause -> word track -> pause -> followup
-    speak(obj + '  ', () => {
-      if(!scriptPlaying) return
+
+    const dept = selScript.dept || "sales"
+
+    // Customer voice reads the objection
+    const customerVoice = {voiceId:"Myb1gsDenT3mlMlj7vib", stability:0.65, similarity_boost:0.75, style:0.1}
+
+    // Rep voice reads the word track and follow-up
+    const repVoice = dept === "service"
+      ? {voiceId:"vSjOBQp24DUB2COr2xI9", stability:0.50, similarity_boost:0.85, style:0.3}
+      : {voiceId:"vSjOBQp24DUB2COr2xI9", stability:0.35, similarity_boost:0.88, style:0.4}
+
+    const obj = (selScript.objection || "").replace(/["]/g, "")
+    const wordTrack = (selScript.script || "").replace(/["]/g, "")
+    const followup = (selScript.followup || "").replace(/["]/g, "")
+
+    speak(obj + "  ", () => {
+      if(!scriptPlayingRef.current) return
       setTimeout(() => {
-        speak(script + '  ', () => {
-          if(!scriptPlaying) return
-          if(!followup) { setScriptPlaying(false); return }
+        if(!scriptPlayingRef.current) return
+        speak(wordTrack + "  ", () => {
+          if(!scriptPlayingRef.current) return
+          if(!followup) { scriptPlayingRef.current = false; setScriptPlaying(false); return }
           setTimeout(() => {
-            speak(followup, () => setScriptPlaying(false), voiceOpts)
-          }, 800)
-        }, voiceOpts)
-      }, 800)
-    }, voiceOpts)
+            if(!scriptPlayingRef.current) return
+            speak(followup, () => { scriptPlayingRef.current = false; setScriptPlaying(false) }, repVoice)
+          }, 700)
+        }, repVoice)
+      }, 900)
+    }, customerVoice)
   }
 
   const tapTeamView = () => {
