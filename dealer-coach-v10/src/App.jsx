@@ -812,15 +812,37 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
   const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
   const isSvcMgr = role === 'svc_mgr'
 
-  // Team momentum — % of reps who drilled this week
-  const teamMomentum = (() => {
-    try {
-      const weekAgo = Date.now() - 7*24*60*60*1000
-      const recentDrills = results.filter(r => (r.type==='voice'||r.type==='voice_drill') && new Date(r.date).getTime() > weekAgo)
-      const uniqueReps = new Set(recentDrills.map(r=>r.rep||dealer?.repName)).size
-      return {drills: recentDrills.length, reps: uniqueReps}
-    } catch { return {drills:0, reps:0} }
-  })()
+  // Team momentum — fetched from Supabase, filtered by role dept
+  const [teamKPI, setTeamKPI] = useState(null)
+  const isGM = role === "gm"
+  const mgrDept = role === "svc_mgr" ? "service" : role === "sales_mgr" ? "sales" : "both"
+
+  useEffect(() => {
+    if(!dealer?.dealerId) return
+    dealerSync("getDashboard", dealer.dealerId, "").then(res => {
+      if(res && !res.error) {
+        const acts = res.activities || []
+        const reps = [...new Set(acts.map(a => a.repName))].filter(Boolean)
+        const weekAgo = Date.now() - 7*24*60*60*1000
+        // Filter activities by dept for non-GM managers
+        const deptActs = mgrDept === 'both' ? acts : acts.filter(a => a.dept === mgrDept)
+        const deptReps = [...new Set(deptActs.map(a => a.repName))].filter(Boolean)
+        const deptWeekActs = deptActs.filter(a => a.timestamp > weekAgo && (a.type === 'voice_drill' || a.type === 'voice'))
+        setTeamKPI({
+          drills: deptWeekActs.length,
+          reps: deptReps.length,
+          allReps: reps.length,
+          salesDrills: acts.filter(a => a.dept === 'sales').length,
+          svcDrills: acts.filter(a => a.dept === 'service').length,
+        })
+      }
+    })
+  }, [dealer?.dealerId, mgrDept])
+
+  const teamMomentum = {
+    drills: teamKPI?.drills ?? 0,
+    reps: teamKPI?.reps ?? 0,
+  }
 
   const momentumColor = teamMomentum.drills >= 10 ? C.green : teamMomentum.drills >= 5 ? C.yellow : C.red
   const momentumLabel = teamMomentum.drills >= 10 ? 'Strong momentum' : teamMomentum.drills >= 5 ? 'Building momentum' : 'Needs attention'
@@ -879,7 +901,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       }}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
           <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:momentumColor}}>
-            Team Momentum
+            Team Momentum{mgrDept !== 'both' ? ' · ' + (mgrDept === 'sales' ? 'Sales' : 'Service') : ''}
           </div>
           <div style={{...glass,padding:'3px 10px',borderRadius:20,borderColor:`${momentumColor}33`}}>
             <span style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:momentumColor}}>
@@ -889,12 +911,12 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
         </div>
         <div style={{display:'flex',gap:16,alignItems:'baseline'}}>
           <div>
-            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.drills}</div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamKPI ? teamMomentum.drills : <span style={{fontSize:20,color:C.gray}}>—</span>}</div>
             <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Drills this week</div>
           </div>
           <div style={{width:1,height:32,background:'rgba(255,255,255,0.08)'}}/>
           <div>
-            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamMomentum.reps}</div>
+            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamKPI ? teamMomentum.reps : <span style={{fontSize:20,color:C.gray}}>—</span>}</div>
             <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Active reps</div>
           </div>
         </div>
