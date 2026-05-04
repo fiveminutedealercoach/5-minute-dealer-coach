@@ -2257,7 +2257,8 @@ ${diffMod ? '\n' + diffMod : ''}`
       const getFallback = (exNum) => fallbackPool[(exNum - 1) % fallbackPool.length]
 
       const speakReply = (reply) => {
-        const closeEarned = reply.includes('[CLOSE_EARNED]')
+        const repCount = liveTranscriptRef.current.filter(t => t.role === 'rep').length
+        const closeEarned = reply.includes('[CLOSE_EARNED]') && repCount >= 3
         const clean = reply.replace('[CLOSE_EARNED]','').trim()
 
         // ── ITEM 4: EMOTION TAGGING ───────────────────────
@@ -2957,94 +2958,132 @@ RETURN ONLY valid JSON:
   // ── VOICE DRILL SCREEN  -  auto-record, ElevenLabs + Claude ─
   if((livePhase==='connecting'||livePhase==='live'||livePhase==='ended')&&activeS) {
     const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
+    const repCount = liveTranscriptRef.current.filter(t=>t.role==='rep').length
     return(
-      <div style={{padding:'16px 16px 80px'}}>
+      <div style={{position:'fixed',inset:0,zIndex:9000,background:C.navy,
+        display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-        {/* Header status */}
-        <div style={{background:livePhase==='connecting'?'rgba(255,201,71,0.1)':livePhase==='live'?'rgba(255,77,77,0.1)':'rgba(184,255,60,0.08)',border:`1px solid ${livePhase==='connecting'?'rgba(255,201,71,0.3)':livePhase==='live'?'rgba(255,77,77,0.3)':'rgba(184,255,60,0.25)'}`,borderRadius:12,padding:'14px 16px',marginBottom:14}}>
-          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-            <span style={{fontSize:32}}>{persona?.emoji}</span>
+        {/* ── TOP: Status bar (fixed) ── */}
+        <div style={{flexShrink:0,padding:'14px 16px 10px',
+          borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+            <span style={{fontSize:28}}>{persona?.emoji}</span>
             <div style={{flex:1}}>
-              <div style={{fontFamily:fH,fontSize:11,fontWeight:900,textTransform:'uppercase',letterSpacing:2,marginBottom:3,color:livePhase==='connecting'?C.yellow:livePhase==='live'?C.red:C.green}}>
-                {livePhase==='connecting'?'🔄 Connecting to AI customer...':livePhase==='live'?'🔴 Live  -  Just speak naturally':'✅ Session complete'}
-              </div>
-              <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{persona?.name}</div>
-              <div style={{fontSize:11,color:C.gray,marginTop:2}}>{activeS.objection.replace(/"/g,'')}</div>
+              <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white}}>{persona?.name}</div>
+              <div style={{fontSize:11,color:C.gray,marginTop:1}}>Exchange {repCount} of 3+</div>
             </div>
-            {livePhase==='live'&&<div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:C.gray,flexShrink:0}}>{exchangeCount}<span style={{fontSize:11,color:C.gray}}> ex</span></div>}
+            <button onClick={stopLiveDrill}
+              style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',
+                color:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,
+                textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>
+              Cancel
+            </button>
           </div>
-          {livePhase==='live'&&(
-            <div style={{background:liveRecording?'rgba(255,77,77,0.1)':speaking?'rgba(26,107,255,0.1)':'rgba(255,255,255,0.04)',borderRadius:8,padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
-              <div style={{width:liveRecording?12:8,height:liveRecording?12:8,borderRadius:'50%',background:liveRecording?C.red:micWarmup>0?C.yellow:C.blue,flexShrink:0,animation:liveRecording?'recpulse 0.6s infinite':'livepulse 1s infinite',transition:'all 0.2s'}}/>
-              {micWarmup > 0
-                ? <span style={{fontSize:14,fontFamily:fH,fontWeight:900,color:C.yellow,letterSpacing:2}}>GET READY... {micWarmup}</span>
-                : liveRecording
-                  ? <span style={{fontSize:12,color:C.red,fontWeight:700}}>🎙 Recording — speak now</span>
-                  : speaking
-                    ? <span style={{fontSize:12,color:C.lightText}}>{persona?.name} is speaking — listen carefully</span>
-                    : <span style={{fontSize:12,color:C.gray}}>Preparing response...</span>
-              }
+
+          {/* Turn indicator - unmissable */}
+          {livePhase==='connecting' && (
+            <div style={{background:'rgba(255,201,71,0.12)',border:'1px solid rgba(255,201,71,0.3)',
+              borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:900,color:C.yellow,letterSpacing:1}}>🔄 CONNECTING TO AI CUSTOMER...</div>
             </div>
           )}
-          {liveStatus&&<div style={{fontSize:12,color:C.yellow,marginTop:8}}>{liveStatus}</div>}
-          {liveError&&<div style={{background:'rgba(255,77,77,0.1)',border:'1px solid rgba(255,77,77,0.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:C.red,marginTop:8}}>{liveError}<br/><span style={{fontSize:11,color:C.gray}}>Check that OPENAI_API_KEY is set in Cloudflare env vars.</span></div>}
+          {livePhase==='live' && speaking && (
+            <div style={{background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.4)',
+              borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:900,color:C.blueBright,letterSpacing:1}}>🎧 {persona?.name} IS SPEAKING...</div>
+            </div>
+          )}
+          {livePhase==='live' && liveRecording && (
+            <div style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
+              borderRadius:10,padding:'10px 14px',textAlign:'center',
+              animation:'livepulse 1.2s ease-in-out infinite'}}>
+              <div style={{fontFamily:fH,fontSize:15,fontWeight:900,color:'#ff4444',letterSpacing:1}}>
+                🎙 YOUR TURN — SPEAK NOW
+              </div>
+            </div>
+          )}
+          {livePhase==='live' && !speaking && !liveRecording && micWarmup===0 && (
+            <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',
+              borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
+              <div style={{fontFamily:fH,fontSize:13,fontWeight:700,color:C.gray,letterSpacing:1}}>⏳ Processing...</div>
+            </div>
+          )}
+          {micWarmup > 0 && (
+            <div style={{background:'rgba(255,201,71,0.12)',border:'1px solid rgba(255,201,71,0.3)',
+              borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
+              <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:C.yellow}}>{micWarmup}</div>
+              <div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:C.yellow,letterSpacing:2}}>GET READY</div>
+            </div>
+          )}
         </div>
 
-        {/* Live transcript  -  auto-scrolls */}
-        <div id="live-transcript-box" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14,minHeight:200,maxHeight:380,overflowY:'auto'}}>
-          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>Live Conversation</div>
-          {liveTranscript.length===0&&(
-            <div style={{fontSize:12,color:C.gray,fontStyle:'italic',textAlign:'center',padding:'30px 0'}}>
-              {livePhase==='connecting'?'Connecting...':livePhase==='live'?`${persona?.name} is about to speak...`:'No transcript recorded.'}
+        {/* ── MIDDLE: Scrollable transcript ── */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 16px',
+          display:'flex',flexDirection:'column',gap:8}}>
+          {/* Objection reference */}
+          <div style={{background:'rgba(184,255,60,0.05)',border:'1px solid rgba(184,255,60,0.15)',
+            borderRadius:8,padding:'8px 12px',marginBottom:4}}>
+            <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:3}}>Objection to Handle</div>
+            <div style={{fontSize:12,color:C.lightText,fontStyle:'italic'}}>"{ activeS.objection?.replace(/["']/g,'') }"</div>
+          </div>
+          {liveTranscript.length===0 && (
+            <div style={{fontSize:12,color:C.gray,textAlign:'center',padding:'20px 0'}}>
+              {livePhase==='connecting' ? 'Starting session...' : persona?.name+' will speak first...'}
             </div>
           )}
           {liveTranscript.map((t,i)=>(
-            <div key={i} style={{marginBottom:10}}>
-              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:t.role==='rep'?C.green:C.yellow,marginBottom:3}}>
+            <div key={i} style={{display:'flex',flexDirection:'column',
+              alignItems:t.role==='rep'?'flex-end':'flex-start'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',
+                color:t.role==='rep'?C.green:C.yellow,marginBottom:3}}>
                 {t.role==='rep'?'You':persona?.name}
               </div>
-              <div style={{background:t.role==='rep'?'rgba(184,255,60,0.06)':'rgba(255,201,71,0.06)',border:`1px solid ${t.role==='rep'?'rgba(184,255,60,0.15)':'rgba(255,201,71,0.15)'}`,borderRadius:8,padding:'8px 12px',fontSize:13,color:C.white,lineHeight:1.6,fontStyle:'italic'}}>
-                "{t.text}"
+              <div style={{maxWidth:'85%',background:t.role==='rep'?'rgba(184,255,60,0.08)':'rgba(255,201,71,0.08)',
+                border:t.role==='rep'?'1px solid rgba(184,255,60,0.2)':'1px solid rgba(255,201,71,0.2)',
+                borderRadius:t.role==='rep'?'12px 12px 0 12px':'12px 12px 12px 0',
+                padding:'8px 12px',fontSize:13,color:C.white,lineHeight:1.5}}>
+                {t.text}
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Script reference  -  collapsed by default */}
-        <div style={{background:'rgba(184,255,60,0.04)',border:'1px solid rgba(184,255,60,0.15)',borderRadius:8,padding:'10px 14px',marginBottom:14}}>
-          <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>📋 Model Script Reference</div>
-          <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,fontStyle:'italic'}}>{activeS.script}</div>
-        </div>
-
-        {/* ── RECORDING / ACTION AREA ── */}
-        {livePhase==='live'&&(
-          <>
-            {/* Transcript preview of what was captured */}
-            {transcript&&liveRecording&&(
-              <div style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:10,fontSize:13,color:C.lightText,fontStyle:'italic'}}>
-                "{transcript}"
+          {transcript && liveRecording && (
+            <div style={{display:'flex',alignItems:'flex-start',flexDirection:'column'}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,marginBottom:3}}>You (typing...)</div>
+              <div style={{background:'rgba(184,255,60,0.05)',border:'1px dashed rgba(184,255,60,0.3)',
+                borderRadius:'12px 12px 0 12px',padding:'8px 12px',fontSize:13,color:C.gray,fontStyle:'italic'}}>
+                {transcript}
               </div>
-            )}
+            </div>
+          )}
+        </div>
 
-            {/* Send Now button  -  always visible when recording */}
-            {liveRecording&&(
-              <button onClick={()=>{ if(submitRef.current) submitRef.current() }} style={{width:'100%',background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:16,letterSpacing:1,textTransform:'uppercase',padding:16,borderRadius:10,border:'none',cursor:'pointer',marginBottom:10,boxShadow:'0 0 30px rgba(184,255,60,0.3)'}}>
-                Send Now
+        {/* ── BOTTOM: Fixed action bar ── */}
+        {livePhase==='live' && (
+          <div style={{flexShrink:0,padding:'10px 16px 20px',
+            borderTop:'1px solid rgba(255,255,255,0.08)',background:C.navyMid}}>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{ if(submitRef.current) submitRef.current() }}
+                disabled={!liveRecording}
+                style={{flex:1,background:liveRecording?'rgba(255,40,40,0.2)':'rgba(255,255,255,0.04)',
+                  border:liveRecording?'2px solid rgba(255,40,40,0.5)':'1px solid rgba(255,255,255,0.08)',
+                  color:liveRecording?'#ff4444':C.gray,
+                  fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',
+                  padding:'14px',borderRadius:12,cursor:liveRecording?'pointer':'not-allowed',
+                  minHeight:52}}>
+                {liveRecording ? '📤 Send Response' : '⏳ Wait...'}
               </button>
-            )}
-
-            {/* End session */}
-            <button onClick={()=>endLiveDrill(activeS,liveTranscript)} style={{width:'100%',background:'transparent',border:`1px solid rgba(255,77,77,0.25)`,color:'rgba(255,77,77,0.6)',fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:9,borderRadius:8,cursor:'pointer',marginBottom:8}}>
-              End  -  Get Coaching Report
-            </button>
-          </>
+              <button onClick={()=>endLiveDrill(activeS,liveTranscript)}
+                style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',
+                  color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
+                  textTransform:'uppercase',padding:'14px 12px',borderRadius:12,
+                  cursor:'pointer',minHeight:52,whiteSpace:'nowrap'}}>
+                📊 Report
+              </button>
+            </div>
+          </div>
         )}
-        <button onClick={stopLiveDrill} style={{width:'100%',background:'transparent',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:9,borderRadius:8,cursor:'pointer'}}>
-          Cancel  -  Back to Drills
-        </button>
-        {livePhase==='ended'&&<div style={{textAlign:'center',padding:'16px 0',fontSize:13,color:C.green}}>Generating coaching report...</div>}
 
-        <style>{`@keyframes livepulse{0%,100%{opacity:1}50%{opacity:0.3}} @keyframes recpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.7}}`}</style>
+        <style>{'@keyframes livepulse{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes recpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}'}</style>
       </div>
     )
   }
@@ -4284,6 +4323,8 @@ function LeaderGrid(){
   const[acts,setActs]=useState({})
   const[ap,setAp]=useState([{emp:'',priority:'',action:'',when:''},{emp:'',priority:'',action:'',when:''}])
   const[coachDept,setCoachDept]=useState('both')
+
+  // Dept filter always visible at top of grid
   const[quickWin,setQuickWin]=useState('') // 'sales' | 'service' | 'both'
   const[showCoaching,setShowCoaching]=useState(null) // quadrant id for coaching panel
   const[customSit,setCustomSit]=useState('')
@@ -4372,6 +4413,20 @@ function LeaderGrid(){
     <div style={{padding:'0 0 80px'}}>
       <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Leadership Grid</div>
       <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Plot your team. See the leadership style. Get the coaching word track.</div>
+      {/* ── Dept Filter — always visible ── */}
+      <div style={{display:'flex',gap:6,marginBottom:14}}>
+        {[['both','All Depts'],['sales','Sales'],['service','Service']].map(([val,lbl])=>(
+          <button key={val} onClick={()=>setCoachDept(val)} style={{
+            flex:1,
+            background:coachDept===val?'rgba(26,107,255,0.15)':'rgba(255,255,255,0.04)',
+            border:'1px solid '+(coachDept===val?'rgba(26,107,255,0.4)':'rgba(255,255,255,0.08)'),
+            color:coachDept===val?C.blueBright:C.gray,
+            fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+            padding:'8px 0',borderRadius:8,cursor:'pointer',minHeight:40,
+          }}>{lbl}</button>
+        ))}
+      </div>
+
 
       {/* Add team member */}
       <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}>
