@@ -817,26 +817,37 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
   const isGM = role === "gm"
   const mgrDept = role === "svc_mgr" ? "service" : role === "sales_mgr" ? "sales" : "both"
 
-  useEffect(() => {
+  const fetchTeamKPI = () => {
     if(!dealer?.dealerId) return
     dealerSync("getDashboard", dealer.dealerId, "").then(res => {
       if(res && !res.error) {
         const acts = res.activities || []
-        const reps = [...new Set(acts.map(a => a.repName))].filter(Boolean)
         const weekAgo = Date.now() - 7*24*60*60*1000
-        // Filter activities by dept for non-GM managers
+        const toMs = t => typeof t === 'number' ? t : new Date(t).getTime()
         const deptActs = mgrDept === 'both' ? acts : acts.filter(a => a.dept === mgrDept)
-        const deptReps = [...new Set(deptActs.map(a => a.repName))].filter(Boolean)
-        const deptWeekActs = deptActs.filter(a => a.timestamp > weekAgo && (a.type === 'voice_drill' || a.type === 'voice'))
+        // Active reps = unique reps active this week (any activity)
+        const weekActs = deptActs.filter(a => toMs(a.timestamp) > weekAgo)
+        const deptReps = [...new Set(weekActs.map(a => a.repName))].filter(Boolean)
+        // Drills this week = voice drills only
+        const drillActs = weekActs.filter(a => a.type === 'voice_drill' || a.type === 'voice')
+        // Huddles this week
+        const huddleActs = weekActs.filter(a => a.type === 'huddle')
         setTeamKPI({
-          drills: deptWeekActs.length,
+          drills: drillActs.length,
+          huddles: huddleActs.length,
           reps: deptReps.length,
-          allReps: reps.length,
-          salesDrills: acts.filter(a => a.dept === 'sales').length,
-          svcDrills: acts.filter(a => a.dept === 'service').length,
+          salesDrills: acts.filter(a => a.dept === 'sales' && (a.type === 'voice_drill' || a.type === 'voice')).length,
+          svcDrills: acts.filter(a => a.dept === 'service' && (a.type === 'voice_drill' || a.type === 'voice')).length,
         })
       }
     })
+  }
+
+  useEffect(() => {
+    fetchTeamKPI()
+    // Poll every 60 seconds so new rep activity appears without refresh
+    const pollInterval = setInterval(fetchTeamKPI, 60000)
+    return () => clearInterval(pollInterval)
   }, [dealer?.dealerId, mgrDept])
 
   const teamMomentum = {
@@ -909,15 +920,20 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
             </span>
           </div>
         </div>
-        <div style={{display:'flex',gap:16,alignItems:'baseline'}}>
-          <div>
-            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamKPI ? teamMomentum.drills : <span style={{fontSize:20,color:C.gray}}>—</span>}</div>
-            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Drills this week</div>
+        <div style={{display:'flex',gap:12,alignItems:'baseline',marginTop:10}}>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.white,lineHeight:1}}>{teamKPI ? (teamKPI.drills||0) : <span style={{fontSize:18,color:C.gray}}>—</span>}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray,marginTop:3}}>Voice Drills</div>
           </div>
-          <div style={{width:1,height:32,background:'rgba(255,255,255,0.08)'}}/>
-          <div>
-            <div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:C.white,lineHeight:1}}>{teamKPI ? teamMomentum.reps : <span style={{fontSize:20,color:C.gray}}>—</span>}</div>
-            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray}}>Active reps</div>
+          <div style={{width:1,height:28,background:'rgba(255,255,255,0.08)'}}/>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.green,lineHeight:1}}>{teamKPI ? (teamKPI.huddles||0) : <span style={{fontSize:18,color:C.gray}}>—</span>}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray,marginTop:3}}>Huddles</div>
+          </div>
+          <div style={{width:1,height:28,background:'rgba(255,255,255,0.08)'}}/>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontFamily:fH,fontSize:32,fontWeight:900,color:C.blueBright,lineHeight:1}}>{teamKPI ? (teamKPI.reps||0) : <span style={{fontSize:18,color:C.gray}}>—</span>}</div>
+            <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.gray,marginTop:3}}>Active Reps</div>
           </div>
         </div>
       </div>
