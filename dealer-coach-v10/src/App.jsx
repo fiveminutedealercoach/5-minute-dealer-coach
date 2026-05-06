@@ -337,7 +337,7 @@ function ScriptCard({script,mode='full',defaultOpen=false}) {
       <div onClick={()=>setOpen(o=>!o)} style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
         <div style={{flex:1}}>
           <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:2}}>Script Reference</div>
-          <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{script.objection.replace(/"/g,'')}</div>
+          <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{script.objection.split('"').join('')}</div>
         </div>
         <div style={{color:C.green,fontSize:14}}>{open?'▲':'▼'}</div>
       </div>
@@ -1310,7 +1310,7 @@ function ScriptLibrary({dealer}) {
 
               <div style={{flex:1}}>
                 <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag></div>
-                <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.replace(/"/g,'')}</div>
+                <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.split('"').join('')}</div>
               </div>
               <div style={{color:C.gray,fontSize:12}}>{openId===s.id?'▲':'▼'}</div>
             </div>
@@ -2079,7 +2079,7 @@ One coaching whisper:`}],
       const characterBrief = characterBriefRef.current || {
         mood: 'Guarded and ready to push back',
         openingThought: 'I have heard every sales pitch before. This better be different.',
-        specificConcern: activeS.objection.replace(/"/g, ''),
+        specificConcern: activeS.objection.split('"').join(''),
         todayContext: 'You came in with a specific concern and you are not leaving without resolution.',
       }
 
@@ -2205,7 +2205,7 @@ One coaching whisper:`}],
         const repTurns = allRepLines
         const custTurns = allCustLines
         const parts = []
-        parts.push(`${persona.name} opened with: "${custTurns[0]?.substring(0,100) || activeS.objection.replace(/"/g,'')}"`)
+        parts.push(`${persona.name} opened with: "${custTurns[0]?.substring(0,100) || activeS.objection.split('"').join('')}"`)
         if (repTurns.length >= 1) {
           parts.push(`The salesperson responded: "${repTurns[0]?.substring(0,80)}"`)
           const q1 = avgRepScore >= 2 ? 'which was reasonably specific' : 'which was fairly generic'
@@ -2480,7 +2480,7 @@ ${diffMod ? '\n' + diffMod : ''}`
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            system: 'You are a character director. Given a customer persona, generate their internal state for a dealership conversation.\nPersona: ' + persona.name + '. ' + persona.desc.substring(0,150) + '\nConcern: ' + script.objection.replace(/"/g,'') + '\nReturn ONLY valid JSON: {"mood":"[2-4 words]","openingThought":"[1 sentence]","specificConcern":"[1 sentence]","todayContext":"[1 sentence]","voiceNote":"[1 speech pattern]"}',
+            system: 'You are a character director. Given a customer persona, generate their internal state for a dealership conversation.\nPersona: ' + persona.name + '. ' + persona.desc.substring(0,150) + '\nConcern: ' + script.objection.split('"').join('') + '\nReturn ONLY valid JSON: {"mood":"[2-4 words]","openingThought":"[1 sentence]","specificConcern":"[1 sentence]","todayContext":"[1 sentence]","voiceNote":"[1 speech pattern]"}',
             messages: [{ role: 'user', content: 'Generate character brief for ' + persona.name + ':' }],
             max_tokens: 150,
           })
@@ -2493,7 +2493,7 @@ ${diffMod ? '\n' + diffMod : ''}`
         characterBriefRef.current = {
           mood: 'Guarded and ready to push back',
           openingThought: 'I have heard every sales pitch before.',
-          specificConcern: script.objection.replace(/"/g,''),
+          specificConcern: script.objection.split('"').join(''),
           todayContext: 'You came in with a specific concern and are not leaving without resolution.',
           voiceNote: 'Speak naturally in character.',
           lastEmotionTag: 'neutral',
@@ -2685,7 +2685,7 @@ RETURN ONLY valid JSON:
     const persona = PERSONAS.find(p=>p.id===activePersId)
     const gClass = s=>s?.startsWith('A')?'grade-a':s?.startsWith('B')?'grade-b':(s?.startsWith('D')||s==='F')?'grade-d':'grade-c'
     const scoreBar = (val) => val==='-'?' - ':`${val}/4 ${'#'.repeat(Math.max(0,val))}${'░'.repeat(Math.max(0,4-val))}`
-    printPDF(`Coaching Report  -  ${activeS.objection.replace(/"/g,'').substring(0,40)}`,`
+    printPDF(`Coaching Report  -  ${activeS.objection.split('"').join('').substring(0,40)}`,`
       <h1>Voice Drill Coaching Report</h1>
       <div class="sub">${dealer?.repName||'Team Member'} · ${dealer?.dealerName||'Dealership'}</div>
       <div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
@@ -2695,7 +2695,7 @@ RETURN ONLY valid JSON:
         <div class="score-badge ${gClass(feedback.score)}">${feedback.score}</div>
         <div style="font-size:14px;color:#333;margin-bottom:8px;">${feedback.score_detail}</div>
         ${persona?`<div style="font-size:12px;color:#666;margin-bottom:4px;"><strong>Customer:</strong> ${persona.emoji} ${persona.name}  -  ${persona.desc}</div>`:''}
-        <div style="font-size:13px;color:#666;"><strong>Objection:</strong> ${activeS.objection.replace(/"/g,'')}</div>
+        <div style="font-size:13px;color:#666;"><strong>Objection:</strong> ${activeS.objection.split('"').join('')}</div>
       </div>
       <h2>ACRA Mathematical Scores</h2>
       <div class="card" style="font-family:monospace;">
@@ -2753,7 +2753,7 @@ RETURN ONLY valid JSON:
     if(feedback?.score) {
       setTeamDrillScores(prev => [...prev, {name: dealer?.repName || 'Rep', score: feedback.score, time: new Date().toLocaleTimeString()}])
     }
-    onLog({dept:activeS.dept,script:activeS.objection.replace(/"/g,''),result,notes:'Voice drill  -  AI coached',type:'voice'})
+    onLog({dept:activeS.dept,script:activeS.objection.split('"').join(''),result,notes:'Voice drill  -  AI coached',type:'voice'})
     // Don't clear activeS — keep it so Drill Again buttons work
     setPhase('feedback_done')
     stopSpeaking()
@@ -2819,7 +2819,7 @@ RETURN ONLY valid JSON:
             </div>
             <div style={{flex:1}}>
               <div style={{fontFamily:fH,fontSize:13,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:2}}>🎯 Coaching Report</div>
-              <div style={{fontSize:12,color:C.white,fontWeight:600,marginBottom:2}}>{activeS.objection.replace(/"/g,'')}</div>
+              <div style={{fontSize:12,color:C.white,fontWeight:600,marginBottom:2}}>{activeS.objection.split('"').join('')}</div>
               {feedback.score_detail&&<div style={{fontSize:11,color:C.gray}}>{feedback.score_detail}</div>}
               {persona&&<div style={{fontSize:11,color:C.yellow,marginTop:3}}>{persona.emoji} vs {persona.name}  -  {persona.desc}</div>}
               <div style={{display:'flex',gap:8,marginTop:4,flexWrap:'wrap'}}>
@@ -3225,7 +3225,7 @@ RETURN ONLY valid JSON:
             <div key={s.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
               
               <div style={{flex:1}}>
-                <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:3}}>{s.objection.replace(/"/g,'')}</div>
+                <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:3}}>{s.objection.split('"').join('')}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
                   <Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag>
                   <span style={{fontSize:10,color:C.gray}}>{s.category}</span>
@@ -3265,7 +3265,7 @@ RETURN ONLY valid JSON:
       {showAssign&&dealer?.role&&ROLES[dealer.role]?.isManager&&(
         <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:448,background:C.navyMid,border:'1px solid rgba(255,201,71,0.3)',borderRadius:12,padding:16,zIndex:200}}>
           <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:8}}>📋 Assign Drill to Rep</div>
-          <div style={{fontSize:12,color:C.lightText,marginBottom:10,fontStyle:'italic'}}>{showAssign.objection.replace(/"/g,'')}</div>
+          <div style={{fontSize:12,color:C.lightText,marginBottom:10,fontStyle:'italic'}}>{showAssign.objection.split('"').join('')}</div>
           <input placeholder="Rep name..." style={{...{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,color:'#fff',fontFamily:'Barlow,sans-serif',fontSize:14,padding:'8px 12px',outline:'none',width:'100%',boxSizing:'border-box'},marginBottom:8}} id="assign-rep-input"/>
           <div style={{display:'flex',gap:8}}>
             <button onClick={()=>{
@@ -3298,7 +3298,7 @@ RETURN ONLY valid JSON:
                 if(!s) return null
                 return(
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-                    <div style={{flex:1,fontSize:12,color:C.white}}>{a.objection.replace(/"/g,'')}</div>
+                    <div style={{flex:1,fontSize:12,color:C.white}}>{a.objection.split('"').join('')}</div>
                     <button onClick={()=>{
                       const p=getPersonaForScript(s)
                       setActiveS(s); setActivePersId(p.id)
@@ -3350,7 +3350,7 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
     attendedReps.forEach(rep=>{
       dealerSync('logActivity',dealer.dealerId,rep,{
         type:'huddle',
-        script:selScript?.objection.replace(/"/g,'')||'',
+        script:selScript?.objection.split('"').join('')||'',
         result,
         dept:selScript?.dept||'sales',
         attended:true,
@@ -3360,7 +3360,7 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
     reps.filter(r=>!attended[r]).forEach(rep=>{
       dealerSync('logActivity',dealer.dealerId,rep,{
         type:'huddle_absent',
-        script:selScript?.objection.replace(/"/g,'')||'',
+        script:selScript?.objection.split('"').join('')||'',
         dept:selScript?.dept||'sales',
         attended:false,
       })
@@ -3377,7 +3377,7 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
       {/* Script used */}
       <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',marginBottom:14,textAlign:'left'}}>
         <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Script Used</div>
-        <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white}}>{selScript?.objection.replace(/"/g,'')}</div>
+        <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white}}>{selScript?.objection.split('"').join('')}</div>
       </div>
 
       {/* Attendance checklist */}
@@ -3615,7 +3615,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 
   const logResult = result => {
     // KV sync handled by App root logResult
-    onLog({dept:selScript.dept,script:selScript.objection.replace(/"/g,''),result,notes:'Huddle drill',type:'huddle'})
+    onLog({dept:selScript.dept,script:selScript.objection.split('"').join(''),result,notes:'Huddle drill',type:'huddle'})
     setPhase('setup'); setSelScript(null); setTimeLeft(TOTAL_H); setRunning(false)
   }
 
@@ -3812,7 +3812,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
       {selScript&&(
         <div style={{background:'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.3)',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Pre-selected</div>
-          <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,flex:1}}>{selScript.objection.replace(/"/g,'')}</div>
+          <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,flex:1}}>{selScript.objection.split('"').join('')}</div>
           <div style={{color:C.green,fontSize:16}}>✓</div>
         </div>
       )}
@@ -3833,7 +3833,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 
             
             <div style={{flex:1}}>
-              <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:2}}>{s.objection.replace(/"/g,'')}</div>
+              <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:2}}>{s.objection.split('"').join('')}</div>
               <div style={{display:'flex',gap:5,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><span style={{fontSize:10,color:C.gray,alignSelf:'center'}}>{s.category}</span></div>
             </div>
             {selScript?.id===s.id&&<div style={{color:C.green,fontSize:16}}>✓</div>}
@@ -3886,7 +3886,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
 
   const submit = () => {
     if(!dept||!selObj||!result) return
-    onLog({dept,script:selObj.objection.replace(/"/g,''),result,notes:'Live win logged',type:'manual',rep:rep||dealer?.repName})
+    onLog({dept,script:selObj.objection.split('"').join(''),result,notes:'Live win logged',type:'manual',rep:rep||dealer?.repName})
     onClose()
   }
 
@@ -3918,7 +3918,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
               {filteredScripts.map(s=>(
                 <div key={s.id} onClick={()=>setSelObj(s)} style={{background:selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.15)':'rgba(184,255,60,0.1)'):'transparent',border:`1px solid ${selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):'transparent'}`,borderRadius:8,padding:'9px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
                   
-                  <div style={{fontSize:12,color:selObj?.id===s.id?C.white:C.lightText,lineHeight:1.3}}>{s.objection.replace(/"/g,'')}</div>
+                  <div style={{fontSize:12,color:selObj?.id===s.id?C.white:C.lightText,lineHeight:1.3}}>{s.objection.split('"').join('')}</div>
                   {selObj?.id===s.id&&<div style={{marginLeft:'auto',color:C.green,flexShrink:0}}>✓</div>}
                 </div>
               ))}
@@ -4574,43 +4574,37 @@ function LeaderGrid(){
               </div>
             )
           })()}
-          {/* Coaching script cards pulled from SCRIPTS data by category */}
-          {(() => {
-            const COACHING_CATS_ALL = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
-            const quadCats = new Set(coachQ.coachingCats || [])
-            // Filter by quadrant categories, then by dept if set
-            const coachingPool = SCRIPTS.filter(s => COACHING_CATS_ALL.has(s.category))
-            const quadScripts = coachingPool.filter(s => quadCats.has(s.category))
-            const deptFiltered = (quadScripts.length > 0 ? quadScripts : coachingPool)
-              .filter(s => !coachDept || coachDept==='both' || s.dept===coachDept)
-            const displayScripts = deptFiltered.length > 0 ? deptFiltered : (quadScripts.length > 0 ? quadScripts : coachingPool)
-            return displayScripts.slice(0,6).map((s, idx) => {
-              const isReading = readingCard === s.id
-              return (
-                <div key={s.id} style={{
-                  background:'linear-gradient(135deg,rgba(26,107,255,0.06) 0%,rgba(5,13,31,0.95) 100%)',
-                  border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 14px',marginBottom:10
-                }}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
-                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.blueBright}}>{s.category}</div>
-                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept === "sales" ? "SALES" : "SERVICE"}</div>
+          {/* Coaching script cards */}
+          {(()=>{
+            const CATS = new Set(["Mindset & Gross Awareness","Sales Tactics for Higher Gross","Mindset & Customer-Pay Focus"])
+            const qCats = new Set(coachQ.coachingCats || [])
+            const pool = SCRIPTS.filter(s=>CATS.has(s.category))
+            const qScripts = pool.filter(s=>qCats.has(s.category))
+            const dept_pool = (qScripts.length>0 ? qScripts : pool).filter(s=>!coachDept||coachDept==="both"||s.dept===coachDept)
+            const display = dept_pool.length>0 ? dept_pool : (qScripts.length>0 ? qScripts : pool)
+            return display.slice(0,6).map((s,idx)=>{
+              const isReading = readingCard===s.id
+              const objText = (s.objection||"").substring(0,60)
+              const deptLabel = s.dept==="sales" ? "SALES" : "SERVICE"
+              const isReading2 = isReading
+              return(
+                <div key={s.id} style={{background:"linear-gradient(135deg,rgba(26,107,255,0.06) 0%,rgba(5,13,31,0.95) 100%)",border:"1px solid "+C.border,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:C.gray}}>{s.category}</div>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{deptLabel}</div>
                   </div>
-                  <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6,lineHeight:1.2}}>
-                    {(s.objection||"").replace(/"/g,"").substring(0,60)}
-                  </div>
+                  <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6}}>{objText}</div>
                   {s.script && (
-                    <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:'italic'}}>
-                      "{s.script.substring(0,120)}..."
-                    </div>
+                    <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:"italic"}}>{s.script.substring(0,100)}...</div>
                   )}
-                  <button onClick={()=>readCard(s.id, showCoaching)} style={{
-                    background: isReading?'rgba(255,107,107,0.12)':'rgba(184,255,60,0.08)',
-                    border:`1px solid ${isReading?C.red+'66':C.green+'44'}`,
-                    color: isReading?C.red:C.green,
-                    fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
-                    padding:'8px 14px',borderRadius:8,cursor:'pointer',width:'100%',minHeight:36
+                  <button onClick={()=>readCard(s.id,showCoaching)} style={{
+                    background:isReading2?"rgba(255,107,107,0.12)":"rgba(184,255,60,0.08)",
+                    border:"1px solid "+(isReading2?C.red+"66":C.green+"44"),
+                    color:isReading2?C.red:C.green,
+                    fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:"uppercase",
+                    padding:"8px 14px",borderRadius:8,cursor:"pointer",width:"100%",minHeight:36
                   }}>
-                    {isReading?"⏹ Stop":"▶ Hear This Script"}
+                    {isReading2 ? "Stop" : "Hear This Script"}
                   </button>
                 </div>
               )
