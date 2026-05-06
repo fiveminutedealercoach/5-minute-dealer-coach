@@ -872,6 +872,8 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
     {icon:'🎯', label:'Team Coaching', sub:'Commitment & Capability Grid + scripts', tab:'coaching', color:C.yellow},
     {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.blueBright},
+    {icon:'🤖', label:'Ask Coach', sub:'AI word tracks for any situation', tab:'coaching', color:C.blueBright, sub2:'grid'},
+
   ]
 
   return (
@@ -992,7 +994,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       {/* Quick actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:24}}>
         {quickActions.map((a,i)=>(
-          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tab==='coaching'&&onNavSub){onNavSub('grid')}else{onNav(a.tab)} }}
+          <button key={i} className="btn-press card-hover" onClick={()=>{ if(a.tab==='coaching'&&onNavSub){onNavSub(a.sub2||'grid')}else{onNav(a.tab)} }}
             style={{...glass,border:`1px solid ${a.color}22`,padding:'14px 10px',cursor:'pointer',
               textAlign:'center',animation:`slideUp ${0.5+i*0.1}s ease both`
             }}>
@@ -1002,6 +1004,9 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
           </button>
         ))}
       </div>
+
+      {/* Ask Coach */}
+      <AskCoach dept={dept} mode='objection' onDrill={onDrill}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
@@ -1417,25 +1422,49 @@ function PersonaCard({persona, script, onStart, onBack}) {
 // ══════════════════════════════════════════════════════════════
 // CUSTOM OBJECTION GENERATOR — rep types objection, Claude responds
 // ══════════════════════════════════════════════════════════════
-function CustomObjGen({onDrill, dept}) {
+// ASK COACH — AI word track for reps (objections) and managers (situations)
+// ══════════════════════════════════════════════════════════════
+function AskCoach({onDrill, dept, mode}) {
+  // mode: 'objection' (rep) | 'situation' (manager)
   const [open, setOpen] = useState(false)
-  const [objText, setObjText] = useState("")
+  const [activeMode, setActiveMode] = useState(mode || 'objection')
+  const [inputText, setInputText] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [playing, setPlaying] = useState(false)
 
+  const modeConfig = {
+    objection: {
+      label: "Customer Objection",
+      placeholder: "Type the objection you heard... e.g. I need to think about it",
+      system: "You are an expert automotive sales and service coach. Generate a confident, natural word track response to a customer objection. Sound human and conversational. Format: 3 parts separated by | character: ACKNOWLEDGE (1 sentence) | WORD TRACK (2-3 sentences) | FOLLOW-UP (1 closing question). No labels, no bullets.",
+      userPrompt: (text, deptLabel) => "I am a " + deptLabel + ". Customer said: " + text + ". Give me my word track: acknowledge|respond|followup",
+      resultLabel: "Your Word Track",
+      canDrill: true,
+    },
+    situation: {
+      label: "Coaching Situation",
+      placeholder: "Describe what is happening with this rep in one sentence...",
+      system: "You are an expert automotive dealership management coach. Generate the exact words a manager says out loud to a rep. Natural, direct, human. Format: 3 parts separated by | character: OPENING (1 sentence to start the conversation) | COACHING WORDS (2-3 sentences — direct, specific, actionable) | CLOSE (1 sentence commitment or question). No labels, no bullets.",
+      userPrompt: (text, deptLabel) => "I am a " + deptLabel + " manager. Situation: " + text + ". Give me my coaching word track: opening|coaching|close",
+      resultLabel: "Your Coaching Word Track",
+      canDrill: false,
+    }
+  }
+
   const generate = async () => {
-    if(!objText.trim()) return
+    if(!inputText.trim()) return
     setLoading(true)
     setResult(null)
+    const cfg = modeConfig[activeMode]
+    const deptLabel = dept === "service" ? "automotive service" : "automotive sales"
     try {
-      const dLabel = dept==="service" ? "automotive service advisor" : "automotive sales consultant"
       const res = await fetch("/ai-proxy", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-          system: "You are an expert automotive sales and service coach. Generate a confident, natural word track response. Format your response as exactly 3 parts separated by the pipe | character: ACKNOWLEDGE (1 sentence) | WORD TRACK (2-3 sentences) | FOLLOW-UP (1 closing question). No labels, no bullets, just the 3 parts separated by |",
-          messages: [{role:"user", content:"I am a "+dLabel+". Customer said: "+objText.trim()+". Give me my word track in format: acknowledge|respond|followup"}]
+          system: cfg.system,
+          messages: [{role: "user", content: cfg.userPrompt(inputText.trim(), deptLabel)}]
         })
       })
       const data = await res.json()
@@ -1444,16 +1473,16 @@ function CustomObjGen({onDrill, dept}) {
       if(text && text.length > 4) {
         const parts = text.split("|").map(p => p.trim())
         setResult({
-          objection: objText.trim(),
+          objection: inputText.trim(),
           acknowledge: parts[0] || "",
           script: parts[1] || text,
           followup: parts[2] || "",
           dept: dept || "sales",
-          id: "custom-" + Date.now(),
-          category: "Custom Objection",
+          id: "askcoach-" + Date.now(),
+          category: activeMode === "objection" ? "Custom Objection" : "Coaching Situation",
           difficulty: "medium",
-          situation: "Customer raised this objection during the sales process.",
-          mistake: "Caving to the objection without presenting value first.",
+          situation: "Situation from Ask Coach feature.",
+          mistake: "Not having a prepared response ready.",
         })
       } else {
         setResult({error: "No response. Try again."})
@@ -1470,60 +1499,117 @@ function CustomObjGen({onDrill, dept}) {
     setPlaying(true)
     const fullText = [result.acknowledge, result.script, result.followup].filter(Boolean).join(". ")
     const tone = dept === "service"
-      ? {stability:0.55, similarity_boost:0.75, style:0.2}
-      : {stability:0.45, similarity_boost:0.8, style:0.3}
+      ? {stability: 0.55, similarity_boost: 0.75, style: 0.2}
+      : {stability: 0.45, similarity_boost: 0.8, style: 0.3}
     speak(fullText, () => setPlaying(false), tone)
   }
 
+  const cfg = modeConfig[activeMode]
+
   return (
-    <div style={{background:"linear-gradient(135deg,rgba(184,255,60,0.06) 0%,rgba(5,13,31,0.95) 100%)",border:"1px solid rgba(184,255,60,0.15)",borderRadius:14,marginBottom:10}}>
+    <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08) 0%,rgba(5,13,31,0.95) 100%)", border: "1px solid rgba(26,107,255,0.2)", borderRadius: 14, marginBottom: 12}}>
+      {/* Header — always visible, tap to expand */}
       <div onClick={() => setOpen(!open)}
-        style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",cursor:"pointer"}}>
-        <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green}}>🎯 My Objection Isn't Listed</div>
-        <div style={{color:C.gray,fontSize:18,lineHeight:1}}>{open ? "−" : "+"}</div>
+        style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 16px", cursor: "pointer"}}>
+        <div style={{display: "flex", alignItems: "center", gap: 8}}>
+          <span style={{fontSize: 18}}>🤖</span>
+          <div>
+            <div style={{fontFamily: fH, fontSize: 13, fontWeight: 900, textTransform: "uppercase", color: C.blueBright, letterSpacing: 1}}>Ask Coach</div>
+            <div style={{fontSize: 10, color: C.gray, marginTop: 1}}>AI word tracks for any situation</div>
+          </div>
+        </div>
+        <div style={{color: C.gray, fontSize: 18, lineHeight: 1}}>{open ? "−" : "+"}</div>
       </div>
+
       {open && (
-        <div style={{padding:"0 14px 14px"}}>
-          <div style={{fontSize:12,color:C.gray,marginBottom:10,lineHeight:1.5}}>Type any objection you heard — Claude generates your word track and reads it aloud.</div>
-          <textarea value={objText} onChange={e => setObjText(e.target.value)}
-            placeholder="e.g. I need to think about it..."
-            style={{...inp,width:"100%",minHeight:56,resize:"vertical",fontSize:13,marginBottom:10}}/>
-          <button onClick={generate} disabled={loading || !objText.trim()}
-            style={{width:"100%",background:loading?"rgba(255,255,255,0.06)":"linear-gradient(135deg,#b8ff3c,#7ed321)",color:loading?C.gray:C.navy,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:"uppercase",border:"none",borderRadius:10,minHeight:46,cursor:loading?"not-allowed":"pointer",marginBottom:result?10:0}}>
-            {loading ? "Generating..." : "⚡ Generate My Word Track"}
+        <div style={{padding: "0 14px 14px"}}>
+          {/* Mode toggle — only show if not locked to one mode */}
+          {!mode && (
+            <div style={{display: "flex", gap: 6, marginBottom: 12}}>
+              {[["objection", "🎙 Objection"], ["situation", "👔 Coaching"]].map(([val, lbl]) => (
+                <button key={val} onClick={() => { setActiveMode(val); setResult(null); setInputText("") }}
+                  style={{flex: 1,
+                    background: activeMode === val ? "rgba(26,107,255,0.15)" : "rgba(255,255,255,0.04)",
+                    border: "1px solid " + (activeMode === val ? "rgba(26,107,255,0.4)" : "rgba(255,255,255,0.08)"),
+                    color: activeMode === val ? C.blueBright : C.gray,
+                    fontFamily: fH, fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: "uppercase",
+                    padding: "8px 0", borderRadius: 8, cursor: "pointer", minHeight: 38}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Mode label */}
+          <div style={{fontSize: 11, color: C.gray, marginBottom: 8, lineHeight: 1.5}}>
+            {activeMode === "objection"
+              ? "Type an objection you heard — get the exact words to respond."
+              : "Describe a rep situation — get coaching words to use right now."}
+          </div>
+
+          {/* Input */}
+          <textarea value={inputText} onChange={e => setInputText(e.target.value)}
+            placeholder={cfg.placeholder}
+            style={{...inp, width: "100%", minHeight: 56, resize: "vertical", fontSize: 13, marginBottom: 10}}/>
+
+          {/* Generate button */}
+          <button onClick={generate} disabled={loading || !inputText.trim()}
+            style={{width: "100%",
+              background: loading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#1a6bff,#0d4fd4)",
+              color: loading ? C.gray : C.white,
+              fontFamily: fH, fontWeight: 900, fontSize: 14, letterSpacing: 1, textTransform: "uppercase",
+              border: "none", borderRadius: 10, minHeight: 46, cursor: loading ? "not-allowed" : "pointer",
+              marginBottom: result ? 10 : 0}}>
+            {loading ? "Generating..." : "⚡ Ask Coach"}
           </button>
+
+          {/* Result */}
           {result && !result.error && (
-            <div style={{animation:"fadeUp 0.3s ease both"}}>
+            <div style={{animation: "fadeUp 0.3s ease both"}}>
               {result.acknowledge ? (
-                <div style={{marginBottom:8}}>
-                  <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.gray,marginBottom:3}}>Acknowledge</div>
-                  <div style={{fontSize:13,color:C.lightText,lineHeight:1.6,fontStyle:"italic"}}>"{result.acknowledge}"</div>
+                <div style={{marginBottom: 8}}>
+                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.gray, marginBottom: 3}}>
+                    {activeMode === "objection" ? "Acknowledge" : "Opening"}
+                  </div>
+                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.acknowledge}"</div>
                 </div>
               ) : null}
-              <div style={{background:"linear-gradient(135deg,rgba(184,255,60,0.06),rgba(184,255,60,0.02))",border:"1px solid rgba(184,255,60,0.2)",borderLeft:"4px solid #b8ff3c",borderRadius:"0 10px 10px 0",padding:"12px 14px",marginBottom:8}}>
-                <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:4}}>Word Track</div>
-                <div style={{fontSize:13,color:C.white,lineHeight:1.7,fontStyle:"italic"}}>"{result.script}"</div>
+              <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08),rgba(26,107,255,0.02))", border: "1px solid rgba(26,107,255,0.25)", borderLeft: "4px solid #1a6bff", borderRadius: "0 10px 10px 0", padding: "12px 14px", marginBottom: 8}}>
+                <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.blueBright, marginBottom: 4}}>
+                  {cfg.resultLabel}
+                </div>
+                <div style={{fontSize: 13, color: C.white, lineHeight: 1.7, fontStyle: "italic"}}>"{result.script}"</div>
               </div>
               {result.followup ? (
-                <div style={{background:"rgba(255,201,71,0.06)",border:"1px solid rgba(255,201,71,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:10}}>
-                  <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.yellow,marginBottom:3}}>Follow-Up</div>
-                  <div style={{fontSize:13,color:"#ffe08a",lineHeight:1.6,fontStyle:"italic"}}>"{result.followup}"</div>
+                <div style={{background: "rgba(184,255,60,0.06)", border: "1px solid rgba(184,255,60,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10}}>
+                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.green, marginBottom: 3}}>
+                    {activeMode === "objection" ? "Follow-Up" : "Close"}
+                  </div>
+                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.followup}"</div>
                 </div>
               ) : null}
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display: "flex", gap: 8}}>
                 <button onClick={readAloud}
-                  style={{flex:1,background:playing?"rgba(255,107,107,0.12)":"rgba(26,107,255,0.12)",border:"1px solid "+(playing?"rgba(255,107,107,0.3)":"rgba(26,107,255,0.3)"),color:playing?C.red:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:"uppercase",padding:"10px",borderRadius:10,cursor:"pointer",minHeight:44}}>
+                  style={{flex: 1, background: playing ? "rgba(255,107,107,0.12)" : "rgba(26,107,255,0.12)",
+                    border: "1px solid " + (playing ? "rgba(255,107,107,0.3)" : "rgba(26,107,255,0.3)"),
+                    color: playing ? C.red : C.blueBright,
+                    fontFamily: fH, fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
+                    padding: "10px", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
                   {playing ? "⏹ Stop" : "🔊 Hear It"}
                 </button>
-                <button onClick={() => { if(onDrill) onDrill(result) }}
-                  style={{flex:1,background:"linear-gradient(135deg,#b8ff3c,#7ed321)",color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:"uppercase",border:"none",borderRadius:10,cursor:"pointer",minHeight:44}}>
-                  ▶ Drill This
-                </button>
+                {cfg.canDrill && (
+                  <button onClick={() => { if(onDrill) onDrill(result) }}
+                    style={{flex: 1, background: "linear-gradient(135deg,#b8ff3c,#7ed321)", color: C.navy,
+                      fontFamily: fH, fontWeight: 900, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
+                      border: "none", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
+                    ▶ Drill This
+                  </button>
+                )}
               </div>
             </div>
           )}
           {result && result.error ? (
-            <div style={{fontSize:12,color:C.red,marginTop:8,padding:"8px 12px",background:"rgba(255,107,107,0.08)",borderRadius:8}}>{result.error}</div>
+            <div style={{fontSize: 12, color: C.red, marginTop: 8, padding: "8px 12px", background: "rgba(255,107,107,0.08)", borderRadius: 8}}>{result.error}</div>
           ) : null}
         </div>
       )}
@@ -3131,7 +3217,7 @@ RETURN ONLY valid JSON:
 
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
-      <CustomObjGen onDrill={(script)=>launch(script)} dept={filterDept}/>
+      <AskCoach onDrill={(script)=>launch(script)} dept={filterDept} mode="objection"/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map(s=>{
           const matchPersona = getPersonaForScript(s)
@@ -4421,7 +4507,7 @@ function LeaderGrid(){
       {team.length > 0 && (
         <div style={{marginBottom:14}}>
           {QUADS.map(quad=>{
-            const members = team.filter(m=>m.quad===quad.id)
+            const members = team.filter(m=>m.quad===quad.id && (coachDept==='both' || !m.dept || m.dept===coachDept))
             if(!members.length) return null
             return(
               <div key={quad.id} style={{background:quad.bg,border:`1px solid ${quad.bdr}`,borderRadius:10,padding:'10px 14px',marginBottom:8}}>
@@ -4446,6 +4532,8 @@ function LeaderGrid(){
                 {members.map((m,i)=>(
                   <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderTop:`1px solid ${quad.bdr}`}}>
                     <span style={{fontSize:13,color:C.white,fontWeight:600}}>{m.name}</span>
+                      {m.dept && <span style={{fontSize:8,color:C.gray,marginLeft:6,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase'}}>{m.dept}</span>}
+
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
                       <span style={{fontSize:10,color:C.gray}}>{m.date}</span>
                       <button onClick={()=>removeM(team.indexOf(m))} style={{background:'none',border:'none',color:C.red,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>×</button>
@@ -4529,29 +4617,10 @@ function LeaderGrid(){
             })
           })()}
 
-          {/* Free text custom situation */}
-          <div style={{background:'rgba(255,201,71,0.05)',border:'1px solid rgba(255,201,71,0.2)',borderRadius:8,padding:'12px',marginTop:8}}>
-            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.yellow,marginBottom:6}}>My situation is not listed</div>
-            <textarea
-              style={{...inp,minHeight:48,resize:'vertical',marginBottom:8,fontSize:12}}
-              placeholder="Describe what is happening with this rep in one sentence..."
-              value={customSit}
-              onChange={e=>setCustomSit(e.target.value)}
-            />
-            <button onClick={()=>{ const sit=customSit.trim(); if(sit) generateWordTrack(sit, showCoaching||'guide') }} style={{
-              width:'100%',background:'rgba(255,201,71,0.15)',border:'1px solid rgba(255,201,71,0.3)',
-              color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
-              textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'
-            }}>
-              {genLoading?'Generating...':'Generate Coaching Word Track'}
-            </button>
+          {/* Ask Coach — manager coaching situations */}
 
-            {/* Generated word track */}
-            {generatedTrack && (
-              <div style={{marginTop:10,background:'rgba(255,255,255,0.04)',border:`1px solid ${coachQ.color}33`,borderRadius:8,padding:'12px'}}>
-                <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:6}}>
-                  {autoPlaying?'🔊 Reading aloud...':'Generated Word Track'}
-                </div>
+          <AskCoach dept={dept} mode='situation'/>
+
                 <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   <button onClick={()=>{
