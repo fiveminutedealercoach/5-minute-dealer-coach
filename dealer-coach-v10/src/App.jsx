@@ -4636,11 +4636,9 @@ function LeaderGrid(){
                     ✏️ Adjust This
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
           )}
+        </div>
       )}
 
       {/* Ask Coach — manager coaching situations */}
