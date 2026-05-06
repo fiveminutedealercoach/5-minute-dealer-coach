@@ -1006,7 +1006,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       </div>
 
       {/* Ask Coach */}
-      <AskCoach dept={dept} mode='objection' onDrill={onDrill}/>
+      <AskCoach dept={dept} mode={"objection"} onDrill={onDrill}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
@@ -4596,7 +4596,7 @@ function LeaderGrid(){
                     <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept === 'sales' ? 'SALES' : 'SERVICE'}</div>
                   </div>
                   <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6,lineHeight:1.2}}>
-                    {s.objection?.replace(/['"]/g,'').substring(0,60)}
+                    {(s.objection||"").replace(/"/g,"").substring(0,60)}
                   </div>
                   {s.script && (
                     <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:'italic'}}>
@@ -4619,7 +4619,7 @@ function LeaderGrid(){
 
           {/* Ask Coach — manager coaching situations */}
 
-          <AskCoach dept={dept} mode='situation'/>
+          <AskCoach dept={dept} mode={"situation"}/>
 
                 <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
