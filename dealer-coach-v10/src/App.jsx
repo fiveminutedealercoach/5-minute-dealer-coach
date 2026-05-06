@@ -4617,6 +4617,8 @@ function LeaderGrid(){
             })
           })()}
 
+          {generatedTrack && (
+            <div>
                 <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   <button onClick={()=>{
@@ -4641,9 +4643,11 @@ function LeaderGrid(){
                   </button>
                 </div>
               </div>
+            </div>
             )}
           </div>
         </div>
+          )}
       )}
 
       {/* Ask Coach — manager coaching situations */}
