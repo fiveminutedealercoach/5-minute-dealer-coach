@@ -1420,208 +1420,405 @@ function PersonaCard({persona, script, onStart, onBack}) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// CUSTOM OBJECTION GENERATOR — rep types objection, Claude responds
-// ══════════════════════════════════════════════════════════════
-// ASK COACH — AI word track for reps (objections) and managers (situations)
-// ══════════════════════════════════════════════════════════════
-function AskCoach({onDrill, dept, mode}) {
-  // mode: 'objection' (rep) | 'situation' (manager)
-  const [open, setOpen] = useState(false)
-  const [activeMode, setActiveMode] = useState(mode || 'objection')
-  const [inputText, setInputText] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
-  const [playing, setPlaying] = useState(false)
-
-  const modeConfig = {
-    objection: {
-      label: "Customer Objection",
-      placeholder: "Type the objection you heard... e.g. I need to think about it",
-      system: "You are an expert automotive sales and service coach. Generate a confident, natural word track response to a customer objection. Sound human and conversational. Format: 3 parts separated by | character: ACKNOWLEDGE (1 sentence) | WORD TRACK (2-3 sentences) | FOLLOW-UP (1 closing question). No labels, no bullets.",
-      userPrompt: (text, deptLabel) => "I am a " + deptLabel + ". Customer said: " + text + ". Give me my word track: acknowledge|respond|followup",
-      resultLabel: "Your Word Track",
-      canDrill: true,
-    },
-    situation: {
-      label: "Coaching Situation",
-      placeholder: "Describe what is happening with this rep in one sentence...",
-      system: "You are an expert automotive dealership management coach. Generate the exact words a manager says out loud to a rep. Natural, direct, human. Format: 3 parts separated by | character: OPENING (1 sentence to start the conversation) | COACHING WORDS (2-3 sentences — direct, specific, actionable) | CLOSE (1 sentence commitment or question). No labels, no bullets.",
-      userPrompt: (text, deptLabel) => "I am a " + deptLabel + " manager. Situation: " + text + ". Give me my coaching word track: opening|coaching|close",
-      resultLabel: "Your Coaching Word Track",
-      canDrill: false,
-    }
-  }
-
-  const generate = async () => {
-    if(!inputText.trim()) return
-    setLoading(true)
-    setResult(null)
-    const cfg = modeConfig[activeMode]
-    const deptLabel = dept === "service" ? "automotive service" : "automotive sales"
-    try {
-      const res = await fetch("/ai-proxy", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          system: cfg.system,
-          messages: [{role: "user", content: cfg.userPrompt(inputText.trim(), deptLabel)}]
-        })
-      })
-      const data = await res.json()
-      if(data && data.error) { setResult({error: data.error}); setLoading(false); return }
-      const text = data && data.content && data.content[0] ? data.content[0].text : ""
-      if(text && text.length > 4) {
-        const parts = text.split("|").map(p => p.trim())
-        setResult({
-          objection: inputText.trim(),
-          acknowledge: parts[0] || "",
-          script: parts[1] || text,
-          followup: parts[2] || "",
-          dept: dept || "sales",
-          id: "askcoach-" + Date.now(),
-          category: activeMode === "objection" ? "Custom Objection" : "Coaching Situation",
-          difficulty: "medium",
-          situation: "Situation from Ask Coach feature.",
-          mistake: "Not having a prepared response ready.",
-        })
-      } else {
-        setResult({error: "No response. Try again."})
-      }
-    } catch(e) {
-      setResult({error: e.message})
-    }
-    setLoading(false)
-  }
-
-  const readAloud = () => {
-    if(playing) { stopSpeaking(); setPlaying(false); return }
-    if(!result || result.error) return
-    setPlaying(true)
-    const fullText = [result.acknowledge, result.script, result.followup].filter(Boolean).join(". ")
-    const tone = dept === "service"
-      ? {stability: 0.55, similarity_boost: 0.75, style: 0.2}
-      : {stability: 0.45, similarity_boost: 0.8, style: 0.3}
-    speak(fullText, () => setPlaying(false), tone)
-  }
-
-  const cfg = modeConfig[activeMode]
-
-  return (
-    <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08) 0%,rgba(5,13,31,0.95) 100%)", border: "1px solid rgba(26,107,255,0.2)", borderRadius: 14, marginBottom: 12}}>
-      {/* Header — always visible, tap to expand */}
-      <div onClick={() => setOpen(!open)}
-        style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 16px", cursor: "pointer"}}>
-        <div style={{display: "flex", alignItems: "center", gap: 8}}>
-          <span style={{fontSize: 18}}>🤖</span>
-          <div>
-            <div style={{fontFamily: fH, fontSize: 13, fontWeight: 900, textTransform: "uppercase", color: C.blueBright, letterSpacing: 1}}>Ask Coach</div>
-            <div style={{fontSize: 10, color: C.gray, marginTop: 1}}>AI word tracks for any situation</div>
-          </div>
-        </div>
-        <div style={{color: C.gray, fontSize: 18, lineHeight: 1}}>{open ? "−" : "+"}</div>
-      </div>
-
-      {open && (
-        <div style={{padding: "0 14px 14px"}}>
-          {/* Mode toggle — only show if not locked to one mode */}
-          {!mode && (
-            <div style={{display: "flex", gap: 6, marginBottom: 12}}>
-              {[["objection", "🎙 Objection"], ["situation", "👔 Coaching"]].map(([val, lbl]) => (
-                <button key={val} onClick={() => { setActiveMode(val); setResult(null); setInputText("") }}
-                  style={{flex: 1,
-                    background: activeMode === val ? "rgba(26,107,255,0.15)" : "rgba(255,255,255,0.04)",
-                    border: "1px solid " + (activeMode === val ? "rgba(26,107,255,0.4)" : "rgba(255,255,255,0.08)"),
-                    color: activeMode === val ? C.blueBright : C.gray,
-                    fontFamily: fH, fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: "uppercase",
-                    padding: "8px 0", borderRadius: 8, cursor: "pointer", minHeight: 38}}>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Mode label */}
-          <div style={{fontSize: 11, color: C.gray, marginBottom: 8, lineHeight: 1.5}}>
-            {activeMode === "objection"
-              ? "Type an objection you heard — get the exact words to respond."
-              : "Describe a rep situation — get coaching words to use right now."}
-          </div>
-
-          {/* Input */}
-          <textarea value={inputText} onChange={e => setInputText(e.target.value)}
-            placeholder={cfg.placeholder}
-            style={{...inp, width: "100%", minHeight: 56, resize: "vertical", fontSize: 13, marginBottom: 10}}/>
-
-          {/* Generate button */}
-          <button onClick={generate} disabled={loading || !inputText.trim()}
-            style={{width: "100%",
-              background: loading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#1a6bff,#0d4fd4)",
-              color: loading ? C.gray : C.white,
-              fontFamily: fH, fontWeight: 900, fontSize: 14, letterSpacing: 1, textTransform: "uppercase",
-              border: "none", borderRadius: 10, minHeight: 46, cursor: loading ? "not-allowed" : "pointer",
-              marginBottom: result ? 10 : 0}}>
-            {loading ? "Generating..." : "⚡ Ask Coach"}
-          </button>
-
-          {/* Result */}
-          {result && !result.error && (
-            <div style={{animation: "fadeUp 0.3s ease both"}}>
-              {result.acknowledge ? (
-                <div style={{marginBottom: 8}}>
-                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.gray, marginBottom: 3}}>
-                    {activeMode === "objection" ? "Acknowledge" : "Opening"}
-                  </div>
-                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.acknowledge}"</div>
-                </div>
-              ) : null}
-              <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08),rgba(26,107,255,0.02))", border: "1px solid rgba(26,107,255,0.25)", borderLeft: "4px solid #1a6bff", borderRadius: "0 10px 10px 0", padding: "12px 14px", marginBottom: 8}}>
-                <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.blueBright, marginBottom: 4}}>
-                  {cfg.resultLabel}
-                </div>
-                <div style={{fontSize: 13, color: C.white, lineHeight: 1.7, fontStyle: "italic"}}>"{result.script}"</div>
-              </div>
-              {result.followup ? (
-                <div style={{background: "rgba(184,255,60,0.06)", border: "1px solid rgba(184,255,60,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10}}>
-                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.green, marginBottom: 3}}>
-                    {activeMode === "objection" ? "Follow-Up" : "Close"}
-                  </div>
-                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.followup}"</div>
-                </div>
-              ) : null}
-              <div style={{display: "flex", gap: 8}}>
-                <button onClick={readAloud}
-                  style={{flex: 1, background: playing ? "rgba(255,107,107,0.12)" : "rgba(26,107,255,0.12)",
-                    border: "1px solid " + (playing ? "rgba(255,107,107,0.3)" : "rgba(26,107,255,0.3)"),
-                    color: playing ? C.red : C.blueBright,
-                    fontFamily: fH, fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
-                    padding: "10px", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
-                  {playing ? "⏹ Stop" : "🔊 Hear It"}
-                </button>
-                {cfg.canDrill && (
-                  <button onClick={() => { if(onDrill) onDrill(result) }}
-                    style={{flex: 1, background: "linear-gradient(135deg,#b8ff3c,#7ed321)", color: C.navy,
-                      fontFamily: fH, fontWeight: 900, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
-                      border: "none", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
-                    ▶ Drill This
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          {result && result.error ? (
-            <div style={{fontSize: 12, color: C.red, marginTop: 8, padding: "8px 12px", background: "rgba(255,107,107,0.08)", borderRadius: 8}}>{result.error}</div>
-          ) : null}
-        </div>
-      )}
-    </div>
-  )
-}
-
 
 // ══════════════════════════════════════════════════════════════
 // VOICE DRILL  -  Rebuilt AI coaching with strict ACRA grading
 // Grading calibrated to script library. D/F grades for bad responses.
 // ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+
+// ASK COACH — AI word tracks for reps (objections) and managers (situations)
+
+// ══════════════════════════════════════════════════════════════
+
+function AskCoach({onDrill, dept, mode}) {
+
+  // mode: 'objection' (rep) | 'situation' (manager)
+
+  const [open, setOpen] = useState(false)
+
+  const [activeMode, setActiveMode] = useState(mode || 'objection')
+
+  const [inputText, setInputText] = useState("")
+
+  const [loading, setLoading] = useState(false)
+
+  const [result, setResult] = useState(null)
+
+  const [playing, setPlaying] = useState(false)
+
+
+
+  const modeConfig = {
+
+    objection: {
+
+      label: "Customer Objection",
+
+      placeholder: "Type the objection you heard... e.g. I need to think about it",
+
+      system: "You are an expert automotive sales and service coach. Generate a confident, natural word track response to a customer objection. Sound human and conversational. Format: 3 parts separated by | character: ACKNOWLEDGE (1 sentence) | WORD TRACK (2-3 sentences) | FOLLOW-UP (1 closing question). No labels, no bullets.",
+
+      userPrompt: (text, deptLabel) => "I am a " + deptLabel + ". Customer said: " + text + ". Give me my word track: acknowledge|respond|followup",
+
+      resultLabel: "Your Word Track",
+
+      canDrill: true,
+
+    },
+
+    situation: {
+
+      label: "Coaching Situation",
+
+      placeholder: "Describe what is happening with this rep in one sentence...",
+
+      system: "You are an expert automotive dealership management coach. Generate the exact words a manager says out loud to a rep. Natural, direct, human. Format: 3 parts separated by | character: OPENING (1 sentence to start the conversation) | COACHING WORDS (2-3 sentences — direct, specific, actionable) | CLOSE (1 sentence commitment or question). No labels, no bullets.",
+
+      userPrompt: (text, deptLabel) => "I am a " + deptLabel + " manager. Situation: " + text + ". Give me my coaching word track: opening|coaching|close",
+
+      resultLabel: "Your Coaching Word Track",
+
+      canDrill: false,
+
+    }
+
+  }
+
+
+
+  const generate = async () => {
+
+    if(!inputText.trim()) return
+
+    setLoading(true)
+
+    setResult(null)
+
+    const cfg = modeConfig[activeMode]
+
+    const deptLabel = dept === "service" ? "automotive service" : "automotive sales"
+
+    try {
+
+      const res = await fetch("/ai-proxy", {
+
+        method: "POST",
+
+        headers: {"Content-Type": "application/json"},
+
+        body: JSON.stringify({
+
+          system: cfg.system,
+
+          messages: [{role: "user", content: cfg.userPrompt(inputText.trim(), deptLabel)}]
+
+        })
+
+      })
+
+      const data = await res.json()
+
+      if(data && data.error) { setResult({error: data.error}); setLoading(false); return }
+
+      const text = data && data.content && data.content[0] ? data.content[0].text : ""
+
+      if(text && text.length > 4) {
+
+        const parts = text.split("|").map(p => p.trim())
+
+        setResult({
+
+          objection: inputText.trim(),
+
+          acknowledge: parts[0] || "",
+
+          script: parts[1] || text,
+
+          followup: parts[2] || "",
+
+          dept: dept || "sales",
+
+          id: "askcoach-" + Date.now(),
+
+          category: activeMode === "objection" ? "Custom Objection" : "Coaching Situation",
+
+          difficulty: "medium",
+
+          situation: "Situation from Ask Coach feature.",
+
+          mistake: "Not having a prepared response ready.",
+
+        })
+
+      } else {
+
+        setResult({error: "No response. Try again."})
+
+      }
+
+    } catch(e) {
+
+      setResult({error: e.message})
+
+    }
+
+    setLoading(false)
+
+  }
+
+
+
+  const readAloud = () => {
+
+    if(playing) { stopSpeaking(); setPlaying(false); return }
+
+    if(!result || result.error) return
+
+    setPlaying(true)
+
+    const fullText = [result.acknowledge, result.script, result.followup].filter(Boolean).join(". ")
+
+    const tone = dept === "service"
+
+      ? {stability: 0.55, similarity_boost: 0.75, style: 0.2}
+
+      : {stability: 0.45, similarity_boost: 0.8, style: 0.3}
+
+    speak(fullText, () => setPlaying(false), tone)
+
+  }
+
+
+
+  const cfg = modeConfig[activeMode]
+
+
+
+  return (
+
+    <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08) 0%,rgba(5,13,31,0.95) 100%)", border: "1px solid rgba(26,107,255,0.2)", borderRadius: 14, marginBottom: 12}}>
+
+      {/* Header — always visible, tap to expand */}
+
+      <div onClick={() => setOpen(!open)}
+
+        style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 16px", cursor: "pointer"}}>
+
+        <div style={{display: "flex", alignItems: "center", gap: 8}}>
+
+          <span style={{fontSize: 18}}>🤖</span>
+
+          <div>
+
+            <div style={{fontFamily: fH, fontSize: 13, fontWeight: 900, textTransform: "uppercase", color: C.blueBright, letterSpacing: 1}}>Ask Coach</div>
+
+            <div style={{fontSize: 10, color: C.gray, marginTop: 1}}>AI word tracks for any situation</div>
+
+          </div>
+
+        </div>
+
+        <div style={{color: C.gray, fontSize: 18, lineHeight: 1}}>{open ? "−" : "+"}</div>
+
+      </div>
+
+
+
+      {open && (
+
+        <div style={{padding: "0 14px 14px"}}>
+
+          {/* Mode toggle — only show if not locked to one mode */}
+
+          {!mode && (
+
+            <div style={{display: "flex", gap: 6, marginBottom: 12}}>
+
+              {[["objection", "🎙 Objection"], ["situation", "👔 Coaching"]].map(([val, lbl]) => (
+
+                <button key={val} onClick={() => { setActiveMode(val); setResult(null); setInputText("") }}
+
+                  style={{flex: 1,
+
+                    background: activeMode === val ? "rgba(26,107,255,0.15)" : "rgba(255,255,255,0.04)",
+
+                    border: "1px solid " + (activeMode === val ? "rgba(26,107,255,0.4)" : "rgba(255,255,255,0.08)"),
+
+                    color: activeMode === val ? C.blueBright : C.gray,
+
+                    fontFamily: fH, fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: "uppercase",
+
+                    padding: "8px 0", borderRadius: 8, cursor: "pointer", minHeight: 38}}>
+
+                  {lbl}
+
+                </button>
+
+              ))}
+
+            </div>
+
+          )}
+
+
+
+          {/* Mode label */}
+
+          <div style={{fontSize: 11, color: C.gray, marginBottom: 8, lineHeight: 1.5}}>
+
+            {activeMode === "objection"
+
+              ? "Type an objection you heard — get the exact words to respond."
+
+              : "Describe a rep situation — get coaching words to use right now."}
+
+          </div>
+
+
+
+          {/* Input */}
+
+          <textarea value={inputText} onChange={e => setInputText(e.target.value)}
+
+            placeholder={cfg.placeholder}
+
+            style={{...inp, width: "100%", minHeight: 56, resize: "vertical", fontSize: 13, marginBottom: 10}}/>
+
+
+
+          {/* Generate button */}
+
+          <button onClick={generate} disabled={loading || !inputText.trim()}
+
+            style={{width: "100%",
+
+              background: loading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#1a6bff,#0d4fd4)",
+
+              color: loading ? C.gray : C.white,
+
+              fontFamily: fH, fontWeight: 900, fontSize: 14, letterSpacing: 1, textTransform: "uppercase",
+
+              border: "none", borderRadius: 10, minHeight: 46, cursor: loading ? "not-allowed" : "pointer",
+
+              marginBottom: result ? 10 : 0}}>
+
+            {loading ? "Generating..." : "⚡ Ask Coach"}
+
+          </button>
+
+
+
+          {/* Result */}
+
+          {result && !result.error && (
+
+            <div style={{animation: "fadeUp 0.3s ease both"}}>
+
+              {result.acknowledge ? (
+
+                <div style={{marginBottom: 8}}>
+
+                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.gray, marginBottom: 3}}>
+
+                    {activeMode === "objection" ? "Acknowledge" : "Opening"}
+
+                  </div>
+
+                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.acknowledge}"</div>
+
+                </div>
+
+              ) : null}
+
+              <div style={{background: "linear-gradient(135deg,rgba(26,107,255,0.08),rgba(26,107,255,0.02))", border: "1px solid rgba(26,107,255,0.25)", borderLeft: "4px solid #1a6bff", borderRadius: "0 10px 10px 0", padding: "12px 14px", marginBottom: 8}}>
+
+                <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.blueBright, marginBottom: 4}}>
+
+                  {cfg.resultLabel}
+
+                </div>
+
+                <div style={{fontSize: 13, color: C.white, lineHeight: 1.7, fontStyle: "italic"}}>"{result.script}"</div>
+
+              </div>
+
+              {result.followup ? (
+
+                <div style={{background: "rgba(184,255,60,0.06)", border: "1px solid rgba(184,255,60,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10}}>
+
+                  <div style={{fontFamily: fH, fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: C.green, marginBottom: 3}}>
+
+                    {activeMode === "objection" ? "Follow-Up" : "Close"}
+
+                  </div>
+
+                  <div style={{fontSize: 13, color: C.lightText, lineHeight: 1.6, fontStyle: "italic"}}>"{result.followup}"</div>
+
+                </div>
+
+              ) : null}
+
+              <div style={{display: "flex", gap: 8}}>
+
+                <button onClick={readAloud}
+
+                  style={{flex: 1, background: playing ? "rgba(255,107,107,0.12)" : "rgba(26,107,255,0.12)",
+
+                    border: "1px solid " + (playing ? "rgba(255,107,107,0.3)" : "rgba(26,107,255,0.3)"),
+
+                    color: playing ? C.red : C.blueBright,
+
+                    fontFamily: fH, fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
+
+                    padding: "10px", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
+
+                  {playing ? "⏹ Stop" : "🔊 Hear It"}
+
+                </button>
+
+                {cfg.canDrill && (
+
+                  <button onClick={() => { if(onDrill) onDrill(result) }}
+
+                    style={{flex: 1, background: "linear-gradient(135deg,#b8ff3c,#7ed321)", color: C.navy,
+
+                      fontFamily: fH, fontWeight: 900, fontSize: 12, letterSpacing: 1, textTransform: "uppercase",
+
+                      border: "none", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
+
+                    ▶ Drill This
+
+                  </button>
+
+                )}
+
+              </div>
+
+            </div>
+
+          )}
+
+          {result && result.error ? (
+
+            <div style={{fontSize: 12, color: C.red, marginTop: 8, padding: "8px 12px", background: "rgba(255,107,107,0.08)", borderRadius: 8}}>{result.error}</div>
+
+          ) : null}
+
+        </div>
+
+      )}
+
+    </div>
+
+  )
+
+}
+
+
+
 function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
