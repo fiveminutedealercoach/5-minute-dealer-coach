@@ -1006,7 +1006,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       </div>
 
       {/* Ask Coach */}
-      <AskCoach dept={dept} mode={"objection"} onDrill={onDrill}/>
+      <AskCoach dept={mgrDept} mode={"situation"}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
@@ -1269,6 +1269,9 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
           </div>
         </div>
       )}
+
+      {/* Ask Coach */}
+      <AskCoach dept={dept} mode={"objection"} onDrill={onDrill}/>
 
       {/* Empty state */}
       {results.filter(r=>r.type==='voice').length === 0 && (
@@ -4839,7 +4842,7 @@ function LeaderGrid(){
       )}
 
       {/* Ask Coach — manager coaching situations */}
-      <AskCoach dept={dept} mode={"situation"}/>
+      <AskCoach dept={'both'} mode={"situation"}/>
 
 
       {/* ── ACTION PLAN ─────────────────────────────── */}
