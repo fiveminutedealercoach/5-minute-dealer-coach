@@ -4614,13 +4614,13 @@ function LeaderGrid(){
           {generatedTrack && (
             <div>
                 <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   <button onClick={()=>{
                     stopSpeaking()
                     setAutoPlaying(true)
                     const quad_data = QUADS.find(q=>q.id===showCoaching)
                     speak(generatedTrack, ()=>setAutoPlaying(false), quad_data?.voiceTone||{})
-                  }} style={{background:'rgba(184,255,60,0.1)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'7px',borderRadius:6,cursor:'pointer'}}>
+                  }} style={{background:"rgba(184,255,60,0.1)",border:"1px solid rgba(184,255,60,0.3)",color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:"uppercase",padding:"7px",borderRadius:6,cursor:"pointer"}}>
                     🔁 Read Again
                   </button>
                   <button onClick={()=>{
@@ -4632,12 +4632,11 @@ function LeaderGrid(){
                       const quad_data = QUADS.find(q=>q.id===showCoaching)
                       speak(edited.trim(), ()=>setAutoPlaying(false), quad_data?.voiceTone||{})
                     }
-                  }} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'7px',borderRadius:6,cursor:'pointer'}}>
+                  }} style={{background:"rgba(26,107,255,0.1)",border:"1px solid rgba(26,107,255,0.3)",color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:"uppercase",padding:"7px",borderRadius:6,cursor:"pointer"}}>
                     ✏️ Adjust This
                   </button>
                 </div>
               </div>
-            </div>
             )}
           </div>
         </div>
