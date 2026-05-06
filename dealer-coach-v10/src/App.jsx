@@ -4532,7 +4532,7 @@ function LeaderGrid(){
                 {members.map((m,i)=>(
                   <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderTop:`1px solid ${quad.bdr}`}}>
                     <span style={{fontSize:13,color:C.white,fontWeight:600}}>{m.name}</span>
-                      {m.dept && <span style={{fontSize:8,color:C.gray,marginLeft:6,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase'}}>{m.dept}</span>}
+                      {m.dept && <span style={{fontSize:8,color:C.gray,marginLeft:6,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{m.dept}</span>}
 
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
                       <span style={{fontSize:10,color:C.gray}}>{m.date}</span>
