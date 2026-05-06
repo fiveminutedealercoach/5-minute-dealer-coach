@@ -4517,7 +4517,7 @@ function LeaderGrid(){
                     <span style={{fontSize:10,color:C.gray,marginLeft:8}}>{quad.sub}</span>
                   </div>
                   <button onClick={()=>setShowCoaching(showCoaching===quad.id?null:quad.id)} style={{background:'none',border:`1px solid ${quad.color}44`,color:quad.color,fontFamily:fH,fontWeight:700,fontSize:9,letterSpacing:1,textTransform:'uppercase',padding:'4px 8px',borderRadius:6,cursor:'pointer'}}>
-                    {showCoaching===quad.id?'Hide':'Coaching Scripts'}
+                    {showCoaching===quad.id?"Hide":"Coaching Scripts"}
                   </button>
                 </div>
                 {/* Leadership style one-liner */}
@@ -4593,7 +4593,7 @@ function LeaderGrid(){
                 }}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
                     <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.blueBright}}>{s.category}</div>
-                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept === 'sales' ? 'SALES' : 'SERVICE'}</div>
+                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept === "sales" ? "SALES" : "SERVICE"}</div>
                   </div>
                   <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6,lineHeight:1.2}}>
                     {(s.objection||"").replace(/"/g,"").substring(0,60)}
@@ -4610,16 +4610,12 @@ function LeaderGrid(){
                     fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
                     padding:'8px 14px',borderRadius:8,cursor:'pointer',width:'100%',minHeight:36
                   }}>
-                    {isReading?'⏹ Stop':'▶ Hear This Script'}
+                    {isReading?"⏹ Stop":"▶ Hear This Script"}
                   </button>
                 </div>
               )
             })
           })()}
-
-          {/* Ask Coach — manager coaching situations */}
-
-          <AskCoach dept={dept} mode={"situation"}/>
 
                 <div style={{fontSize:13,color:C.white,lineHeight:1.7,marginBottom:10}}>{generatedTrack}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
@@ -4632,7 +4628,7 @@ function LeaderGrid(){
                     🔁 Read Again
                   </button>
                   <button onClick={()=>{
-                    const edited = prompt('Edit the word track:', generatedTrack)
+                    const edited = prompt("Edit the word track:", generatedTrack)
                     if(edited && edited.trim()) {
                       setGeneratedTrack(edited.trim())
                       stopSpeaking()
@@ -4649,6 +4645,10 @@ function LeaderGrid(){
           </div>
         </div>
       )}
+
+      {/* Ask Coach — manager coaching situations */}
+      <AskCoach dept={dept} mode={"situation"}/>
+
 
       {/* ── ACTION PLAN ─────────────────────────────── */}
       <div style={{...glass,padding:'18px',marginTop:24}}>
