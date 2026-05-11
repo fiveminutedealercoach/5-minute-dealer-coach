@@ -872,7 +872,6 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
     {icon:'🎙', label:'Voice Drills', sub:'Practice objections', tab:'drill', color:C.blue},
     {icon:'🎯', label:'Team Coaching', sub:'Commitment & Capability Grid + scripts', tab:'coaching', color:C.yellow},
     {icon:'📊', label:'Dashboard', sub:'Team activity', tab:'tracker', color:C.blueBright},
-    {icon:'🤖', label:'Ask Coach', sub:'AI word tracks for any situation', tab:'coaching', color:C.blueBright, sub2:'grid'},
 
   ]
 
