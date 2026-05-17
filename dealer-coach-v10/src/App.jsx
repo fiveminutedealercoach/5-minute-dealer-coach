@@ -1005,7 +1005,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
       </div>
 
       {/* Ask Coach */}
-      <AskCoach dept={mgrDept} mode={"situation"}/>
+      <AskCoach dept={mgrDept}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
@@ -4775,13 +4775,20 @@ function LeaderGrid(){
           })()}
           {/* Coaching script cards */}
           {(()=>{
-            const CATS = new Set(["Mindset & Gross Awareness","Sales Tactics for Higher Gross","Mindset & Customer-Pay Focus"])
+            // Build pool from ALL quadrant coaching categories
+            const allQCats = new Set(QUADS.flatMap(q=>q.coachingCats||[]))
             const qCats = new Set(coachQ.coachingCats || [])
-            const pool = SCRIPTS.filter(s=>CATS.has(s.category))
-            const qScripts = pool.filter(s=>qCats.has(s.category))
-            const dept_pool = (qScripts.length>0 ? qScripts : pool).filter(s=>!coachDept||coachDept==="both"||s.dept===coachDept)
-            const display = dept_pool.length>0 ? dept_pool : (qScripts.length>0 ? qScripts : pool)
-            return display.slice(0,6).map((s,idx)=>{
+            // Start with scripts in this quadrant's categories
+            const qScripts = SCRIPTS.filter(s=>qCats.has(s.category))
+            // If quadrant has scripts, use those; otherwise use all coaching cats
+            const basePool = qScripts.length>0 ? qScripts : SCRIPTS.filter(s=>allQCats.has(s.category))
+            // Apply dept filter
+            const display = coachDept==="both"
+              ? basePool
+              : basePool.filter(s=>s.dept===coachDept)
+            // If dept filter yields nothing, show unfiltered (graceful fallback)
+            const finalDisplay = display.length>0 ? display : basePool
+            return finalDisplay.slice(0,6).map((s,idx)=>{
               const isReading = readingCard===s.id
               const objText = (s.objection||"").substring(0,60)
               const deptLabel = s.dept==="sales" ? "SALES" : "SERVICE"
