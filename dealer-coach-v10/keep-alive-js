@@ -1,0 +1,37 @@
+// Cloudflare Worker — keeps Supabase from pausing due to inactivity
+// Deploy to: dealer-coach-v10/keep-alive.js
+// Schedule: every 3 days via wrangler.toml
+
+export default {
+  async scheduled(event, env, ctx) {
+    // Ping Supabase with a lightweight health check
+    try {
+      const url = env.SUPABASE_URL + '/rest/v1/dealer_activity?select=id&limit=1'
+      const res = await fetch(url, {
+        headers: {
+          'apikey': env.SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_ANON_KEY,
+        }
+      })
+      console.log('Keep-alive ping: ' + res.status + ' at ' + new Date().toISOString())
+    } catch (e) {
+      console.error('Keep-alive failed: ' + e.message)
+    }
+  },
+
+  // Also handle HTTP requests so you can manually trigger it
+  async fetch(request, env, ctx) {
+    try {
+      const url = env.SUPABASE_URL + '/rest/v1/dealer_activity?select=id&limit=1'
+      const res = await fetch(url, {
+        headers: {
+          'apikey': env.SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_ANON_KEY,
+        }
+      })
+      return new Response('Keep-alive ping sent: ' + res.status, { status: 200 })
+    } catch (e) {
+      return new Response('Keep-alive failed: ' + e.message, { status: 500 })
+    }
+  }
+}
