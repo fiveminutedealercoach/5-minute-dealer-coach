@@ -2551,7 +2551,9 @@ ${diffMod ? '\n' + diffMod : ''}`
           setSpeaking(false)
           setRecording(false)
           recordingRef.current = false
-          if (closeEarned) {
+          // Hard-enforce minimum 3 rep exchanges regardless of AI signal
+          const currentRepCount = liveTranscriptRef.current.filter(t => t.role === 'rep').length
+          if (closeEarned && currentRepCount >= 3) {
             endLiveDrill(activeS, liveTranscriptRef.current)
           } else {
             setLiveStatus('Your turn  -  speak your response')
@@ -4092,12 +4094,13 @@ function QuickLogSheet({onLog,onClose,dealer}) {
   return (
     <div style={{position:'fixed',inset:0,zIndex:500,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
       <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.6)'}}/>
-      <div style={{position:'relative',background:C.navyMid,borderRadius:'16px 16px 0 0',padding:'20px 16px 32px',border:`1px solid ${C.border}`,maxHeight:'85vh',overflowY:'auto'}}>
+      <div style={{position:'relative',background:C.navyMid,borderRadius:'16px 16px 0 0',maxHeight:'90vh',display:'flex',flexDirection:'column',padding:'20px 16px 32px',border:`1px solid ${C.border}`,maxHeight:'85vh',overflowY:'auto'}}>
         {/* Handle */}
         <div style={{width:36,height:4,background:'rgba(255,255,255,0.2)',borderRadius:100,margin:'0 auto 16px'}}/>
         <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Log a Live Win</div>
         <div style={{fontSize:12,color:C.gray,marginBottom:16}}>Used a script on the floor? Log it in 10 seconds.</div>
 
+        <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
         {/* Step 1  -  Department */}
         <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>1. Department</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
@@ -4113,7 +4116,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
         {dept && (
           <>
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>2. Script / Objection</div>
-            <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:16,maxHeight:200,overflowY:'auto',border:`1px solid ${C.border}`,borderRadius:10,padding:'6px'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:16,overflowY:'auto',maxHeight:200,overflowY:'auto',border:`1px solid ${C.border}`,borderRadius:10,padding:'6px'}}>
               {filteredScripts.map(s=>(
                 <div key={s.id} onClick={()=>setSelObj(s)} style={{background:selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.15)':'rgba(184,255,60,0.1)'):'transparent',border:`1px solid ${selObj?.id===s.id?(dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):'transparent'}`,borderRadius:8,padding:'9px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
                   
@@ -4147,10 +4150,13 @@ function QuickLogSheet({onLog,onClose,dealer}) {
           </>
         )}
 
+        </div>{/* end scrollable */}
         {/* Submit */}
+        <div style={{padding:'16px',paddingBottom:'calc(16px + env(safe-area-inset-bottom))' }}>
         <button onClick={submit} disabled={!dept||!selObj||!result} style={{width:'100%',background:dept&&selObj&&result?C.green:'rgba(255,255,255,0.08)',color:dept&&selObj&&result?C.navy:C.gray,fontFamily:fH,fontWeight:900,fontSize:16,letterSpacing:1,textTransform:'uppercase',padding:14,borderRadius:10,border:'none',cursor:dept&&selObj&&result?'pointer':'default'}}>
           {dept&&selObj&&result?'Log It →':'Complete steps above'}
         </button>
+        </div>
       </div>
     </div>
   )
@@ -4467,7 +4473,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
         )}
 
         {/* Floating + Log button */}
-        <div onClick={()=>setShowLog(true)} style={{position:'fixed',bottom:82,right:'max(12px, calc(50vw - 228px))',background:C.green,display:'flex',alignItems:'center',gap:6,padding:'11px 16px',borderRadius:100,cursor:'pointer',boxShadow:`0 4px 20px rgba(184,255,60,0.45)`,zIndex:200}}>
+        <div onClick={()=>setShowLog(true)} style={{position:'fixed',bottom:'calc(82px + env(safe-area-inset-bottom))',right:'max(12px, calc(50vw - 228px))',background:C.green,display:'flex',alignItems:'center',gap:6,padding:'11px 16px',borderRadius:100,cursor:'pointer',boxShadow:`0 4px 20px rgba(184,255,60,0.45)`,zIndex:200}}>
           <span style={{fontSize:20,lineHeight:1,color:C.navy,fontWeight:900}}>+</span>
           <span style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:1,textTransform:'uppercase',color:C.navy}}>Log Win</span>
         </div>
