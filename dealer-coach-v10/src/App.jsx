@@ -2271,6 +2271,8 @@ One coaching whisper:`}],
         setTimeout(() => endLiveDrill(activeS, liveTranscriptRef.current), 800)
         return
       }
+      // Hard minimum: never end before 3 rep exchanges
+      const hardMinMet = newExCount >= 3
 
       const persona = PERSONAS.find(p => p.id === activePersId) || getPersonaForScript(activeS)
 
@@ -2552,8 +2554,7 @@ ${diffMod ? '\n' + diffMod : ''}`
           setRecording(false)
           recordingRef.current = false
           // Hard-enforce minimum 3 rep exchanges regardless of AI signal
-          const currentRepCount = liveTranscriptRef.current.filter(t => t.role === 'rep').length
-          if (closeEarned && currentRepCount >= 3) {
+          if (closeEarned && hardMinMet) {
             endLiveDrill(activeS, liveTranscriptRef.current)
           } else {
             setLiveStatus('Your turn  -  speak your response')
@@ -2993,7 +2994,14 @@ RETURN ONLY valid JSON:
     const persona = PERSONAS.find(p=>p.id===activePersId)
     return(
       <div style={{padding:'16px 16px 96px', animation:'fadeUp 0.3s ease both'}}>
-        <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}} style={{background:'none',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'6px 14px',borderRadius:6,cursor:'pointer',marginBottom:14}}>← Back</button>
+        <div style={{display:'flex',gap:8,marginBottom:16}}>
+          <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}}
+            style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
+              color:C.white,fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,
+              textTransform:'uppercase',padding:'12px',borderRadius:10,cursor:'pointer'}}>
+            ← Back to Drills
+          </button>
+        </div>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
 
         {/* Grade + persona */}
