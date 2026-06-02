@@ -171,6 +171,7 @@ const speakEL = async (text, onDone, voiceOpts={}) => {
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
     elAudio = new Audio(url)
+    const localAudio = elAudio  // capture local ref so onended fires even if elAudio is cleared
     elAudio.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
     elAudio.onerror  = () => { speakBrowser(text, onDone) }
     await elAudio.play()
@@ -2149,7 +2150,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
 
   const startRec = () => {
     if(!supported){setError('Use Chrome or Edge for voice. Type below.');return}
-    stopSpeaking(); setSpeaking(false)
+    // Don't call stopSpeaking() here — it kills AI audio before onDone callback fires
+    setSpeaking(false)
     accumulatedRef.current = ''   // reset accumulator for fresh recording
     setInterimTranscript('')
     setTimeout(()=>{
