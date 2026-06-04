@@ -1041,7 +1041,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
 // ══════════════════════════════════════════════════════════════
 // REP HOME — focused drill launcher with streak + progress rings
 // ══════════════════════════════════════════════════════════════
-function RepHome({dealer, stats, results, streak, onDrill}) {
+function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
   const role = dealer?.role || 'sales_rep'
   const dept = roleDept(role)
   const firstName = dealer?.repName?.split(' ')[0] || 'Hey'
@@ -1241,7 +1241,7 @@ function RepHome({dealer, stats, results, streak, onDrill}) {
       )}
 
       {/* Choose different script */}
-      <button className="btn-press" onClick={()=>onDrill(null)}
+      <button className="btn-press" onClick={()=>onBrowse?onBrowse():onDrill(null)}
         style={{...btnSecondary,marginBottom:24}}>
         Browse All Scripts
       </button>
@@ -2787,6 +2787,17 @@ ${diffMod ? '\n' + diffMod : ''}`
       (t.role === 'rep' ? 'Rep' : (persona?.name || 'Customer')) + ': "' + t.text + '"'
     ).join(' | ')
 
+    // Auto-sync drill completion to dashboard — counts even if rep
+    // never taps an outcome button on the feedback screen
+    if (dealer?.dealerId) {
+      dealerSync('logActivity', dealer.dealerId, dealer.repName || '', {
+        type: 'voice_drill',
+        script: (script.objection || '').split('"').join(''),
+        result: '',
+        dept: script.dept || 'sales',
+      })
+    }
+
     try {
       await getFeedback(lastRep, [fullConvo])
     } catch(e) {
@@ -2987,7 +2998,7 @@ RETURN ONLY valid JSON:
     if(feedback?.score) {
       setTeamDrillScores(prev => [...prev, {name: dealer?.repName || 'Rep', score: feedback.score, time: new Date().toLocaleTimeString()}])
     }
-    onLog({dept:activeS.dept,script:activeS.objection.split('"').join(''),result,notes:'Voice drill  -  AI coached',type:'voice'})
+    onLog({dept:activeS.dept,script:activeS.objection.split('"').join(''),result,notes:'Voice drill  -  AI coached',type:'voice',skipSync:true})
     // Don't clear activeS — keep it so Drill Again buttons work
     setPhase('feedback_done')
     stopSpeaking()
@@ -5955,12 +5966,12 @@ export default function App() {
     const ms = getNewMilestone(prevTotal,prevTotal+1)
     if(ms){ setMilestone(ms); setTimeout(()=>setMilestone(null),8000) }
     // Sync ALL activity types to KV so dashboard reflects it
-    if(dealer?.dealerId){
+    if(dealer?.dealerId && !entry.skipSync){
       dealerSync('logActivity',dealer.dealerId,repName,{
         type:entry.type==='voice'?'voice_drill':entry.type||'manual',
         script:entry.script||'',
         result:entry.result||'',
-        dept:entry.dept||'sales',
+        dept:entry.dept||(roleDept(dealer?.role)==='service'?'service':'sales'),
       })
     }
     // Show encouragement when returning home after drill
@@ -6001,7 +6012,7 @@ export default function App() {
     <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative',overflowX:'hidden'}}>
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
-        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}}/>}
+        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}} onBrowse={()=>setTab('scripts')}/>}
         {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}}/>}
         {/* Rep tabs */}
         {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
