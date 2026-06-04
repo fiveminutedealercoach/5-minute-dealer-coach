@@ -396,8 +396,8 @@ function Onboarding({onDone}) {
   const [dealerCode,setDealerCode] = useState('')
   const [teamNames,setTeamNames] = useState([])
   const [lookupDone,setLookupDone] = useState(false)
-  const lookupTeam = async () => {
-    const code = dealerCode.trim().toUpperCase()
+  const lookupTeam = async (codeArg) => {
+    const code = (codeArg || dealerCode).trim().toUpperCase()
     if(!code || code.length < 4) return
     setLookupDone(false)
     const res = await dealerSync('getDashboard', code, '')
@@ -409,6 +409,14 @@ function Onboarding({onDone}) {
     }
     setLookupDone(true)
   }
+  // Auto-lookup as they type — debounced, no blur needed (iPad-safe)
+  useEffect(() => {
+    if (step !== 'join') return
+    const code = dealerCode.trim()
+    if (code.length < 5) { setTeamNames([]); setLookupDone(false); return }
+    const t = setTimeout(() => lookupTeam(code), 700)
+    return () => clearTimeout(t)
+  }, [dealerCode, step])
   const [loading,setLoading]     = useState(false)
   const [error,setError]         = useState('')
 
@@ -462,26 +470,6 @@ function Onboarding({onDone}) {
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. General Manager, Sales Manager" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
         </div>
-        {/* Existing team member picker — prevents duplicate identities */}
-        {teamNames.length > 0 && (
-          <div style={{marginBottom:14}}>
-            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:8}}>
-              Already on this team? Tap your name
-            </div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {teamNames.map(n=>(
-                <button key={n} onClick={()=>setRepName(n)}
-                  style={{background: repName===n ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.05)",
-                    border:"1px solid "+(repName===n ? "rgba(184,255,60,0.5)" : "rgba(255,255,255,0.12)"),
-                    color: repName===n ? C.green : C.lightText,
-                    fontSize:12,padding:"7px 14px",borderRadius:100,cursor:"pointer"}}>
-                  {n}
-                </button>
-              ))}
-            </div>
-            <div style={{fontSize:10,color:C.gray,marginTop:6}}>New to the team? Just type your name above.</div>
-          </div>
-        )}
         {error&&<div style={{fontSize:13,color:C.red,marginBottom:12}}>{error}</div>}
         <div style={{fontSize:11,color:C.gray,lineHeight:1.6,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:6,border:`1px solid ${C.border}`}}>
           By creating an account you agree that all content, scripts, word tracks, and coaching methodologies are the proprietary property of <span style={{color:C.lightText}}>Retail Performance Solutions LLC</span> and are licensed for internal dealership use only.
@@ -497,7 +485,33 @@ function Onboarding({onDone}) {
         <button onClick={()=>setStep('choose')} style={{background:'none',border:'none',color:C.gray,cursor:'pointer',fontFamily:fH,fontSize:12,letterSpacing:1,textTransform:'uppercase',marginBottom:16}}>← Back</button>
         <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:16}}>Join Dealership</div>
         <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:16}}>
-          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealer Code</div><input style={{...inp,textTransform:'uppercase',letterSpacing:3,fontFamily:fH,fontSize:18,fontWeight:900}} placeholder="e.g. SUNSET42" value={dealerCode} onChange={e=>setDealerCode(e.target.value.toUpperCase())} onBlur={lookupTeam}/></div>
+          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealer Code</div><input style={{...inp,textTransform:'uppercase',letterSpacing:3,fontFamily:fH,fontSize:18,fontWeight:900}} placeholder="e.g. SUNSET42" value={dealerCode} onChange={e=>setDealerCode(e.target.value.toUpperCase())}/>
+            {dealerCode.trim().length >= 5 && !lookupDone && (
+              <div style={{fontSize:11,color:C.gray,marginTop:6}}>Checking for your team...</div>
+            )}
+            {lookupDone && teamNames.length > 0 && (
+              <div style={{marginTop:10}}>
+                <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:6}}>
+                  Already on this team? Tap your name
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {teamNames.map(n=>(
+                    <button key={n} onClick={()=>setRepName(n)}
+                      style={{background: repName===n ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.05)",
+                        border:"1px solid "+(repName===n ? "rgba(184,255,60,0.5)" : "rgba(255,255,255,0.12)"),
+                        color: repName===n ? C.green : C.lightText,
+                        fontSize:12,padding:"7px 14px",borderRadius:100,cursor:"pointer"}}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div style={{fontSize:10,color:C.gray,marginTop:5}}>New here? Just type your name below.</div>
+              </div>
+            )}
+            {lookupDone && teamNames.length === 0 && dealerCode.trim().length >= 5 && (
+              <div style={{fontSize:11,color:C.gray,marginTop:6}}>No team activity found yet for this code — type your name below.</div>
+            )}
+          </div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div><input style={inp} placeholder="Your name" value={repName} onChange={e=>setRepName(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. Sales Consultant, Service Advisor" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
