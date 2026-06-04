@@ -194,7 +194,7 @@ const speakBrowser = (text, onDone) => {
     u.onend = finish
     u.onerror = finish
     // Watchdog: iOS can silently block speech — never leave UI hanging
-    const maxMs = Math.min(60000, 4000 + text.length * 80)
+    const maxMs = Math.min(30000, 4000 + text.length * 70)
     setTimeout(finish, maxMs)
     window.speechSynthesis.speak(u)
   },150)
@@ -1902,12 +1902,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       }
       if (parts.length === 0) return
       reportTextRef.current = parts.join(' ')
-      // Attempt auto-read (works on desktop and Android; iOS may
-      // require the replay button below due to autoplay rules)
-      setModelSpeaking(true); setSpeaking(true)
-      setTimeout(() => {
-        speak(reportTextRef.current, () => { setSpeaking(false); setModelSpeaking(false) })
-      }, 600)
+      // No auto-play: iOS/iPadOS block audio without a user tap.
+      // The rep taps "Hear Your Coaching Report" — always reliable.
     }
   }, [phase, feedback])
   const [drillHistory, setDrillHistory]   = useState({})      // {scriptId: [{score,total,date}]}
