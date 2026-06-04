@@ -1870,6 +1870,29 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   }
   const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown
   const [modelSpeaking, setModelSpeaking] = useState(false)   // speaking model script
+  // ── AUTO-READ COACHING REPORT ─────────────────────────────
+  // When the report appears, the coach reads the grade summary and the
+  // "Use this next time" word track aloud — once per report
+  const reportReadRef = useRef(null)
+  useEffect(() => {
+    if (phase === 'feedback' && feedback && reportReadRef.current !== feedback) {
+      reportReadRef.current = feedback
+      const persona = PERSONAS.find(p => p.id === activePersId)
+      const parts = []
+      if (feedback.score_detail) parts.push('Here is your coaching report. ' + feedback.score_detail)
+      else if (feedback.score) parts.push('Here is your coaching report. You scored ' + feedback.score)
+      if (feedback.improvement) {
+        parts.push('Use this next time' + (persona ? ', written for ' + persona.name : '') + '. ' + feedback.improvement)
+      }
+      if (parts.length === 0) return
+      const text = parts.join(' ')
+      setModelSpeaking(true); setSpeaking(true)
+      // slight delay so the report screen renders before audio starts
+      setTimeout(() => {
+        speak(text, () => { setSpeaking(false); setModelSpeaking(false) })
+      }, 600)
+    }
+  }, [phase, feedback])
   const [drillHistory, setDrillHistory]   = useState({})      // {scriptId: [{score,total,date}]}
   const [assignedDrills, setAssignedDrills] = useState(()=>{ try{return JSON.parse(localStorage.getItem('5md-assigned-'+JSON.stringify({}))||'[]')}catch{return[]} })
   const [showAssign, setShowAssign]   = useState(null)        // script being assigned
