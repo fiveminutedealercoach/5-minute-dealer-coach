@@ -394,6 +394,21 @@ function Onboarding({onDone}) {
   const [repTitle,setRepTitle]   = useState('')
   const [role,setRole]           = useState('')
   const [dealerCode,setDealerCode] = useState('')
+  const [teamNames,setTeamNames] = useState([])
+  const [lookupDone,setLookupDone] = useState(false)
+  const lookupTeam = async () => {
+    const code = dealerCode.trim().toUpperCase()
+    if(!code || code.length < 4) return
+    setLookupDone(false)
+    const res = await dealerSync('getDashboard', code, '')
+    if(res && !res.error){
+      const names = [...new Set((res.activities||[]).map(a=>a.repName))].filter(Boolean)
+      setTeamNames(names.slice(0,12))
+    } else {
+      setTeamNames([])
+    }
+    setLookupDone(true)
+  }
   const [loading,setLoading]     = useState(false)
   const [error,setError]         = useState('')
 
@@ -447,6 +462,26 @@ function Onboarding({onDone}) {
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. General Manager, Sales Manager" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
         </div>
+        {/* Existing team member picker — prevents duplicate identities */}
+        {teamNames.length > 0 && (
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:8}}>
+              Already on this team? Tap your name
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {teamNames.map(n=>(
+                <button key={n} onClick={()=>setRepName(n)}
+                  style={{background: repName===n ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.05)",
+                    border:"1px solid "+(repName===n ? "rgba(184,255,60,0.5)" : "rgba(255,255,255,0.12)"),
+                    color: repName===n ? C.green : C.lightText,
+                    fontSize:12,padding:"7px 14px",borderRadius:100,cursor:"pointer"}}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div style={{fontSize:10,color:C.gray,marginTop:6}}>New to the team? Just type your name above.</div>
+          </div>
+        )}
         {error&&<div style={{fontSize:13,color:C.red,marginBottom:12}}>{error}</div>}
         <div style={{fontSize:11,color:C.gray,lineHeight:1.6,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:6,border:`1px solid ${C.border}`}}>
           By creating an account you agree that all content, scripts, word tracks, and coaching methodologies are the proprietary property of <span style={{color:C.lightText}}>Retail Performance Solutions LLC</span> and are licensed for internal dealership use only.
@@ -462,7 +497,7 @@ function Onboarding({onDone}) {
         <button onClick={()=>setStep('choose')} style={{background:'none',border:'none',color:C.gray,cursor:'pointer',fontFamily:fH,fontSize:12,letterSpacing:1,textTransform:'uppercase',marginBottom:16}}>← Back</button>
         <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:16}}>Join Dealership</div>
         <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:16}}>
-          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealer Code</div><input style={{...inp,textTransform:'uppercase',letterSpacing:3,fontFamily:fH,fontSize:18,fontWeight:900}} placeholder="e.g. SUNSET42" value={dealerCode} onChange={e=>setDealerCode(e.target.value.toUpperCase())}/></div>
+          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealer Code</div><input style={{...inp,textTransform:'uppercase',letterSpacing:3,fontFamily:fH,fontSize:18,fontWeight:900}} placeholder="e.g. SUNSET42" value={dealerCode} onChange={e=>setDealerCode(e.target.value.toUpperCase())} onBlur={lookupTeam}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div><input style={inp} placeholder="Your name" value={repName} onChange={e=>setRepName(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. Sales Consultant, Service Advisor" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
@@ -5951,6 +5986,67 @@ export default function App() {
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
+  const [showProfile,setShowProfile] = useState(false)
+  // ── PROGRESS RESTORE ───────────────────────────────────────
+  // Rejoining rep on a new device: rebuild stats/streak/results
+  // from their Supabase activity history
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (!dealer?.dealerId || !dealer?.repName || restoredRef.current) return
+    const localResults = loadJSON('5md-results', [])
+    if (localResults.length > 0) { restoredRef.current = true; return }
+    restoredRef.current = true
+    dealerSync('getDashboard', dealer.dealerId, '').then(res => {
+      if (!res || res.error) return
+      const mine = (res.activities || []).filter(a => a.repName === dealer.repName)
+      if (mine.length === 0) return
+      const toMs = t => typeof t === 'number' ? t : new Date(t).getTime()
+      // Rebuild results list (most recent first, cap 50)
+      const restored = mine
+        .sort((a,b) => toMs(b.timestamp) - toMs(a.timestamp))
+        .slice(0, 50)
+        .map(a => ({
+          type: a.type === 'voice_drill' ? 'voice' : a.type,
+          script: a.script || '',
+          result: a.result || '',
+          dept: a.dept || 'sales',
+          ts: toMs(a.timestamp),
+          notes: 'Restored from dealership history',
+        }))
+      setResults(restored); saveJSON('5md-results', restored)
+      // Rebuild stats
+      const drills = mine.filter(a => a.type === 'voice_drill' || a.type === 'voice').length
+      const huddles = mine.filter(a => a.type === 'huddle').length
+      const newStats = { drills: mine.length, huddles, voice: drills }
+      setStats(newStats); saveJSON('5md-stats', newStats)
+      // Rebuild streak from consecutive active days ending today/yesterday
+      const dayKeys = [...new Set(mine.map(a => new Date(toMs(a.timestamp)).toISOString().split('T')[0]))].sort().reverse()
+      const today = new Date().toISOString().split('T')[0]
+      const yest = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+      let streakCount = 0
+      if (dayKeys[0] === today || dayKeys[0] === yest) {
+        streakCount = 1
+        for (let i = 1; i < dayKeys.length; i++) {
+          const prev = new Date(dayKeys[i-1]); const cur = new Date(dayKeys[i])
+          if ((prev - cur) / 86400000 === 1) streakCount++
+          else break
+        }
+      }
+      const newStreak = { count: streakCount, lastDay: dayKeys[0] || '' }
+      setStreak(newStreak); saveJSON('5md-streak', newStreak)
+    })
+  }, [dealer?.dealerId, dealer?.repName])
+
+  const logOut = () => {
+    if(!window.confirm('Log out? Your progress is saved to your dealership and will restore when you rejoin with the same name.')) return
+    try {
+      ['5md-dealer','5md-results','5md-stats','5md-streak','5md-schedule'].forEach(k=>localStorage.removeItem(k))
+      Object.keys(localStorage).filter(k=>k.startsWith('5md-history-')||k.startsWith('5md-ws-')).forEach(k=>localStorage.removeItem(k))
+    } catch {}
+    setShowProfile(false)
+    setDealer(null)
+    setTab('home')
+  }
   const [tab,setTab]           = useState('home')
   const [results,setResults]   = useState(()=>loadJSON('5md-results',[]))
   const [stats,setStats]       = useState(()=>loadJSON('5md-stats',{drills:0,huddles:0,voices:0}))
@@ -6059,6 +6155,62 @@ export default function App() {
 
   return(
     <div style={{fontFamily:fB,background:C.navy,minHeight:'100vh',color:C.white,maxWidth:480,margin:'0 auto',position:'relative',overflowX:'hidden'}}>
+      {/* Profile button — floating top right */}
+      <button onClick={()=>setShowProfile(true)}
+        style={{position:'fixed',top:'calc(10px + env(safe-area-inset-top))',right:12,zIndex:998,
+          width:38,height:38,borderRadius:'50%',
+          background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',
+          color:C.white,fontFamily:fH,fontWeight:900,fontSize:14,cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {(dealer?.repName||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+      </button>
+
+      {/* Profile sheet */}
+      {showProfile && (
+        <div onClick={()=>setShowProfile(false)}
+          style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,
+            display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:C.navyMid,borderRadius:'16px 16px 0 0',padding:'20px',
+              width:'100%',maxWidth:480,
+              paddingBottom:'calc(20px + env(safe-area-inset-bottom))'}}>
+            <div style={{width:36,height:4,background:'rgba(255,255,255,0.2)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
+              <div style={{width:54,height:54,borderRadius:'50%',background:'linear-gradient(135deg,#1a6bff,#b8ff3c)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontFamily:fH,fontWeight:900,fontSize:20,color:C.navy}}>
+                {(dealer?.repName||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div>
+                <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white}}>{dealer?.repName}</div>
+                <div style={{fontSize:12,color:C.gray}}>{ROLES[dealer?.role]?.label || dealer?.role}</div>
+              </div>
+            </div>
+            <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'14px',marginBottom:14}}>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Dealership</div>
+              <div style={{fontSize:14,color:C.white,marginBottom:10}}>{dealer?.dealerName || dealer?.dealerId}</div>
+              <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:3}}>Dealer Code</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,letterSpacing:3,color:C.green}}>{dealer?.dealerId}</div>
+              {isMgr && <div style={{fontSize:10,color:C.gray,marginTop:6}}>Share this code with your team so they can join.</div>}
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>setShowProfile(false)}
+                style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
+                  color:C.white,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+                  padding:'13px',borderRadius:10,cursor:'pointer'}}>
+                Close
+              </button>
+              <button onClick={logOut}
+                style={{flex:1,background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',
+                  color:C.red,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+                  padding:'13px',borderRadius:10,cursor:'pointer'}}>
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
         {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}} onBrowse={()=>setTab('scripts')}/>}
