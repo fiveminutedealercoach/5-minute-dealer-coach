@@ -1848,6 +1848,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const [exchangeCount,setExchangeCount]   = useState(0)
   const [interimTranscript,setInterimTranscript] = useState('')
   const [liveRecording,setLiveRecording]   = useState(false) // true = rep's turn, show Send button
+  const acceptingInputRef = useRef(false)  // gate: only capture speech when it's rep's turn
   const pcRef              = useRef(null)  // RTCPeerConnection
   const dcRef              = useRef(null)  // RTCDataChannel
   const streamRef          = useRef(null)  // local mic stream
@@ -2141,8 +2142,14 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       if(c <= 0) {
         clearInterval(tick)
         setTimeout(() => {
-          playTurnCue(); startRec()
-          // No silence detection — rep controls when to send
+          playTurnCue()
+          // Open the gate — persistent mic now captures rep's words
+          accumulatedRef.current = ''
+          setTranscript('')
+          setInterimTranscript('')
+          acceptingInputRef.current = true
+          // Safety: if recognition died (iOS timeout), restart it
+          if(!recRef.current || !recordingRef.current) { startRec() }
         }, 100)
       }
     }, 1000)
@@ -2162,6 +2169,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       rec.lang = 'en-US'
       let lastResultIndex = 0
       rec.onresult = e => {
+        if(!acceptingInputRef.current) return  // discard while AI is speaking
         // Show interim results immediately so rep sees their words live
         let interim = ''
         let newFinal = ''
@@ -2273,7 +2281,7 @@ One coaching whisper:`}],
       const repText = (transcript || interimTranscript).trim()
       if (!repText) { return }  // nothing spoken yet, do nothing
 
-      stopRec()
+      acceptingInputRef.current = false  // close gate — mic stays alive
       setTranscript('')
       setInterimTranscript('')
       accumulatedRef.current = ''
@@ -2572,8 +2580,6 @@ ${diffMod ? '\n' + diffMod : ''}`
         setSpeaking(true)
         speak(clean, () => {
           setSpeaking(false)
-          setRecording(false)
-          recordingRef.current = false
           // Hard-enforce minimum 3 rep exchanges regardless of AI signal
           if (closeEarned && hardMinMet) {
             endLiveDrill(activeS, liveTranscriptRef.current)
@@ -2735,6 +2741,9 @@ ${diffMod ? '\n' + diffMod : ''}`
 
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
+    // Start the persistent mic NOW (gate closed) so it's warm when rep's turn comes
+    acceptingInputRef.current = false
+    startRec()
     speak(scriptOpener, () => {
       setSpeaking(false)
       setLiveStatus('Your turn  -  speak your response')
@@ -2745,6 +2754,8 @@ ${diffMod ? '\n' + diffMod : ''}`
 
   const endLiveDrill = async (script, transcriptSnapshot) => {
     if (livePhase === 'ended') return
+    acceptingInputRef.current = false
+    stopRec()  // drill over — release the mic for real
     try { stopRec() } catch {}
     stopSpeaking()
     setLivePhase('ended')
@@ -3284,7 +3295,7 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && (
-            <div onClick={()=>{ stopRec(); setTimeout(()=>startRec(), 300) }}
+            <div onClick={()=>{ acceptingInputRef.current = true; stopRec(); setTimeout(()=>{ startRec(); acceptingInputRef.current = true }, 350) }}
               style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
