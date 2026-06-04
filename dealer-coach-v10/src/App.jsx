@@ -174,7 +174,10 @@ const speakEL = async (text, onDone, voiceOpts={}) => {
     const localAudio = elAudio  // capture local ref so onended fires even if elAudio is cleared
     elAudio.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
     elAudio.onerror  = () => { speakBrowser(text, onDone) }
-    await elAudio.play()
+    try { await elAudio.play() } catch(playErr) {
+      // iOS autoplay block — fall back, watchdog guarantees onDone
+      speakBrowser(text, onDone); return
+    }
   } catch { speakBrowser(text, onDone) }
 }
 const speakBrowser = (text, onDone) => {
@@ -186,7 +189,13 @@ const speakBrowser = (text, onDone) => {
     const v = window.speechSynthesis.getVoices()
     const pref = v.find(v=>/samantha|karen|victoria|google us english/i.test(v.name))
     if (pref) u.voice=pref
-    u.onend = () => onDone && onDone()
+    let done = false
+    const finish = () => { if(!done){ done = true; onDone && onDone() } }
+    u.onend = finish
+    u.onerror = finish
+    // Watchdog: iOS can silently block speech — never leave UI hanging
+    const maxMs = Math.min(60000, 4000 + text.length * 80)
+    setTimeout(finish, maxMs)
     window.speechSynthesis.speak(u)
   },150)
 }
@@ -1874,6 +1883,13 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   // When the report appears, the coach reads the grade summary and the
   // "Use this next time" word track aloud — once per report
   const reportReadRef = useRef(null)
+  const reportTextRef = useRef('')
+  const playCoachingReport = () => {
+    if (!reportTextRef.current) return
+    stopSpeaking()
+    setModelSpeaking(true); setSpeaking(true)
+    speak(reportTextRef.current, () => { setSpeaking(false); setModelSpeaking(false) })
+  }
   useEffect(() => {
     if (phase === 'feedback' && feedback && reportReadRef.current !== feedback) {
       reportReadRef.current = feedback
@@ -1885,11 +1901,12 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         parts.push('Use this next time' + (persona ? ', written for ' + persona.name : '') + '. ' + feedback.improvement)
       }
       if (parts.length === 0) return
-      const text = parts.join(' ')
+      reportTextRef.current = parts.join(' ')
+      // Attempt auto-read (works on desktop and Android; iOS may
+      // require the replay button below due to autoplay rules)
       setModelSpeaking(true); setSpeaking(true)
-      // slight delay so the report screen renders before audio starts
       setTimeout(() => {
-        speak(text, () => { setSpeaking(false); setModelSpeaking(false) })
+        speak(reportTextRef.current, () => { setSpeaking(false); setModelSpeaking(false) })
       }, 600)
     }
   }, [phase, feedback])
@@ -3068,6 +3085,19 @@ RETURN ONLY valid JSON:
             ← Back to Drills
           </button>
         </div>
+        {/* Hear report — gesture-initiated so it works on iPhone */}
+        <button onClick={()=>{
+            if(modelSpeaking){ stopSpeaking(); setSpeaking(false); setModelSpeaking(false); return }
+            playCoachingReport()
+          }}
+          style={{width:'100%',marginBottom:16,
+            background: modelSpeaking ? 'rgba(255,107,107,0.15)' : 'linear-gradient(135deg,rgba(184,255,60,0.15),rgba(184,255,60,0.06))',
+            border: modelSpeaking ? '1px solid rgba(255,107,107,0.4)' : '1px solid rgba(184,255,60,0.4)',
+            color: modelSpeaking ? C.red : C.green,
+            fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,
+            textTransform:'uppercase',padding:'14px',borderRadius:10,cursor:'pointer',minHeight:48}}>
+          {modelSpeaking ? '⏹ Stop Reading' : '🔊 Hear Your Coaching Report'}
+        </button>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
 
         {/* Grade + persona */}
