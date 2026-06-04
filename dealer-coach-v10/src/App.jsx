@@ -2191,7 +2191,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         }
       }
       rec.onerror = e => {
-        if(e.error === 'no-speech') return  // ignore pauses
+        if(e.error === 'no-speech' || e.error === 'aborted') return  // ignore pauses + intentional aborts
         setRecording(false)
         recordingRef.current = false
         setError('Mic error  -  type your response below.')
@@ -2199,12 +2199,31 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       recRef.current = rec
       recordingRef.current = true
       setRecording(true); setTranscript(''); setError('')
-      rec.start()
+      const tryStart = (attempt) => {
+        try {
+          rec.start()
+        } catch(err) {
+          // Mic not released yet from previous session — retry up to 5 times
+          if(attempt < 5) {
+            setTimeout(() => tryStart(attempt + 1), 300)
+          } else {
+            setRecording(false)
+            recordingRef.current = false
+            setError('Mic busy  -  tap the mic button or type your response.')
+          }
+        }
+      }
+      tryStart(0)
     },400)
   }
   const stopRec = () => {
     recordingRef.current = false
-    if(recRef.current){ try { recRef.current.stop() } catch {} recRef.current=null }
+    if(recRef.current){
+      const old = recRef.current
+      recRef.current = null
+      try { old.onend = null; old.onresult = null; old.onerror = null } catch {}
+      try { old.abort() } catch { try { old.stop() } catch {} }
+    }
     setRecording(false)
     setInterimTranscript('')
   }
@@ -3265,11 +3284,15 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && (
-            <div style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
+            <div onClick={()=>{ stopRec(); setTimeout(()=>startRec(), 300) }}
+              style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
               <div style={{fontFamily:fH,fontSize:15,fontWeight:900,color:'#ff4444',letterSpacing:1}}>
                 🎙 YOUR TURN — SPEAK NOW
+              </div>
+              <div style={{fontSize:9,color:'rgba(255,255,255,0.5)',marginTop:3}}>
+                mic not picking up? tap here to restart it
               </div>
             </div>
           )}
