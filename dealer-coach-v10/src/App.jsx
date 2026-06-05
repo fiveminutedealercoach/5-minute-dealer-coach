@@ -178,7 +178,9 @@ const unlockAudioPlayback = () => {
   if (elUnlocked) return
   try {
     const a = getELAudio()
-    if (!a.paused) { elUnlocked = true; return }  // already playing = already unlocked
+    if (!a.paused) { elUnlocked = true; return }       // already playing = already unlocked
+    if (a.src && a.src.indexOf('blob:') === 0) return  // real TTS is loaded (paused between turns) - never clobber it
+    a.onended = null; a.onerror = null                 // stale utterance handlers must not fire for the silent clip
     a.src = SILENT_WAV
     const p = a.play()
     if (p && p.then) p.then(() => { elUnlocked = true; try { a.pause() } catch {} }).catch(() => {})
@@ -194,16 +196,19 @@ if (typeof document !== 'undefined') {
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
     const a = getELAudio()
+    a.onended = null; a.onerror = null   // clear the previous utterance's handlers before reuse
     try { a.pause() } catch {}
     const res = await fetch('/elevenlabs-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,...voiceOpts})})
     if (!res.ok) throw new Error('EL failed')
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
-    a.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
-    a.onerror  = () => { speakBrowser(text, onDone) }
+    a.onended = () => { a.onended = null; a.onerror = null; setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
+    a.onerror  = () => { a.onended = null; a.onerror = null; speakBrowser(text, onDone) }
     a.src = url
     try { await a.play() } catch(playErr) {
       // iOS autoplay block — fall back, watchdog guarantees onDone
+      a.onended = null; a.onerror = null
+      try { a.removeAttribute('src') } catch {}   // free the element so the next tap can unlock it
       speakBrowser(text, onDone); return
     }
   } catch { speakBrowser(text, onDone) }
@@ -2274,7 +2279,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       if(!acceptingInputRef.current) return          // turn ended - nothing to check
       if(lastResultAtRef.current >= armedAt) return  // results flowing - mic is alive
       if(tries >= 2) return                          // give up silently - rep can type
-      try { window.speechSynthesis?.cancel() } catch {}  // wedged synthesis deafens iOS recognition
+      try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}  // only unwedge ACTIVE synthesis - idle cancel kills iOS recognition
       stopRec()
       startRec()                                     // fresh recognition on a now-warm audio session
       armMicWatchdog(tries + 1)
@@ -2292,10 +2297,11 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         setTimeout(() => {
           playTurnCue()
           // Open the gate — persistent mic now captures rep's words
-          // Kill any wedged browser-TTS utterance first: speakBrowser's safety
-          // timer can fire onDone while synthesis is still holding the audio
-          // session, and active speechSynthesis deafens iOS recognition.
-          try { window.speechSynthesis?.cancel() } catch {}
+          // If a browser-TTS utterance is genuinely still active (EL fallback
+          // case), kill it - active synthesis deafens iOS recognition. NEVER
+          // call cancel() when synthesis is idle: on iOS that pokes the shared
+          // speech subsystem and can kill the live recognition session.
+          try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}
           accumulatedRef.current = ''
           setTranscript('')
           setInterimTranscript('')
