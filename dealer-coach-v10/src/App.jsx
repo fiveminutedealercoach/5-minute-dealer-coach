@@ -1936,7 +1936,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       return 'medium'
     } catch { return 'medium' }
   }
-  const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown
+  const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown (unused in tap-to-talk)
+  const [micLive, setMicLive]         = useState(false)       // rep tapped - recognition live for this turn
   const [modelSpeaking, setModelSpeaking] = useState(false)   // speaking model script
   // ── AUTO-READ COACHING REPORT ─────────────────────────────
   // When the report appears, the coach reads the grade summary and the
@@ -2240,54 +2241,32 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   // settling. If the gate is open and no results arrive within 5s, silently
   // rebuild the mic - same as the manual cancel-and-retry, but automatic.
   // Max 2 rebuilds per turn, then we stop (typing still works).
-  const armMicWatchdog = (attempt) => {
-    const tries = attempt || 0
+  // Silence detector: if the rep tapped to talk but nothing registered within
+  // 7s, do NOT background-restart (background recognition starts are the thing
+  // that keeps coming up deaf on iOS). Instead, route back to the tap - a
+  // gesture-started recognition is the one reliable path.
+  const armMicWatchdog = () => {
     if(gateWatchdogRef.current) clearTimeout(gateWatchdogRef.current)
     const armedAt = Date.now()
     gateWatchdogRef.current = setTimeout(() => {
       if(!acceptingInputRef.current) return          // turn ended - nothing to check
       if(lastResultAtRef.current >= armedAt) return  // results flowing - mic is alive
-      if(tries >= 3){
-        setLiveStatus('Mic not connecting  -  tap the red banner to restart it, or type below')
-        return
-      }
-      // Replicate the PROVEN manual cancel-and-retry, INCLUDING ITS TIMING:
-      // teardown now, fresh recognition ~2 seconds later. Restarts faster than
-      // ~1s land inside an unstable iOS audio window and come up deaf - that
-      // was the flaw in every previous auto-recovery.
-      setLiveStatus('Reconnecting mic...')
-      stopSpeaking()
       stopRec()
-      setTimeout(() => {
-        if(!acceptingInputRef.current) return        // turn ended while settling
-        startRec()
-        setLiveStatus('Mic reconnected  -  go ahead and speak')
-        armMicWatchdog(tries + 1)
-      }, 1800)
-    }, tries === 0 ? 6000 : 5000)
+      acceptingInputRef.current = false
+      setMicLive(false)
+      setLiveStatus('Mic did not catch anything  -  tap the button and try again')
+    }, 7000)
   }
 
   const startRecWithCountdown = () => {
-    setMicWarmup(3)
-    let c = 3
-    const tick = setInterval(() => {
-      c--
-      setMicWarmup(c)
-      if(c <= 0) {
-        clearInterval(tick)
-        setTimeout(() => {
-          playTurnCue()
-          // Open the gate — persistent mic now captures rep's words
-          accumulatedRef.current = ''
-          setTranscript('')
-          setInterimTranscript('')
-          acceptingInputRef.current = true
-          // Safety: if recognition died (iOS timeout), restart it
-          if(!recRef.current || !recordingRef.current) { startRec() }
-          armMicWatchdog()
-        }, 100)
-      }
-    }, 1000)
+    // TAP-TO-TALK: recognition on iOS is only reliable when started from a
+    // finger tap. The mic is NEVER auto-started - the rep taps the banner,
+    // the tap itself starts a fresh recognition, and they speak. The old
+    // design (background mic through the AI's speech + timed gate-open) is
+    // what kept coming up deaf.
+    setMicWarmup(0)
+    setMicLive(false)
+    acceptingInputRef.current = false
   }
 
   const startRec = (delayMs) => {
@@ -2418,7 +2397,9 @@ One coaching whisper:`}],
       const repText = (transcript || interimTranscript).trim()
       if (!repText) { return }  // nothing spoken yet, do nothing
 
-      acceptingInputRef.current = false  // close gate — mic stays alive
+      acceptingInputRef.current = false  // close gate
+      stopRec()                          // mic fully OFF during the AI's turn (tap-to-talk)
+      setMicLive(false)
       setTranscript('')
       setInterimTranscript('')
       accumulatedRef.current = ''
@@ -2879,9 +2860,9 @@ ${diffMod ? '\n' + diffMod : ''}`
 
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
-    // Start the persistent mic NOW (gate closed) so it's warm when rep's turn comes
+    // Tap-to-talk: no background mic during the AI's speech - recognition
+    // starts only from the rep's tap when it's their turn
     acceptingInputRef.current = false
-    startRec()
     speak(scriptOpener, () => {
       setSpeaking(false)
       setLiveStatus('Your turn  -  speak your response')
@@ -3481,13 +3462,26 @@ RETURN ONLY valid JSON:
               <div style={{fontFamily:fH,fontSize:14,fontWeight:900,color:C.blueBright,letterSpacing:1}}>🎧 {persona?.name} IS SPEAKING...</div>
             </div>
           )}
-          {livePhase==='live' && liveRecording && (
-            <div onClick={()=>{ acceptingInputRef.current = true; setLiveStatus('Restarting mic...'); stopSpeaking(); stopRec(); setTimeout(()=>{ startRec(); acceptingInputRef.current = true; setLiveStatus('Mic restarted  -  go ahead and speak'); armMicWatchdog() }, 1200) }}
+          {livePhase==='live' && liveRecording && !micLive && (
+            <div onClick={()=>{ playTurnCue(); setLiveStatus(''); accumulatedRef.current=''; setTranscript(''); setInterimTranscript(''); lastResultAtRef.current=0; acceptingInputRef.current = true; setMicLive(true); startRec(50); armMicWatchdog() }}
+              style={{background:'rgba(184,255,60,0.15)',border:'2px solid rgba(184,255,60,0.7)',
+              borderRadius:10,padding:'14px',textAlign:'center',cursor:'pointer',
+              animation:'livepulse 1.2s ease-in-out infinite'}}>
+              <div style={{fontFamily:fH,fontSize:17,fontWeight:900,color:C.green,letterSpacing:1}}>
+                🎙 TAP TO ANSWER
+              </div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.6)',marginTop:3}}>
+                tap, then speak your response
+              </div>
+            </div>
+          )}
+          {livePhase==='live' && liveRecording && micLive && (
+            <div onClick={()=>{ setLiveStatus('Restarting mic...'); stopRec(); setTimeout(()=>{ startRec(100); acceptingInputRef.current = true; setLiveStatus('Mic restarted  -  go ahead and speak'); armMicWatchdog() }, 700) }}
               style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
               <div style={{fontFamily:fH,fontSize:15,fontWeight:900,color:'#ff4444',letterSpacing:1}}>
-                🎙 YOUR TURN — SPEAK NOW
+                🔴 LISTENING — SPEAK NOW
               </div>
               <div style={{fontSize:9,color:'rgba(255,255,255,0.5)',marginTop:3}}>
                 mic not picking up? tap here to restart it
