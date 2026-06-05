@@ -164,7 +164,6 @@ const saveJSON = (k,v) => localStorage.setItem(k,JSON.stringify(v))
 // ── ElevenLabs TTS with browser fallback ─────────────────────
 // Fresh Audio element per utterance - the known-working architecture.
 let elAudio = null
-let recCycledOnce = false   // one-time recognition stop/start cycle per session (cold-start mic fix)
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
     if (elAudio) { elAudio.pause(); elAudio = null }
@@ -2252,15 +2251,20 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         setLiveStatus('Mic not connecting  -  tap the red banner to restart it, or type below')
         return
       }
+      // Replicate the PROVEN manual cancel-and-retry, INCLUDING ITS TIMING:
+      // teardown now, fresh recognition ~2 seconds later. Restarts faster than
+      // ~1s land inside an unstable iOS audio window and come up deaf - that
+      // was the flaw in every previous auto-recovery.
       setLiveStatus('Reconnecting mic...')
-      stopSpeaking()                                 // same audio teardown as the manual cancel - the recovery we KNOW works
+      stopSpeaking()
       stopRec()
       setTimeout(() => {
-        startRec(300)
-        setLiveStatus('Your turn  -  speak your response')
+        if(!acceptingInputRef.current) return        // turn ended while settling
+        startRec()
+        setLiveStatus('Mic reconnected  -  go ahead and speak')
         armMicWatchdog(tries + 1)
-      }, 400)
-    }, 4000)
+      }, 1800)
+    }, tries === 0 ? 6000 : 5000)
   }
 
   const startRecWithCountdown = () => {
@@ -2878,18 +2882,6 @@ ${diffMod ? '\n' + diffMod : ''}`
     // Start the persistent mic NOW (gate closed) so it's warm when rep's turn comes
     acceptingInputRef.current = false
     startRec()
-    // COLD-START FIX: the first recognition of an iOS session often comes up
-    // deaf, and a full stop/start cycle fixes it - that is exactly what the
-    // manual cancel-and-retry does. So on the first drill of the session we
-    // cycle the recognition once, automatically, while the AI is still
-    // delivering the objection. The rep never notices; by their turn the mic
-    // is the same fresh second instance that has always worked.
-    // (Uses ONLY the recognition API - a getUserMedia warm-up was tried and
-    // it poisons recognition for the whole session on iOS.)
-    if (!recCycledOnce) {
-      recCycledOnce = true
-      setTimeout(() => { try { stopRec(); startRec(300) } catch {} }, 1500)
-    }
     speak(scriptOpener, () => {
       setSpeaking(false)
       setLiveStatus('Your turn  -  speak your response')
@@ -3490,7 +3482,7 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && (
-            <div onClick={()=>{ acceptingInputRef.current = true; stopSpeaking(); stopRec(); setTimeout(()=>{ startRec(150); acceptingInputRef.current = true; armMicWatchdog() }, 250) }}
+            <div onClick={()=>{ acceptingInputRef.current = true; setLiveStatus('Restarting mic...'); stopSpeaking(); stopRec(); setTimeout(()=>{ startRec(); acceptingInputRef.current = true; setLiveStatus('Mic restarted  -  go ahead and speak'); armMicWatchdog() }, 1200) }}
               style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
@@ -3514,6 +3506,10 @@ RETURN ONLY valid JSON:
               <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:C.yellow}}>{micWarmup}</div>
               <div style={{fontFamily:fH,fontSize:11,fontWeight:700,color:C.yellow,letterSpacing:2}}>GET READY</div>
             </div>
+          )}
+          {livePhase==='live' && liveStatus && liveStatus.toLowerCase().indexOf('mic') !== -1 && (
+            <div style={{textAlign:'center',fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1,
+              textTransform:'uppercase',color:C.yellow,padding:'4px 0'}}>{liveStatus}</div>
           )}
         </div>
 
