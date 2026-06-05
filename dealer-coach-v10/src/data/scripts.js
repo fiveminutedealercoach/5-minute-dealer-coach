@@ -6,7 +6,7 @@ export const SCRIPTS = [
 
   // ── Mindset & Gross Awareness (5) ────────────────────────────────
   {
-    id: 1, dept: 'sales', category: 'Mindset & Gross Awareness',
+    id: 1, dept: 'sales', audience: 'manager', category: 'Mindset & Gross Awareness',
     objection: '"We\'re just giving cars away out there"',
     situation: 'A salesperson comes back from the desk defeated, convinced they have to discount heavily to close every deal.',
     mistake: 'The manager agrees, reinforcing the low-gross mindset instead of resetting expectations.',
@@ -15,7 +15,7 @@ export const SCRIPTS = [
     followup: '"What did you show them that justified the price? Walk me through what value you built before you went to the desk."',
   },
   {
-    id: 2, dept: 'sales', category: 'Mindset & Gross Awareness',
+    id: 2, dept: 'sales', audience: 'manager', category: 'Mindset & Gross Awareness',
     objection: 'Rep says: "This customer will never pay sticker"',
     situation: 'Before the deal even starts, a salesperson has decided the customer won\'t pay full price and mentally discounts in advance.',
     mistake: 'They accept the assumption, write a lowball deal from the start, and train the customer to expect discounts.',
@@ -24,7 +24,7 @@ export const SCRIPTS = [
     followup: '"Present the numbers at full price with confidence. If they push back, come get me and we\'ll work it together. But don\'t start low."',
   },
   {
-    id: 3, dept: 'sales', category: 'Mindset & Gross Awareness',
+    id: 3, dept: 'sales', audience: 'manager', category: 'Mindset & Gross Awareness',
     objection: 'Setting the daily gross goal in the morning huddle',
     situation: 'The team starts the day with no gross target — just a unit goal. Every deal gets worked on feel, not data.',
     mistake: 'The manager only talks about units, not gross per unit. The team has no shared benchmark to aim for.',
@@ -33,7 +33,7 @@ export const SCRIPTS = [
     followup: 'Post the daily gross target where the team can see it. Review it in the end-of-day wrap.',
   },
   {
-    id: 4, dept: 'sales', category: 'Mindset & Gross Awareness',
+    id: 4, dept: 'sales', audience: 'manager', category: 'Mindset & Gross Awareness',
     objection: 'Celebrating gross wins publicly to build team culture',
     situation: 'A rep closes a deal at strong gross but the manager doesn\'t acknowledge it. The team sees only volume recognized, not profit.',
     mistake: 'The manager only celebrates unit count — which signals to the team that discounting is acceptable as long as the car moves.',
@@ -42,7 +42,7 @@ export const SCRIPTS = [
     followup: 'Ask the rep to walk the team through how they built value and held the price. Let the win teach.',
   },
   {
-    id: 5, dept: 'sales', category: 'Mindset & Gross Awareness',
+    id: 5, dept: 'sales', audience: 'manager', category: 'Mindset & Gross Awareness',
     objection: 'One-price mentality used without building value first',
     situation: 'A rep tells a customer "the price is the price" as a shortcut instead of building value — and the customer walks.',
     mistake: 'They use one-price positioning without having built enough value to justify it, so it comes off as arrogant instead of confident.',
@@ -155,12 +155,12 @@ export const SCRIPTS = [
   },
   {
     id: 17, dept: 'sales', category: 'Menu Selling & Finance',
-    objection: 'Presenting the F&I menu without confidence',
-    situation: 'The finance manager rushes through the menu because they expect objections — and the customer senses the lack of conviction.',
-    mistake: 'They present products apologetically, say "you probably don\'t want this but..." and create their own objections.',
-    script: '"Every vehicle we sell comes with options to protect your investment. I\'m going to walk you through each one so you can make an informed decision. Some will make sense for your situation, some won\'t. My job is to make sure you know what\'s available — not to sell you everything on the menu."',
-    why: 'A confident, consultative framing removes pressure and builds trust. Customers buy more from finance managers who present with confidence than from those who apologize for the products.',
-    followup: 'Present each product clearly, state the benefit, state the cost, ask a trial close. Never skip to the bottom of the menu.',
+    objection: '"I\'m already approved at my credit union — I don\'t need your financing"',
+    situation: 'The customer arrives at the finance office with outside financing already arranged and wants to shut the conversation down before it starts.',
+    mistake: 'The finance manager treats the deal as lost, skips the menu entirely, and processes the paperwork without presenting an alternative or a single product.',
+    script: '"That\'s great — you came prepared, and that puts you ahead of most buyers. Quick question: what rate did they approve you at? Here\'s why I ask — we work with over a dozen lenders, and it takes me about five minutes to see if one of them beats your credit union. If they can\'t, you use your approval and you\'ve lost nothing. If they can, you just saved money. Either way, fair?"',
+    why: 'You\'re not fighting the credit union — you\'re offering a free second look with zero risk. Most customers will give you five minutes, and even when the outside rate wins, the menu presentation stays alive because they\'re still financing the vehicle.',
+    followup: '"And whichever lender you choose, I\'ll walk you through the protection options for your vehicle — that takes four minutes and nothing on it is mandatory."',
   },
   {
     id: 18, dept: 'sales', category: 'Menu Selling & Finance',
@@ -277,7 +277,7 @@ export const SCRIPTS = [
     followup: 'Whichever option they choose, work from that payment — not from their counter. Control the structure.',
   },
   {
-    id: 30, dept: 'sales', category: 'Sales Tactics for Higher Gross',
+    id: 30, dept: 'sales', audience: 'manager', category: 'Sales Tactics for Higher Gross',
     objection: 'The manager T.O. — stepping in to save a deal',
     situation: 'Salesperson has hit a wall and the customer is about to walk. The manager steps in for the turn-over.',
     mistake: 'The manager comes in with no new information, repeats what the rep already said, and the customer sees through it.',
@@ -292,7 +292,7 @@ export const SCRIPTS = [
 
   // ── Mindset & Customer-Pay Focus (5) ────────────────────────────
   {
-    id: 31, dept: 'service', category: 'Mindset & Customer-Pay Focus',
+    id: 31, dept: 'service', audience: 'manager', category: 'Mindset & Customer-Pay Focus',
     objection: '"Our prices are too high — customers keep saying so"',
     situation: 'Advisors are using customer price objections as a reason to discount or pre-emptively apologize for costs.',
     mistake: 'The manager validates the complaint without addressing the root cause — which is a failure to build value before presenting price.',
@@ -301,7 +301,7 @@ export const SCRIPTS = [
     followup: '"Before any advisor presents a number today, I want them to explain two things to the customer: what we\'re doing and why it matters. Then price."',
   },
   {
-    id: 32, dept: 'service', category: 'Mindset & Customer-Pay Focus',
+    id: 32, dept: 'service', audience: 'manager', category: 'Mindset & Customer-Pay Focus',
     objection: '"Advisors won\'t sell — they just write orders"',
     situation: 'Service advisors are acting as order takers rather than value-builders, resulting in low customer-pay sales.',
     mistake: 'The manager accepts the behavior, citing advisor personality type instead of holding them to a professional standard.',
@@ -310,7 +310,7 @@ export const SCRIPTS = [
     followup: '"Starting today, every advisor does a daily debrief with me on their MPI conversion rate. What they presented, what they sold, what they didn\'t. That\'s the new standard."',
   },
   {
-    id: 33, dept: 'service', category: 'Mindset & Customer-Pay Focus',
+    id: 33, dept: 'service', audience: 'manager', category: 'Mindset & Customer-Pay Focus',
     objection: 'Advisor decides for the customer before presenting',
     situation: 'An advisor is not recommending a service because they personally think the customer doesn\'t need it yet.',
     mistake: 'The manager lets the advisor make the customer\'s decision for them instead of presenting and letting the customer decide.',
@@ -319,7 +319,7 @@ export const SCRIPTS = [
     followup: '"From now on, if it\'s on the inspection, it gets presented. The conversation is the customer\'s — not yours."',
   },
   {
-    id: 34, dept: 'service', category: 'Mindset & Customer-Pay Focus',
+    id: 34, dept: 'service', audience: 'manager', category: 'Mindset & Customer-Pay Focus',
     objection: 'Setting customer-pay goals in the morning huddle',
     situation: 'The service team starts the day with no ELR or customer-pay revenue target — results are entirely reactive.',
     mistake: 'The manager only reviews appointments and estimated hours. No gross, no conversion, no customer-pay target.',
@@ -328,7 +328,7 @@ export const SCRIPTS = [
     followup: 'Post the target at the advisor stations. Review progress at midday. Celebrate when the team hits it.',
   },
   {
-    id: 35, dept: 'service', category: 'Mindset & Customer-Pay Focus',
+    id: 35, dept: 'service', audience: 'manager', category: 'Mindset & Customer-Pay Focus',
     objection: 'Advisor skips the presentation to avoid rejection',
     situation: 'Advisor decides a customer looks like they won\'t buy and skips the recommendation presentation entirely.',
     mistake: 'Manager doesn\'t catch it and the missed revenue never shows up in any metric — it\'s invisible lost opportunity.',
@@ -349,12 +349,12 @@ export const SCRIPTS = [
   },
   {
     id: 37, dept: 'service', category: 'Selling the Menu & Recommended Services',
-    objection: 'Advisors skipping the MPI for quick-lube customers',
-    situation: 'Advisor is skipping the MPI offer for customers who "only want an oil change" to save time.',
-    mistake: 'The MPI is skipped, missed revenue is never tracked, and customers leave without knowing the state of their vehicle.',
-    script: '"With every service visit, we perform a complimentary multi-point inspection. Our technician will check [key items] and you\'ll get a full report with photos. There\'s no charge for the inspection — it just gives you a complete picture of where your vehicle stands. I\'ll have results for you within [time]."',
-    why: 'The MPI is the foundation of all customer-pay revenue. Making it standard and complimentary removes customer resistance and creates the pipeline for recommended services.',
-    followup: '"When the tech is done, I\'ll walk you through what they found and we can talk about priorities."',
+    objection: '"I\'m in a hurry — just the oil change, I don\'t have time for an inspection"',
+    situation: 'A quick-lube customer is watching the clock and assumes the multi-point inspection will add time to their visit.',
+    mistake: 'The advisor takes the objection at face value and skips the MPI — losing the inspection, the photo report, and every recommendation that would have come from it.',
+    script: '"I hear you — let\'s get you out of here fast. Here\'s the good news: the inspection happens while your oil is draining, so it adds zero minutes to your visit. The technician\'s eyes are already on the vehicle. You\'ll get a photo report on your phone, and if everything checks out, you\'re gone right on schedule. Sound good?"',
+    why: 'The customer isn\'t objecting to the inspection — they\'re objecting to the time they think it costs. Remove the time cost and the objection disappears. The MPI runs in parallel, not in sequence.',
+    followup: '"If the tech does spot anything, I\'ll text you the photos so you can glance at them without waiting around. Nothing gets done without your okay."',
   },
   {
     id: 38, dept: 'service', category: 'Selling the Menu & Recommended Services',
@@ -385,12 +385,12 @@ export const SCRIPTS = [
   },
   {
     id: 41, dept: 'service', category: 'Selling the Menu & Recommended Services',
-    objection: 'Presenting recommended services after MPI without confidence',
-    situation: 'Advisor is nervous presenting recommendations and buries them or apologizes for the price.',
-    mistake: 'They present only the cheapest items to avoid pushback and leave the most important recommendations unspoken.',
-    script: '"Here\'s what our technician found. I\'m going to walk you through each item — what it is, why it matters, and what it costs. Some of these are safety-related, some are maintenance, and some are just good to know about. I\'ll tell you which is which so you can decide what to prioritize."',
-    why: 'A structured, confident framework — safety / maintenance / awareness — gives the customer a decision-making tool. It signals the advisor is a trusted consultant, not a salesperson.',
-    followup: '"Let\'s start with the safety items — these are the ones I\'d never drive away without addressing."',
+    objection: '"Just email me the results — I don\'t want to go over them"',
+    situation: 'The MPI is complete with real findings, but the customer brushes off the walk-through and heads for the door.',
+    mistake: 'The advisor complies, sends the report into an inbox where it dies, and the recommendations are never actually presented to a human being.',
+    script: '"Absolutely — I\'ll email you the full report with photos right now. Before you head out, give me ninety seconds on just two of these. There are a couple of photos here I\'d want my own mother to see before she drove home. Everything else can live in the email."',
+    why: 'You\'re agreeing to the request, not fighting it — then earning a small, specific ask. Two items in ninety seconds is easy to accept, and a photo shown in person converts at many times the rate of a report sitting in an inbox.',
+    followup: '"This first one is the safety item — that\'s the one I\'d prioritize today. The second can wait until your next visit, and I\'ll note it on your account so we both remember."',
   },
 
   // ── Handling Objections & Price Pushback (6) ────────────────────
