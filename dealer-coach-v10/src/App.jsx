@@ -164,7 +164,7 @@ const saveJSON = (k,v) => localStorage.setItem(k,JSON.stringify(v))
 // ── ElevenLabs TTS with browser fallback ─────────────────────
 // Fresh Audio element per utterance - the known-working architecture.
 let elAudio = null
-let micWarmedOnce = false   // one-time getUserMedia warm-up per session (cold-start mic fix)
+let recCycledOnce = false   // one-time recognition stop/start cycle per session (cold-start mic fix)
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
     if (elAudio) { elAudio.pause(); elAudio = null }
@@ -2875,22 +2875,21 @@ ${diffMod ? '\n' + diffMod : ''}`
 
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
-    // COLD-START FIX: the first recognition of an iOS session can start deaf
-    // because the mic input route has never been opened. A momentary
-    // getUserMedia here opens the route and caches permission; tracks stop
-    // 250ms later - well before the AI audio arrives - so playback is
-    // unaffected. From then on, every drill starts on a warm session, which
-    // is exactly why attempt 2 always worked.
-    try {
-      if (!micWarmedOnce && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({audio:true})
-          .then(stream => { micWarmedOnce = true; setTimeout(() => { try { stream.getTracks().forEach(t => t.stop()) } catch {} }, 250) })
-          .catch(() => {})
-      }
-    } catch {}
     // Start the persistent mic NOW (gate closed) so it's warm when rep's turn comes
     acceptingInputRef.current = false
     startRec()
+    // COLD-START FIX: the first recognition of an iOS session often comes up
+    // deaf, and a full stop/start cycle fixes it - that is exactly what the
+    // manual cancel-and-retry does. So on the first drill of the session we
+    // cycle the recognition once, automatically, while the AI is still
+    // delivering the objection. The rep never notices; by their turn the mic
+    // is the same fresh second instance that has always worked.
+    // (Uses ONLY the recognition API - a getUserMedia warm-up was tried and
+    // it poisons recognition for the whole session on iOS.)
+    if (!recCycledOnce) {
+      recCycledOnce = true
+      setTimeout(() => { try { stopRec(); startRec(300) } catch {} }, 1500)
+    }
     speak(scriptOpener, () => {
       setSpeaking(false)
       setLiveStatus('Your turn  -  speak your response')
