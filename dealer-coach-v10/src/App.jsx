@@ -154,7 +154,7 @@ const pickWelcome = (name, isNew) => {
 }
 
 const AI_OPENERS = {
-  1:"My team keeps saying we have to discount to close. What's your response to that?",2:"I've already decided this customer won't pay sticker. There's no point trying.",3:"We never set gross goals in morning meetings. Is that really necessary?",4:"I don't see why we need to celebrate gross wins publicly. It creates competition.",5:"We use a one-price model so I just tell customers the price is the price.",6:"I just checked online and found this exact car for two thousand dollars less. Match that price.",7:"Look, I don't have time for a presentation. Just give me your absolute best price right now.",8:"I really like the car but I need to run it by my wife before I make any decisions.",9:"That monthly payment is way too high. There is absolutely no way I can do that number.",10:"I'm not ready to buy today. I'm just here to gather some information.",11:"I want to think about it and come back sometime next week when I've decided.",12:"I found this exact same car at another dealership and they're five hundred dollars cheaper.",13:"I'm honestly just browsing today and not looking to purchase anything.",14:"I don't need the extended warranty. I'll just take my chances if something breaks.",15:"GAP insurance sounds like a total ripoff to me. Why would I need that?",16:"I never buy warranties on anything. I'll deal with it if something goes wrong.",17:"I just want to know the payment with nothing added. Skip all the extras.",18:"Can you just show me the base payment without any of those add-ons?",19:"My trade-in is worth way more than what you're offering me for it.",20:"Why does reconditioning cost so much? That seems really inflated to me.",21:"I found the exact same used car at another lot for less money.",22:"The CarFax shows this car had an accident. I don't want to buy it.",23:"I can get a newer model for basically the same price somewhere else.",24:"I don't need the paint protection package. I'll take my chances with the finish.",25:"Those accessories seem really overpriced. I can get them cheaper online.",26:"Do I really need all of this? It feels like you're just adding stuff I don't want.",27:"I'll add the accessories later after I've had the car for a little while.",28:"I'm paying cash so I should be getting a much better deal than this.",29:"I need to see all my options laid out before I can decide on anything.",30:"Let me talk to your manager. I want to see what else you can do on this deal.",31:"Your prices are way too high compared to other shops I've called around.",32:"My advisors just write orders. They don't try to sell anything extra at all.",33:"I already know what I need done so just write up the order for that.",34:"Nobody told me what my target for customer-pay is today. I have no idea.",35:"I didn't present that recommendation because I knew they wouldn't buy it.",36:"I'll just skip the maintenance package presentation for this customer today.",37:"We don't have time to do a full inspection for every quick-lube customer.",38:"Just do whatever the car needs. I trust you guys to figure it out.",39:"How do I know this inspection is even real? Did you actually check everything?",40:"I'll approve just the oil change but skip everything else on that list.",41:"Can you just email me the inspection results? I don't really want to go over it.",42:"The car has been running fine for two years. I'll wait until it actually breaks to fix it.",43:"My brother-in-law is a mechanic and he can do it for half the price you're quoting.",44:"Seven hundred and eighty dollars? I thought this was only going to be around two hundred.",45:"I just had that exact service done somewhere else just three months ago.",46:"My other dealership charges significantly less than you for the same labor.",47:"If that's really the price you're quoting me, I'll just take it somewhere else.",48:"How much does a basic oil change cost? Just give me a number right now.",49:"I'm calling around to compare prices. What's your cheapest oil change option?",50:"I need to bring my car in urgently today. Can you fit me in without an appointment?",51:"Can I just drop it off without scheduling? I'm pretty flexible on timing.",52:"Just do the oil change please. Skip everything else on that list today.",53:"I need to call my husband first before I approve any of these repairs.",54:"I'll take care of that recommendation next time I come in for service.",55:"Which of these items is actually urgent versus which ones can wait a while?",56:"The car is twelve years old. I really don't want to put any more money into it.",57:"My tires look perfectly fine to me. I don't think I need new ones right now.",58:"The brakes seem completely fine to me. I don't understand why you're recommending this.",59:"I don't think I need a coolant flush. The car runs perfectly fine without it.",60:"I've never done a transmission service in ten years and the car has been totally fine.",
+  1:"My team keeps saying we have to discount to close. What's your response to that?",2:"I've already decided this customer won't pay sticker. There's no point trying.",3:"We never set gross goals in morning meetings. Is that really necessary?",4:"I don't see why we need to celebrate gross wins publicly. It creates competition.",5:"We use a one-price model so I just tell customers the price is the price.",6:"I just checked online and found this exact car for two thousand dollars less. Match that price.",7:"Look, I don't have time for a presentation. Just give me your absolute best price right now.",8:"I really like the car but I need to run it by my wife before I make any decisions.",9:"That monthly payment is way too high. There is absolutely no way I can do that number.",10:"I'm not ready to buy today. I'm just here to gather some information.",11:"I want to think about it and come back sometime next week when I've decided.",12:"I found this exact same car at another dealership and they're five hundred dollars cheaper.",13:"I'm honestly just browsing today and not looking to purchase anything.",14:"I don't need the extended warranty. I'll just take my chances if something breaks.",15:"GAP insurance sounds like a total ripoff to me. Why would I need that?",16:"I never buy warranties on anything. I'll deal with it if something goes wrong.",17:"I'm already approved at my credit union, so I won't be needing any of your financing options.",18:"Can you just show me the base payment without any of those add-ons?",19:"My trade-in is worth way more than what you're offering me for it.",20:"Why does reconditioning cost so much? That seems really inflated to me.",21:"I found the exact same used car at another lot for less money.",22:"The CarFax shows this car had an accident. I don't want to buy it.",23:"I can get a newer model for basically the same price somewhere else.",24:"I don't need the paint protection package. I'll take my chances with the finish.",25:"Those accessories seem really overpriced. I can get them cheaper online.",26:"Do I really need all of this? It feels like you're just adding stuff I don't want.",27:"I'll add the accessories later after I've had the car for a little while.",28:"I'm paying cash so I should be getting a much better deal than this.",29:"I need to see all my options laid out before I can decide on anything.",30:"Let me talk to your manager. I want to see what else you can do on this deal.",31:"Your prices are way too high compared to other shops I've called around.",32:"My advisors just write orders. They don't try to sell anything extra at all.",33:"I already know what I need done so just write up the order for that.",34:"Nobody told me what my target for customer-pay is today. I have no idea.",35:"I didn't present that recommendation because I knew they wouldn't buy it.",36:"I'll just skip the maintenance package presentation for this customer today.",37:"I'm in a hurry today. Just do the oil change please. I don't have time to wait around for any inspection.",38:"Just do whatever the car needs. I trust you guys to figure it out.",39:"How do I know this inspection is even real? Did you actually check everything?",40:"I'll approve just the oil change but skip everything else on that list.",41:"Can you just email me the inspection results? I don't really want to go over it.",42:"The car has been running fine for two years. I'll wait until it actually breaks to fix it.",43:"My brother-in-law is a mechanic and he can do it for half the price you're quoting.",44:"Seven hundred and eighty dollars? I thought this was only going to be around two hundred.",45:"I just had that exact service done somewhere else just three months ago.",46:"My other dealership charges significantly less than you for the same labor.",47:"If that's really the price you're quoting me, I'll just take it somewhere else.",48:"How much does a basic oil change cost? Just give me a number right now.",49:"I'm calling around to compare prices. What's your cheapest oil change option?",50:"I need to bring my car in urgently today. Can you fit me in without an appointment?",51:"Can I just drop it off without scheduling? I'm pretty flexible on timing.",52:"Just do the oil change please. Skip everything else on that list today.",53:"I need to call my husband first before I approve any of these repairs.",54:"I'll take care of that recommendation next time I come in for service.",55:"Which of these items is actually urgent versus which ones can wait a while?",56:"The car is twelve years old. I really don't want to put any more money into it.",57:"My tires look perfectly fine to me. I don't think I need new ones right now.",58:"The brakes seem completely fine to me. I don't understand why you're recommending this.",59:"I don't think I need a coolant flush. The car runs perfectly fine without it.",60:"I've never done a transmission service in ten years and the car has been totally fine.",
 }
 const getOpener = id => AI_OPENERS[id] || "Tell me why I should trust your recommendation here."
 
@@ -342,8 +342,11 @@ const PDFBtn = ({onClick,label='📄 Download PDF'}) => (
   <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.06)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,cursor:'pointer',marginBottom:16}}>{label}</button>
 )
 
-function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null}) {
-  const cats = [...new Set(SCRIPTS.map(s=>s.category))]
+function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null,pool=null}) {
+  // Chips derive from the caller's VISIBLE pool, not all of SCRIPTS - so a
+  // category whose scripts are filtered out for this role never shows a dead chip
+  const chipPool = pool || SCRIPTS
+  const cats = [...new Set(chipPool.map(s=>s.category))]
   const ed = lockDept||dept
   return (
     <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}>
@@ -357,7 +360,7 @@ function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null
       {setCat&&(
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
           <button onClick={()=>setCat('all')} style={{background:cat==='all'?'rgba(255,255,255,0.12)':'transparent',color:cat==='all'?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,cursor:'pointer'}}>All</button>
-          {cats.filter(c=>ed==='all'||SCRIPTS.find(s=>s.category===c&&s.dept===ed)).map(c=>(
+          {cats.filter(c=>ed==='all'||chipPool.find(s=>s.category===c&&s.dept===ed)).map(c=>(
             <button key={c} onClick={()=>setCat(c)} style={{background:cat===c?'rgba(255,255,255,0.12)':'transparent',color:cat===c?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,cursor:'pointer'}}>{c}</button>
           ))}
         </div>
@@ -1135,8 +1138,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
   // Best suggested script based on weakest category
   const getSuggestedScript = () => {
     try {
-      const COACHING_CATS_R = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
-      const pool = SCRIPTS.filter(s => !COACHING_CATS_R.has(s.category) && (dept==='both'||s.dept===dept))
+      const pool = SCRIPTS.filter(s => s.audience!=='manager' && (dept==='both'||s.dept===dept))
       if(!pool.length) return null
       // Check assigned drill first
       const assignedKey = '5md-assigned-' + (dealer?.dealerId||'local')
@@ -1378,9 +1380,11 @@ function ScriptLibrary({dealer}) {
   const [search,setSearch] = useState('')
   const [openId,setOpenId] = useState(null)
 
-  const COACHING_CATS = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
-  const filtered = SCRIPTS.filter(s=>{
-    if(COACHING_CATS.has(s.category)) return false  // coaching scripts in Manager Hub
+  // Reps see customer-facing scripts only. Managers (gm/sales_mgr/svc_mgr) see
+  // everything, including manager coaching situations (audience:'manager' in scripts.js).
+  const showMgrScripts = isManager(dealer?.role)
+  const visible = SCRIPTS.filter(s => showMgrScripts || s.audience !== 'manager')
+  const filtered = visible.filter(s=>{
     if(filterDept!=='all'&&s.dept!==filterDept) return false
     if(cat!=='all'&&s.category!==cat) return false
     if(search&&!s.objection.toLowerCase().includes(search.toLowerCase())) return false
@@ -1390,15 +1394,15 @@ function ScriptLibrary({dealer}) {
   return (
     <div style={{padding:'16px 16px 96px'}}>
       <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Script Library</div>
-      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>60 Word Tracks  -  Sales & Service</div>
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
+      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>{visible.length} Word Tracks  -  {showMgrScripts?'Sales, Service & Manager Coaching':'Sales & Service'}</div>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible}/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map((s,filteredIdx)=>(
           <div key={s.id} style={{background:C.card,border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:10,overflow:'hidden'}}>
             <div onClick={()=>setOpenId(openId===s.id?null:s.id)} style={{padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:openId===s.id?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}>
 
               <div style={{flex:1}}>
-                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag></div>
+                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag>{s.audience==='manager'&&<Tag color={C.yellow}>👔 Manager Coaching</Tag>}</div>
                 <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.split('"').join('')}</div>
               </div>
               <div style={{color:C.gray,fontSize:12}}>{openId===s.id?'▲':'▼'}</div>
@@ -2030,7 +2034,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   useEffect(()=>{
     if(preloadScript){
       const s = preloadScript === 'random'
-        ? (() => { const pool=SCRIPTS.filter(sc=>!new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus']).has(sc.category)&&(dept==='both'||sc.dept===dept)); return pool[Math.floor(Math.random()*pool.length)] })()
+        ? (() => { const pool=SCRIPTS.filter(sc=>sc.audience!=='manager'&&(dept==='both'||sc.dept===dept)); return pool[Math.floor(Math.random()*pool.length)] })()
         : preloadScript
       if(!s) return
       const persona = getPersonaForScript(s)
@@ -2058,6 +2062,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   },[])
 
   const filtered = SCRIPTS.filter(s=>{
+    if(s.audience==='manager') return false  // manager coaching situations are not customer drills
     const ed = lockDept||filterDept
     if(ed!=='all'&&s.dept!==ed) return false
     if(cat!=='all'&&s.category!==cat) return false
@@ -2233,8 +2238,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     }
     setShowPersonaCard(false)
     if (!script) {
-      const COACHING_CATS_VD = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
-    const pool = SCRIPTS.filter(s=>(dept==='both'||s.dept===dept)&&!COACHING_CATS_VD.has(s.category))
+      const pool = SCRIPTS.filter(s=>s.audience!=='manager'&&(dept==='both'||s.dept===dept))
       script = pool[Math.floor(Math.random()*pool.length)]
     }
     const persona = personaId ? PERSONAS.find(p=>p.id===personaId)||getPersonaForScript(script) : getPersonaForScript(script)
@@ -3661,7 +3665,7 @@ RETURN ONLY valid JSON:
         </div>
       </div>
 
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
       <AskCoach onDrill={(script)=>launch(script)} dept={filterDept} mode="objection"/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -4065,9 +4069,8 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     setPhase('setup'); setSelScript(null); setTimeLeft(TOTAL_H); setRunning(false)
   }
 
-  const COACHING_CATS_H = new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'])
   const filtered = SCRIPTS.filter(s=>{
-    if(COACHING_CATS_H.has(s.category)) return false  // coaching scripts go to Manager Hub
+    if(s.audience==='manager') return false  // coaching scripts go to Manager Hub
     const ed=lockDept||filterDept
     if(ed!=='all'&&s.dept!==ed) return false
     if(cat!=='all'&&s.category!==cat) return false
@@ -4272,7 +4275,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
         ))}
       </div>
       <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Pick Today's Script</div>
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept}/>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')}/>
       <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
         {filtered.map((s,filteredIdx)=>(
           <div key={s.id} onClick={()=>setSelScript(s)} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):C.card,border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:8,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
@@ -5004,7 +5007,7 @@ function LeaderGrid(){
 
           {/* Dept filter toggle */}
           {(()=>{
-            const pool = SCRIPTS.filter(s=>new Set(['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus']).has(s.category))
+            const pool = SCRIPTS.filter(s=>s.audience==='manager')
             const counts = {both:pool.length, sales:pool.filter(s=>s.dept==='sales').length, service:pool.filter(s=>s.dept==='service').length}
             return (
               <div style={{display:'flex',gap:6,marginBottom:12}}>
