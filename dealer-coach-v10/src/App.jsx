@@ -1913,6 +1913,9 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const liveTranscriptRef  = useRef([])    // always-current transcript for closures
   const sendResponseRef    = useRef(null)  // stable ref to send function
   const transcriptBoxRef   = useRef(null)  // scroll container - auto-pin to newest message
+  const lastResultAtRef    = useRef(0)     // timestamp of last speech result - mic watchdog proof of life
+  const gateWatchdogRef    = useRef(null)  // timer that detects a deaf recognition after the gate opens
+  const drillCreditRef     = useRef(false) // true once grade + results credit saved for the current drill
   const [difficulty, setDifficulty]   = useState('medium')   // easy | medium | hard
   // Item 13: auto-compute adaptive difficulty from drill history
   const getAdaptiveDifficulty = (scriptId) => {
@@ -2225,6 +2228,26 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     setSpeaking(true); speak(opener,()=>setSpeaking(false), vOpts)
   }
 
+  // Mic watchdog: catches a "deaf" recognition - one that is running but never
+  // delivers results. Happens on the FIRST drill of an iOS session, when
+  // recognition starts while the permission prompt or TTS audio session is still
+  // settling. If the gate is open and no results arrive within 5s, silently
+  // rebuild the mic - same as the manual cancel-and-retry, but automatic.
+  // Max 2 rebuilds per turn, then we stop (typing still works).
+  const armMicWatchdog = (attempt) => {
+    const tries = attempt || 0
+    if(gateWatchdogRef.current) clearTimeout(gateWatchdogRef.current)
+    const armedAt = Date.now()
+    gateWatchdogRef.current = setTimeout(() => {
+      if(!acceptingInputRef.current) return          // turn ended - nothing to check
+      if(lastResultAtRef.current >= armedAt) return  // results flowing - mic is alive
+      if(tries >= 2) return                          // give up silently - rep can type
+      stopRec()
+      startRec()                                     // fresh recognition on a now-warm audio session
+      armMicWatchdog(tries + 1)
+    }, 5000)
+  }
+
   const startRecWithCountdown = () => {
     setMicWarmup(3)
     let c = 3
@@ -2242,6 +2265,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
           acceptingInputRef.current = true
           // Safety: if recognition died (iOS timeout), restart it
           if(!recRef.current || !recordingRef.current) { startRec() }
+          armMicWatchdog()
         }, 100)
       }
     }, 1000)
@@ -2261,6 +2285,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       rec.lang = 'en-US'
       let lastResultIndex = 0
       rec.onresult = e => {
+        lastResultAtRef.current = Date.now()  // proof of life for the mic watchdog - even gated results count
         if(!acceptingInputRef.current) return  // discard while AI is speaking
         // Show interim results immediately so rep sees their words live
         let interim = ''
@@ -2317,6 +2342,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     },400)
   }
   const stopRec = () => {
+    if(gateWatchdogRef.current){ clearTimeout(gateWatchdogRef.current); gateWatchdogRef.current = null }
     recordingRef.current = false
     if(recRef.current){
       const old = recRef.current
@@ -2792,6 +2818,7 @@ ${diffMod ? '\n' + diffMod : ''}`
     setTranscript('')
     accumulatedRef.current = ''
     nextResponseRef.current = null
+    drillCreditRef.current = false  // fresh drill - credit not yet saved
     setLiveStatus('Getting into character...')
 
     // Item 1: Pre-conversation character warmup
@@ -2913,6 +2940,43 @@ ${diffMod ? '\n' + diffMod : ''}`
   }
 
     // ── REBUILT GRADING ENGINE  -  Mathematical ACRA scoring ───────
+  // Persist drill credit the moment the report exists - NOT when an outcome
+  // button is tapped. Grade history, best score, recent results entry, and
+  // stats counters all update here, so a rep who bails off the report screen
+  // (e.g. while the coach is still reading it aloud) keeps full credit.
+  // Idempotent per drill via drillCreditRef. Supabase was already synced in
+  // endLiveDrill, so the entry carries skipSync. silent keeps the rep on the
+  // report screen - no welcome toast, no tab switch.
+  const persistDrillCredit = (fb) => {
+    if(!activeS || !fb || drillCreditRef.current) return
+    drillCreditRef.current = true
+    if(fb.score && fb.total !== '-'){
+      try {
+        const bestKey = `5md-best-${activeS.id}`
+        const prevBest = loadJSON(bestKey, null)
+        const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
+        const prevIdx = prevBest ? gradeOrder.indexOf(prevBest) : 99
+        if(gradeOrder.indexOf(fb.score) < prevIdx) saveJSON(bestKey, fb.score)  // lower index = better grade
+        const histKey = '5md-history-' + activeS.id
+        const hist = JSON.parse(localStorage.getItem(histKey)||'[]')
+        hist.push({ score: fb.score, total: fb.total||0, date: Date.now() })
+        if(hist.length > 15) hist.shift()
+        localStorage.setItem(histKey, JSON.stringify(hist))
+        setDrillHistory(h => ({...h, [String(activeS.id)]: hist}))
+      } catch {}
+    }
+    onLog({
+      dept: activeS.dept,
+      script: activeS.objection.split('"').join(''),
+      result: '',
+      notes: 'Voice drill  -  AI coached',
+      type: 'voice',
+      score: fb.total !== '-' ? fb.score : undefined,  // grade badge on Recent Drills cards
+      skipSync: true,   // Supabase already counted this drill in endLiveDrill
+      silent: true,     // no welcome toast / tab switch - rep is still on the report
+    })
+  }
+
   const getFeedback = async (lastResp, allResps, earnedClose=false) => {
     setLoading(true); setError(''); stopSpeaking(); setSilentCoach(null)
     // Item 14: cross-drill pattern recognition
@@ -2993,6 +3057,7 @@ RETURN ONLY valid JSON:
         const p = JSON.parse(raw.replace(/```json|```/g,'').trim())
         if (p.score&&p.improvement) {
           setFeedback(p); setPhase('feedback')
+          persistDrillCredit(p)  // grade + counters saved NOW - rep keeps credit even if they bail
           setTimeout(()=>setLivePhase('idle'), 100)
           // Spoken feedback  -  short and punchy
           const spoken = `Grade ${p.score}. ${p.acknowledge} ${p.advance}`
@@ -3003,7 +3068,7 @@ RETURN ONLY valid JSON:
     } catch {}
 
     // Fallback
-    setFeedback({
+    const fallbackFb = {
       ack_score:'-',clar_score:'-',resp_score:'-',adv_score:'-',total:'-',
       score:'C', score_detail:'C  -  Evaluation incomplete. Review the model word track.',
       acknowledge:'Compare your opening to the model  -  did you mirror the customer?',
@@ -3011,7 +3076,9 @@ RETURN ONLY valid JSON:
       respond:'Review the model word track for the specific value pivot.',
       advance:'Did you end with a direct yes/no commitment question?',
       improvement: activeS.script + ' ' + activeS.followup
-    })
+    }
+    setFeedback(fallbackFb)
+    persistDrillCredit(fallbackFb)  // still a completed drill - counters update, history skipped (total is '-')
     setPhase('feedback')
     setTimeout(()=>setLivePhase('idle'), 100)
     setLoading(false)
@@ -3054,26 +3121,10 @@ RETURN ONLY valid JSON:
 
   const logResult = result => {
     setLivePhase('idle')  // ensure live screen doesn't block list
-    // Save best score per script for streak mode
-    if(activeS&&feedback?.score){
-      const bestKey = `5md-best-${activeS.id}`
-      const prev = loadJSON(bestKey, null)
-      const gradeOrder = ['A+','A','B+','B','C+','C','D','F']
-      const prevIdx = prev ? gradeOrder.indexOf(prev) : 99
-      const newIdx  = gradeOrder.indexOf(feedback.score)
-      if(newIdx < prevIdx) saveJSON(bestKey, feedback.score)  // lower index = better grade
-    }
-    // Save drill history for trend tracking
-    if(activeS && feedback?.total !== '-') {
-      const histKey = '5md-history-' + activeS.id
-      try {
-        const prev = JSON.parse(localStorage.getItem(histKey)||'[]')
-        prev.push({ score: feedback.score, total: feedback.total||0, date: Date.now() })
-        if(prev.length > 15) prev.shift()
-        localStorage.setItem(histKey, JSON.stringify(prev))
-        setDrillHistory(h => ({...h, [String(activeS.id)]: prev}))
-      } catch {}
-    }
+    // Grade history, best score, and the results entry were already saved when
+    // the report was generated (persistDrillCredit). This call is a safety net
+    // for any edge case where the report rendered without credit being saved:
+    persistDrillCredit(feedback)
     const cachedScript = activeS
     const cachedPersonaId = activePersId
     // Item 11: save this drill for comparison next time
@@ -3090,7 +3141,8 @@ RETURN ONLY valid JSON:
     if(feedback?.score) {
       setTeamDrillScores(prev => [...prev, {name: dealer?.repName || 'Rep', score: feedback.score, time: new Date().toLocaleTimeString()}])
     }
-    onLog({dept:activeS.dept,script:activeS.objection.split('"').join(''),result,notes:'Voice drill  -  AI coached',type:'voice',skipSync:true})
+    // Outcome tap: update the auto-logged entry's result instead of appending a duplicate
+    onLog({dept:activeS.dept,script:activeS.objection.split('"').join(''),result,notes:'Voice drill  -  AI coached',type:'voice',skipSync:true,updateResult:true})
     // Don't clear activeS — keep it so Drill Again buttons work
     setPhase('feedback_done')
     stopSpeaking()
@@ -6121,6 +6173,24 @@ export default function App() {
 
   const logResult = entry => {
     const repName = entry.rep || dealer?.repName
+    // Outcome tap after an auto-logged voice drill: update that entry's result
+    // instead of appending a duplicate - the drill was already counted in
+    // stats/streak when the report was generated.
+    if(entry.updateResult){
+      const idx = results.findIndex(r => r.type==='voice' && r.rep===repName && !r.result && r.script===entry.script)
+      if(idx >= 0){
+        const updated = [...results]
+        updated[idx] = {...updated[idx], result: entry.result||'', notes: entry.notes||updated[idx].notes}
+        setResults(updated); saveJSON('5md-results',updated)
+        const msg = pickWelcome(repName,false)
+        setWelcomeMsg(msg)
+        setTimeout(()=>setWelcomeMsg(null),5500)
+        setPreloadTracker(entry.script||'')
+        setTab('tracker')
+        return
+      }
+      // no matching auto entry found (edge case) - fall through and log normally
+    }
     const newEntry = {...entry,date:new Date().toLocaleDateString('en-US'),id:Date.now(),rep:repName}
     const newResults = [newEntry,...results]
     setResults(newResults); saveJSON('5md-results',newResults)
@@ -6141,7 +6211,8 @@ export default function App() {
       })
     }
     // Show encouragement when returning home after drill
-    if(entry.type==='voice' || entry.type==='huddle') {
+    // (skip for silent auto-logs - the rep is still on the report screen)
+    if((entry.type==='voice' || entry.type==='huddle') && !entry.silent) {
       const msg = pickWelcome(repName, false)
       setWelcomeMsg(msg)
       setTimeout(()=>setWelcomeMsg(null), 5500)
