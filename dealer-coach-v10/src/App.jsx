@@ -162,19 +162,47 @@ const loadJSON = (k,d) => { try { return JSON.parse(localStorage.getItem(k)||JSO
 const saveJSON = (k,v) => localStorage.setItem(k,JSON.stringify(v))
 
 // ── ElevenLabs TTS with browser fallback ─────────────────────
+// ONE persistent Audio element, unlocked by the user's first tap anywhere.
+// iOS only allows .play() outside a gesture on an element that already played
+// inside one. Creating a fresh Audio per utterance meant the FIRST drill of a
+// session hit the autoplay block and fell back to speechSynthesis - which
+// deafens webkitSpeechRecognition on iOS. That was the first-drill dead-mic bug.
 let elAudio = null
+let elUnlocked = false
+const SILENT_WAV = 'data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+const getELAudio = () => {
+  if (!elAudio) { elAudio = new Audio(); elAudio.setAttribute('playsinline','') }
+  return elAudio
+}
+const unlockAudioPlayback = () => {
+  if (elUnlocked) return
+  try {
+    const a = getELAudio()
+    if (!a.paused) { elUnlocked = true; return }  // already playing = already unlocked
+    a.src = SILENT_WAV
+    const p = a.play()
+    if (p && p.then) p.then(() => { elUnlocked = true; try { a.pause() } catch {} }).catch(() => {})
+  } catch {}
+}
+// First tap anywhere in the app unlocks playback - long before any drill starts.
+// Listeners stay attached (unlockAudioPlayback no-ops once unlocked) so a
+// rejected first attempt simply retries on the next tap.
+if (typeof document !== 'undefined') {
+  document.addEventListener('touchend', unlockAudioPlayback, {capture: true, passive: true})
+  document.addEventListener('click', unlockAudioPlayback, true)
+}
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
-    if (elAudio) { elAudio.pause(); elAudio = null }
+    const a = getELAudio()
+    try { a.pause() } catch {}
     const res = await fetch('/elevenlabs-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,...voiceOpts})})
     if (!res.ok) throw new Error('EL failed')
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
-    elAudio = new Audio(url)
-    const localAudio = elAudio  // capture local ref so onended fires even if elAudio is cleared
-    elAudio.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
-    elAudio.onerror  = () => { speakBrowser(text, onDone) }
-    try { await elAudio.play() } catch(playErr) {
+    a.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
+    a.onerror  = () => { speakBrowser(text, onDone) }
+    a.src = url
+    try { await a.play() } catch(playErr) {
       // iOS autoplay block — fall back, watchdog guarantees onDone
       speakBrowser(text, onDone); return
     }
@@ -200,7 +228,7 @@ const speakBrowser = (text, onDone) => {
   },150)
 }
 const stopSpeaking = () => {
-  if (elAudio) { try { elAudio.pause() } catch {} elAudio = null }
+  if (elAudio) { try { elAudio.pause() } catch {} }  // pause but KEEP the element - it holds the iOS gesture unlock
   try { window.speechSynthesis?.cancel() } catch {}
 }
 const playBeep = (freq=880, dur=0.12, vol=0.25) => {
@@ -2242,6 +2270,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
       if(!acceptingInputRef.current) return          // turn ended - nothing to check
       if(lastResultAtRef.current >= armedAt) return  // results flowing - mic is alive
       if(tries >= 2) return                          // give up silently - rep can type
+      try { window.speechSynthesis?.cancel() } catch {}  // wedged synthesis deafens iOS recognition
       stopRec()
       startRec()                                     // fresh recognition on a now-warm audio session
       armMicWatchdog(tries + 1)
@@ -2259,6 +2288,10 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         setTimeout(() => {
           playTurnCue()
           // Open the gate — persistent mic now captures rep's words
+          // Kill any wedged browser-TTS utterance first: speakBrowser's safety
+          // timer can fire onDone while synthesis is still holding the audio
+          // session, and active speechSynthesis deafens iOS recognition.
+          try { window.speechSynthesis?.cancel() } catch {}
           accumulatedRef.current = ''
           setTranscript('')
           setInterimTranscript('')
