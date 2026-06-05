@@ -193,6 +193,19 @@ if (typeof document !== 'undefined') {
   document.addEventListener('touchend', unlockAudioPlayback, {capture: true, passive: true})
   document.addEventListener('click', unlockAudioPlayback, true)
 }
+// Fully release the element's media resource so iOS hands the audio session
+// back to the microphone. The element object itself survives - it carries the
+// gesture unlock - and the next speakEL simply sets a fresh src.
+const releaseELAudio = () => {
+  try {
+    if (elAudio) {
+      elAudio.onended = null; elAudio.onerror = null
+      elAudio.pause()
+      elAudio.removeAttribute('src')
+      elAudio.load()
+    }
+  } catch {}
+}
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
     const a = getELAudio()
@@ -205,7 +218,7 @@ const speakEL = async (text, onDone, voiceOpts={}) => {
     a.onended = () => { a.onended = null; a.onerror = null; setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
     a.onerror  = () => { a.onended = null; a.onerror = null; speakBrowser(text, onDone) }
     a.src = url
-    try { await a.play() } catch(playErr) {
+    try { await a.play(); elUnlocked = true /* a successful play IS the unlock */ } catch(playErr) {
       // iOS autoplay block — fall back, watchdog guarantees onDone
       a.onended = null; a.onerror = null
       try { a.removeAttribute('src') } catch {}   // free the element so the next tap can unlock it
@@ -2278,12 +2291,20 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     gateWatchdogRef.current = setTimeout(() => {
       if(!acceptingInputRef.current) return          // turn ended - nothing to check
       if(lastResultAtRef.current >= armedAt) return  // results flowing - mic is alive
-      if(tries >= 2) return                          // give up silently - rep can type
-      try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}  // only unwedge ACTIVE synthesis - idle cancel kills iOS recognition
+      if(tries >= 3){
+        setLiveStatus('Mic not connecting  -  tap the red banner to restart it, or type below')
+        return
+      }
+      setLiveStatus('Reconnecting mic...')
+      try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}
+      releaseELAudio()                               // free the audio session for the mic
       stopRec()
-      startRec()                                     // fresh recognition on a now-warm audio session
-      armMicWatchdog(tries + 1)
-    }, 5000)
+      setTimeout(() => {
+        startRec(250)
+        setLiveStatus('Your turn  -  speak your response')
+        armMicWatchdog(tries + 1)
+      }, 250)
+    }, 4000)
   }
 
   const startRecWithCountdown = () => {
@@ -2302,6 +2323,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
           // call cancel() when synthesis is idle: on iOS that pokes the shared
           // speech subsystem and can kill the live recognition session.
           try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}
+          releaseELAudio()   // free the audio session for the mic - loaded TTS media can hold it in playback mode on iOS
           accumulatedRef.current = ''
           setTranscript('')
           setInterimTranscript('')
@@ -2314,7 +2336,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     }, 1000)
   }
 
-  const startRec = () => {
+  const startRec = (delayMs) => {
     if(!supported){setError('Use Chrome or Edge for voice. Type below.');return}
     // Don't call stopSpeaking() here — it kills AI audio before onDone callback fires
     setSpeaking(false)
@@ -2382,7 +2404,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         }
       }
       tryStart(0)
-    },400)
+    },delayMs||400)
   }
   const stopRec = () => {
     if(gateWatchdogRef.current){ clearTimeout(gateWatchdogRef.current); gateWatchdogRef.current = null }
@@ -3506,7 +3528,7 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && (
-            <div onClick={()=>{ acceptingInputRef.current = true; stopRec(); setTimeout(()=>{ startRec(); acceptingInputRef.current = true }, 350) }}
+            <div onClick={()=>{ acceptingInputRef.current = true; releaseELAudio(); stopRec(); setTimeout(()=>{ startRec(150); acceptingInputRef.current = true; armMicWatchdog() }, 250) }}
               style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
