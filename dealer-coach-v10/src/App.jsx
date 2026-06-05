@@ -1912,6 +1912,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const streamRef          = useRef(null)  // local mic stream
   const liveTranscriptRef  = useRef([])    // always-current transcript for closures
   const sendResponseRef    = useRef(null)  // stable ref to send function
+  const transcriptBoxRef   = useRef(null)  // scroll container - auto-pin to newest message
   const [difficulty, setDifficulty]   = useState('medium')   // easy | medium | hard
   // Item 13: auto-compute adaptive difficulty from drill history
   const getAdaptiveDifficulty = (scriptId) => {
@@ -1988,6 +1989,12 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     keys.forEach(k => { try { hist[k.replace('5md-history-','')] = JSON.parse(localStorage.getItem(k)||'[]') } catch {} })
     setDrillHistory(hist)
   },[])
+
+  // Auto-scroll live transcript to newest message (instant scrollTop, not smooth - interim speech updates fire rapidly on iOS)
+  useEffect(()=>{
+    const el = transcriptBoxRef.current
+    if(el) el.scrollTop = el.scrollHeight
+  },[liveTranscript, transcript, interimTranscript])
 
   useEffect(()=>{
     if(preloadScript){
@@ -3432,7 +3439,7 @@ RETURN ONLY valid JSON:
         </div>
 
         {/* ── MIDDLE: Scrollable transcript ── */}
-        <div style={{flex:1,overflowY:'auto',padding:'12px 16px',
+        <div ref={transcriptBoxRef} style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'12px 16px',
           display:'flex',flexDirection:'column',gap:8}}>
           {/* Objection reference */}
           <div style={{background:'rgba(184,255,60,0.05)',border:'1px solid rgba(184,255,60,0.15)',
