@@ -162,70 +162,27 @@ const loadJSON = (k,d) => { try { return JSON.parse(localStorage.getItem(k)||JSO
 const saveJSON = (k,v) => localStorage.setItem(k,JSON.stringify(v))
 
 // ── ElevenLabs TTS with browser fallback ─────────────────────
-// ONE persistent Audio element, unlocked by the user's first tap anywhere.
-// iOS only allows .play() outside a gesture on an element that already played
-// inside one. Creating a fresh Audio per utterance meant the FIRST drill of a
-// session hit the autoplay block and fell back to speechSynthesis - which
-// deafens webkitSpeechRecognition on iOS. That was the first-drill dead-mic bug.
+// Fresh Audio element per utterance - the known-working architecture.
 let elAudio = null
-let elUnlocked = false
-const SILENT_WAV = 'data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-const getELAudio = () => {
-  if (!elAudio) { elAudio = new Audio(); elAudio.setAttribute('playsinline','') }
-  return elAudio
-}
-const unlockAudioPlayback = () => {
-  if (elUnlocked) return
-  try {
-    const a = getELAudio()
-    if (!a.paused) { elUnlocked = true; return }       // already playing = already unlocked
-    if (a.src && a.src.indexOf('blob:') === 0) return  // real TTS is loaded (paused between turns) - never clobber it
-    a.onended = null; a.onerror = null                 // stale utterance handlers must not fire for the silent clip
-    a.src = SILENT_WAV
-    const p = a.play()
-    if (p && p.then) p.then(() => { elUnlocked = true; try { a.pause() } catch {} }).catch(() => {})
-  } catch {}
-}
-// First tap anywhere in the app unlocks playback - long before any drill starts.
-// Listeners stay attached (unlockAudioPlayback no-ops once unlocked) so a
-// rejected first attempt simply retries on the next tap.
-if (typeof document !== 'undefined') {
-  document.addEventListener('touchend', unlockAudioPlayback, {capture: true, passive: true})
-  document.addEventListener('click', unlockAudioPlayback, true)
-}
-// Fully release the element's media resource so iOS hands the audio session
-// back to the microphone. The element object itself survives - it carries the
-// gesture unlock - and the next speakEL simply sets a fresh src.
-const releaseELAudio = () => {
-  try {
-    if (elAudio) {
-      elAudio.onended = null; elAudio.onerror = null
-      elAudio.pause()
-      elAudio.removeAttribute('src')
-      elAudio.load()
-    }
-  } catch {}
-}
+let micWarmedOnce = false   // one-time getUserMedia warm-up per session (cold-start mic fix)
 const speakEL = async (text, onDone, voiceOpts={}) => {
   try {
-    const a = getELAudio()
-    a.onended = null; a.onerror = null   // clear the previous utterance's handlers before reuse
-    try { a.pause() } catch {}
+    if (elAudio) { elAudio.pause(); elAudio = null }
     const res = await fetch('/elevenlabs-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,...voiceOpts})})
     if (!res.ok) throw new Error('EL failed')
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
-    a.onended = () => { a.onended = null; a.onerror = null; setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
-    a.onerror  = () => { a.onended = null; a.onerror = null; speakBrowser(text, onDone) }
-    a.src = url
-    try { await a.play(); elUnlocked = true /* a successful play IS the unlock */ } catch(playErr) {
+    elAudio = new Audio(url)
+    const localAudio = elAudio  // capture local ref so onended fires even if elAudio is cleared
+    elAudio.onended = () => { setTimeout(() => { URL.revokeObjectURL(url); onDone && onDone() }, 400) }
+    elAudio.onerror  = () => { speakBrowser(text, onDone) }
+    try { await elAudio.play() } catch(playErr) {
       // iOS autoplay block — fall back, watchdog guarantees onDone
-      a.onended = null; a.onerror = null
-      try { a.removeAttribute('src') } catch {}   // free the element so the next tap can unlock it
       speakBrowser(text, onDone); return
     }
   } catch { speakBrowser(text, onDone) }
 }
+
 const speakBrowser = (text, onDone) => {
   if (!window.speechSynthesis) { onDone && onDone(); return }
   window.speechSynthesis.cancel()
@@ -246,7 +203,7 @@ const speakBrowser = (text, onDone) => {
   },150)
 }
 const stopSpeaking = () => {
-  if (elAudio) { try { elAudio.pause() } catch {} }  // pause but KEEP the element - it holds the iOS gesture unlock
+  if (elAudio) { try { elAudio.pause() } catch {} elAudio = null }
   try { window.speechSynthesis?.cancel() } catch {}
 }
 const playBeep = (freq=880, dur=0.12, vol=0.25) => {
@@ -2296,14 +2253,13 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         return
       }
       setLiveStatus('Reconnecting mic...')
-      try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}
-      releaseELAudio()                               // free the audio session for the mic
+      stopSpeaking()                                 // same audio teardown as the manual cancel - the recovery we KNOW works
       stopRec()
       setTimeout(() => {
-        startRec(250)
+        startRec(300)
         setLiveStatus('Your turn  -  speak your response')
         armMicWatchdog(tries + 1)
-      }, 250)
+      }, 400)
     }, 4000)
   }
 
@@ -2318,12 +2274,6 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
         setTimeout(() => {
           playTurnCue()
           // Open the gate — persistent mic now captures rep's words
-          // If a browser-TTS utterance is genuinely still active (EL fallback
-          // case), kill it - active synthesis deafens iOS recognition. NEVER
-          // call cancel() when synthesis is idle: on iOS that pokes the shared
-          // speech subsystem and can kill the live recognition session.
-          try { if(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) window.speechSynthesis.cancel() } catch {}
-          releaseELAudio()   // free the audio session for the mic - loaded TTS media can hold it in playback mode on iOS
           accumulatedRef.current = ''
           setTranscript('')
           setInterimTranscript('')
@@ -2925,6 +2875,19 @@ ${diffMod ? '\n' + diffMod : ''}`
 
     const pVoice = getPersonaVoiceOpts(persona)
     setSpeaking(true)
+    // COLD-START FIX: the first recognition of an iOS session can start deaf
+    // because the mic input route has never been opened. A momentary
+    // getUserMedia here opens the route and caches permission; tracks stop
+    // 250ms later - well before the AI audio arrives - so playback is
+    // unaffected. From then on, every drill starts on a warm session, which
+    // is exactly why attempt 2 always worked.
+    try {
+      if (!micWarmedOnce && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({audio:true})
+          .then(stream => { micWarmedOnce = true; setTimeout(() => { try { stream.getTracks().forEach(t => t.stop()) } catch {} }, 250) })
+          .catch(() => {})
+      }
+    } catch {}
     // Start the persistent mic NOW (gate closed) so it's warm when rep's turn comes
     acceptingInputRef.current = false
     startRec()
@@ -3528,7 +3491,7 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && (
-            <div onClick={()=>{ acceptingInputRef.current = true; releaseELAudio(); stopRec(); setTimeout(()=>{ startRec(150); acceptingInputRef.current = true; armMicWatchdog() }, 250) }}
+            <div onClick={()=>{ acceptingInputRef.current = true; stopSpeaking(); stopRec(); setTimeout(()=>{ startRec(150); acceptingInputRef.current = true; armMicWatchdog() }, 250) }}
               style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
               borderRadius:10,padding:'10px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
