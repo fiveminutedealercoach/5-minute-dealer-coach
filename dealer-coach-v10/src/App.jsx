@@ -317,12 +317,31 @@ const PDFBtn = ({onClick,label='📄 Download PDF'}) => (
   <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.06)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,cursor:'pointer',marginBottom:16}}>{label}</button>
 )
 
-function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null,pool=null}) {
+function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null,pool=null,compact=false}) {
   // Chips derive from the caller's VISIBLE pool, not all of SCRIPTS - so a
   // category whose scripts are filtered out for this role never shows a dead chip
   const chipPool = pool || SCRIPTS
   const cats = [...new Set(chipPool.map(s=>s.category))]
   const ed = lockDept||dept
+  // Compact: one thin row - dept segmented control + search. For screens where
+  // categories are already handled elsewhere (e.g. the library accordion).
+  if(compact) return (
+    <div style={{display:'flex',gap:8,marginBottom:14,alignItems:'stretch'}}>
+      {!lockDept && (
+        <div style={{display:'flex',background:'rgba(255,255,255,0.05)',border:`1px solid ${C.border}`,borderRadius:100,padding:3,flexShrink:0}}>
+          {[['all','All'],['sales','Sales'],['service','Service']].map(([v,l])=>(
+            <button key={v} onClick={()=>{setDept(v);setCat&&setCat('all')}}
+              style={{background:dept===v?(v==='sales'?C.blue:v==='service'?C.green:'rgba(255,255,255,0.16)'):'transparent',
+                color:dept===v&&v==='service'?C.navy:dept===v?C.white:C.gray,
+                fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',
+                padding:'7px 12px',borderRadius:100,border:'none',cursor:'pointer'}}>{l}</button>
+          ))}
+        </div>
+      )}
+      <input style={{...inp,flex:1,borderRadius:100,padding:'8px 16px',fontSize:13,minWidth:0}}
+        placeholder="Search..." value={search} onChange={e=>setSearch(e.target.value)}/>
+    </div>
+  )
   return (
     <div style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:14,padding:'12px 14px',marginBottom:14}}>
       {!lockDept&&(
@@ -1454,7 +1473,7 @@ function ScriptLibrary({dealer}) {
           </div>
         ))}
       </div>
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible}/>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible} compact/>
       {(()=>{
         const renderCard = (s) => (
           <div key={s.id} style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:14,overflow:'hidden',boxShadow:'0 2px 12px rgba(0,0,0,0.25)'}}>
