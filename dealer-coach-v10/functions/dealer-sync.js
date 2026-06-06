@@ -29,7 +29,7 @@ export async function onRequestPost(context) {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         })
       }
-      const dealer = { code, name: dealerName, dept, created: Date.now(), reps: [] }
+      const dealer = { code, name: dealerName, dept, created: Date.now(), reps: [], contactEmails: data.email ? [String(data.email).trim().toLowerCase()] : [] }
       await env.DEALER_KV.put(`dealer:${code}`, JSON.stringify(dealer))
 
       // ── Write to master operator index ──────────────────────────
@@ -94,7 +94,44 @@ export async function onRequestPost(context) {
       const code = dealerId.toUpperCase()
       const raw = await env.DEALER_KV.get(`dealer:${code}`)
       const dealer = raw ? JSON.parse(raw) : null
-      return new Response(JSON.stringify({ success: true, reps: dealer?.reps || [] }), {
+      return new Response(JSON.stringify({ success: true, reps: dealer?.reps || [], contactEmails: dealer?.contactEmails || [] }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
+    // ── UPDATE CONTACTS (recap email recipients for a dealership) ──
+    if (action === 'updateContacts') {
+      const code = dealerId.toUpperCase()
+      const raw = await env.DEALER_KV.get(`dealer:${code}`)
+      if (!raw) {
+        return new Response(JSON.stringify({ error: 'Dealer not found' }), {
+          status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      }
+      const dealer = JSON.parse(raw)
+      dealer.contactEmails = (Array.isArray(data?.emails) ? data.emails : [])
+        .map(e => String(e).trim().toLowerCase())
+        .filter(e => e.includes('@') && e.includes('.'))
+        .slice(0, 10)
+      await env.DEALER_KV.put(`dealer:${code}`, JSON.stringify(dealer))
+      return new Response(JSON.stringify({ success: true, contactEmails: dealer.contactEmails }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
+    // ── REMOVE REP (roster cleanup - activity history is untouched) ──
+    if (action === 'removeRep') {
+      const code = dealerId.toUpperCase()
+      const raw = await env.DEALER_KV.get(`dealer:${code}`)
+      if (!raw) {
+        return new Response(JSON.stringify({ error: 'Dealer not found' }), {
+          status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      }
+      const dealer = JSON.parse(raw)
+      dealer.reps = (dealer.reps || []).filter(r => r !== data?.rep)
+      await env.DEALER_KV.put(`dealer:${code}`, JSON.stringify(dealer))
+      return new Response(JSON.stringify({ success: true, reps: dealer.reps }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
     }
