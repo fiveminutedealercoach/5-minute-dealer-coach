@@ -75,6 +75,7 @@ if (typeof document !== 'undefined') {
   const styleEl = document.createElement('style')
   styleEl.textContent = `
     @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+    @keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
     @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
     @keyframes scaleIn { from { opacity:0; transform:scale(0.85) } to { opacity:1; transform:scale(1) } }
     @keyframes gradeReveal { from { opacity:0; transform:scale(0.5) } to { opacity:1; transform:scale(1) } }
@@ -1974,6 +1975,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     } catch { return 'medium' }
   }
   const [micWarmup, setMicWarmup]     = useState(0)           // 3,2,1 countdown (unused in tap-to-talk)
+  const [gradeMsgIdx, setGradeMsgIdx] = useState(0)           // report-generating interstitial message cycler
   const [micLive, setMicLive]         = useState(false)       // rep tapped - recognition live for this turn
   const [modelSpeaking, setModelSpeaking] = useState(false)   // speaking model script
   // ── AUTO-READ COACHING REPORT ─────────────────────────────
@@ -2036,6 +2038,14 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     keys.forEach(k => { try { hist[k.replace('5md-history-','')] = JSON.parse(localStorage.getItem(k)||'[]') } catch {} })
     setDrillHistory(hist)
   },[])
+
+  // Cycle the ACRA-themed grading messages while the report generates
+  useEffect(()=>{
+    if(livePhase!=='ended') return
+    setGradeMsgIdx(0)
+    const iv = setInterval(()=>setGradeMsgIdx(i=>i+1), 1500)
+    return ()=>clearInterval(iv)
+  },[livePhase])
 
   // Auto-scroll live transcript to newest message (instant scrollTop, not smooth - interim speech updates fire rapidly on iOS)
   useEffect(()=>{
@@ -3467,6 +3477,26 @@ RETURN ONLY valid JSON:
   if((livePhase==='connecting'||livePhase==='live'||livePhase==='ended')&&activeS) {
     const persona = PERSONAS.find(p=>p.id===activePersId)||getPersonaForScript(activeS)
     const repCount = liveTranscriptRef.current.filter(t=>t.role==='rep').length
+    // ── REPORT-GENERATING INTERSTITIAL ──
+    // The drill is over and the AI is grading. Full-screen takeover: clear
+    // completion signal, visible progress, ACRA-themed status lines that mask
+    // the grading latency and build anticipation for the grade reveal.
+    if(livePhase==='ended') {
+      const GRADING_MSGS = ['Reviewing your exchanges...','Scoring your Acknowledge...','Checking your clarifying question...','Evaluating your value pivot...','Grading your close...','Writing your coaching notes...','Finalizing your grade...']
+      const msg = GRADING_MSGS[Math.min(gradeMsgIdx, GRADING_MSGS.length-1)]
+      return(
+        <div style={{position:'fixed',inset:0,zIndex:9000,background:C.navy,
+          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+          padding:'32px',textAlign:'center',animation:'fadeIn 0.3s ease both'}}>
+          <div style={{fontSize:54,marginBottom:12,animation:'scaleIn 0.4s ease both'}}>✅</div>
+          <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.green,letterSpacing:1,marginBottom:6}}>Drill Complete</div>
+          <div style={{fontSize:13,color:C.gray,marginBottom:30}}>{repCount} exchange{repCount===1?'':'s'} with {persona?.name||'the customer'}</div>
+          <div style={{width:54,height:54,border:'4px solid rgba(184,255,60,0.15)',borderTopColor:C.green,borderRadius:'50%',animation:'spin 0.9s linear infinite',marginBottom:22}}/>
+          <div style={{fontFamily:fH,fontSize:14,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.white,marginBottom:8}}>Your coach is grading your performance</div>
+          <div key={msg} style={{fontSize:13,color:C.blueBright,minHeight:18,animation:'fadeUp 0.35s ease both'}}>{msg}</div>
+        </div>
+      )
+    }
     return(
       <div style={{position:'fixed',inset:0,zIndex:9000,background:C.navy,
         display:'flex',flexDirection:'column',overflow:'hidden'}}>
