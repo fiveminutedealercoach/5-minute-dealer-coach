@@ -6476,15 +6476,6 @@ function MasterDashboard({adminKey,onExit}) {
 }
 
 export default function App() {
-  // Load dealership contact emails once for managers (recap-email backfill banner)
-  useEffect(()=>{
-    if(!isMgr || !dealer?.dealerId) return
-    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
-      .then(r=>r.json()).then(d=>setContactEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[]))
-      .catch(()=>{})
-  },[isMgr, dealer?.dealerId])
-
   // ── Admin mode detection  -  ?admin=KEY in URL ──────────────
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
@@ -6662,6 +6653,15 @@ export default function App() {
 
   const role  = dealer.role||'sales_rep'
   const isMgr = isManager(role)
+
+  // Load dealership contact emails once for managers (recap-email backfill banner)
+  useEffect(()=>{
+    if(!isMgr || !dealer?.dealerId) return
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
+      .then(r=>r.json()).then(d=>setContactEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[]))
+      .catch(()=>{})
+  },[isMgr, dealer?.dealerId])
 
   // Role-based tab sets — reps get 2 tabs, managers get 3, GM gets 3
   const TABS = isMgr ? [
