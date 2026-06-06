@@ -324,7 +324,7 @@ function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null
   const cats = [...new Set(chipPool.map(s=>s.category))]
   const ed = lockDept||dept
   return (
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}>
+    <div style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:14,padding:'12px 14px',marginBottom:14}}>
       {!lockDept&&(
         <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
           {[['all','All'],['sales','🏆 Sales'],['service','🔧 Service']].map(([v,l])=>(
@@ -334,9 +334,9 @@ function ScriptFilterBar({dept,setDept,cat,setCat,search,setSearch,lockDept=null
       )}
       {setCat&&(
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
-          <button onClick={()=>setCat('all')} style={{background:cat==='all'?'rgba(255,255,255,0.12)':'transparent',color:cat==='all'?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,cursor:'pointer'}}>All</button>
+          <button onClick={()=>setCat('all')} style={{background:cat==='all'?'rgba(255,255,255,0.12)':'transparent',color:cat==='all'?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'5px 12px',borderRadius:100,border:`1px solid ${C.border}`,cursor:'pointer'}}>All</button>
           {cats.filter(c=>ed==='all'||chipPool.find(s=>s.category===c&&s.dept===ed)).map(c=>(
-            <button key={c} onClick={()=>setCat(c)} style={{background:cat===c?'rgba(255,255,255,0.12)':'transparent',color:cat===c?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,cursor:'pointer'}}>{c}</button>
+            <button key={c} onClick={()=>setCat(c)} style={{background:cat===c?'rgba(255,255,255,0.12)':'transparent',color:cat===c?C.white:C.gray,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'5px 12px',borderRadius:100,border:`1px solid ${C.border}`,cursor:'pointer'}}>{c}</button>
           ))}
         </div>
       )}
@@ -1402,6 +1402,21 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
 }
 
 function ScriptLibrary({dealer}) {
+  // Best grade ever earned per script (from voice drill history) - read once on mount
+  const [bestGrades] = useState(()=>{
+    const m = {}
+    const rank = ['A+','A','B+','B','C+','C','D','F']
+    try {
+      SCRIPTS.forEach(s=>{
+        const h = JSON.parse(localStorage.getItem('5md-history-'+s.id)||'[]')
+        let best = null
+        h.forEach(x=>{ if(x?.score && rank.includes(x.score) && (best===null || rank.indexOf(x.score)<rank.indexOf(best))) best = x.score })
+        if(best) m[s.id] = best
+      })
+    } catch {}
+    return m
+  })
+  const gradeCol = g => g?.startsWith('A')?C.green:g?.startsWith('B')?C.blueBright:g?.startsWith('C')?C.yellow:C.red
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
   const [filterDept,setFilterDept] = useState(lockDept||'all')
@@ -1422,16 +1437,37 @@ function ScriptLibrary({dealer}) {
 
   return (
     <div style={{padding:'16px 16px 96px'}}>
-      <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Script Library</div>
-      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>{visible.length} Word Tracks  -  {showMgrScripts?'Sales, Service & Manager Coaching':'Sales & Service'}</div>
+      <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:C.green,marginBottom:4}}>Word Tracks</div>
+      <div style={{fontFamily:fH,fontSize:30,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:0.95,marginBottom:4}}>Script Library</div>
+      <div style={{fontSize:13,color:C.gray,marginBottom:14}}>{showMgrScripts?'Customer objections plus manager coaching situations':'Every objection your customers throw - and the words that win'}</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+        {[
+          [visible.length,'Scripts',C.white],
+          [visible.filter(s=>s.dept==='sales').length,'Sales',C.blueBright],
+          [visible.filter(s=>s.dept==='service').length,'Service',C.green],
+          [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
+        ].map(([n,l,c])=>(
+          <div key={l} style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:12,padding:'10px 6px',textAlign:'center'}}>
+            <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:c,lineHeight:1}}>{n}</div>
+            <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:3}}>{l}</div>
+          </div>
+        ))}
+      </div>
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible}/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map((s,filteredIdx)=>(
-          <div key={s.id} style={{background:C.card,border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:10,overflow:'hidden'}}>
+          <div key={s.id}>
+            {cat==='all' && (filteredIdx===0 || filtered[filteredIdx-1].category!==s.category) && (
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2.5,textTransform:'uppercase',color:s.dept==='sales'?C.blueBright:C.green,margin:filteredIdx===0?'2px 2px 8px':'14px 2px 8px',display:'flex',alignItems:'center',gap:8}}>
+                <span>{s.category}</span>
+                <span style={{flex:1,height:1,background:'rgba(255,255,255,0.07)'}}/>
+              </div>
+            )}
+          <div style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:14,overflow:'hidden',boxShadow:'0 2px 12px rgba(0,0,0,0.25)'}}>
             <div onClick={()=>setOpenId(openId===s.id?null:s.id)} style={{padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:openId===s.id?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}>
 
               <div style={{flex:1}}>
-                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag>{s.audience==='manager'&&<Tag color={C.yellow}>👔 Manager Coaching</Tag>}</div>
+                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag>{s.audience==='manager'&&<Tag color={C.yellow}>👔 Manager Coaching</Tag>}{bestGrades[s.id]&&<span style={{background:`${gradeCol(bestGrades[s.id])}1c`,border:`1px solid ${gradeCol(bestGrades[s.id])}55`,color:gradeCol(bestGrades[s.id]),fontFamily:fH,fontSize:9,fontWeight:900,letterSpacing:1,padding:'2px 8px',borderRadius:100}}>🏅 {bestGrades[s.id]}</span>}</div>
                 <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.split('"').join('')}</div>
               </div>
               <div style={{color:C.gray,fontSize:12}}>{openId===s.id?'▲':'▼'}</div>
@@ -1446,6 +1482,7 @@ function ScriptLibrary({dealer}) {
                 <div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:4}}>The Follow-Up</div><div style={{background:'rgba(255,201,71,0.05)',border:'1px solid rgba(255,201,71,0.15)',borderRadius:6,padding:'8px 10px',fontSize:12,color:'#ffe08a',fontStyle:'italic',lineHeight:1.65}}>{s.followup}</div></div>
               </div>
             )}
+          </div>
           </div>
         ))}
       </div>
@@ -4365,8 +4402,9 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 
   return(
     <div style={{padding:'16px 16px 80px'}}>
-      <div style={{fontFamily:fH,fontSize:28,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Team Huddle</div>
-      <div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>5-Minute Daily Team Drill</div>
+      <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:C.green,marginBottom:4}}>Daily Coaching</div>
+      <div style={{fontFamily:fH,fontSize:30,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:0.95,marginBottom:4}}>Team Huddle</div>
+      <div style={{fontSize:13,color:C.gray,marginBottom:16}}>Five minutes that change the day - one script, one rep, one commitment.</div>
       {selScript&&(
         <div style={{background:'rgba(184,255,60,0.08)',border:'1px solid rgba(184,255,60,0.3)',borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Pre-selected</div>
@@ -4374,8 +4412,8 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
           <div style={{color:C.green,fontSize:16}}>✓</div>
         </div>
       )}
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:14}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><span>⏱</span><span style={{fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white}}>The 5-Minute Framework</span></div>
+      <div style={{background:'linear-gradient(135deg, rgba(26,107,255,0.10) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:16,padding:'16px 14px',marginBottom:14,boxShadow:'0 2px 16px rgba(0,0,0,0.3)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}><span>⏱</span><span style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2.5,textTransform:'uppercase',color:C.green}}>The 5-Minute Framework</span></div>
         {STEPS.map((s,i)=>(
           <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:i<4?10:0}}>
             <div style={{background:`${SCOLS[i]}22`,border:`1px solid ${SCOLS[i]}44`,borderRadius:100,padding:'3px 7px',fontFamily:fH,fontSize:10,fontWeight:900,color:SCOLS[i],minWidth:32,textAlign:'center',flexShrink:0}}>{s.time}s</div>
@@ -4406,7 +4444,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
           {selScript.script && <div style={{fontSize:12,color:C.lightText,lineHeight:1.6,marginBottom:6}}>{selScript.script.substring(0,200)}...</div>}
         </div>
       )}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:8}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:8,position:'sticky',bottom:80,zIndex:30,background:`linear-gradient(180deg, rgba(5,13,31,0) 0%, ${C.navy} 30%)`,padding:'16px 0 6px'}}>
         <button onClick={startHuddle} disabled={!selScript}
           style={{background:selScript?'linear-gradient(135deg,#b8ff3c,#7ed321)':'rgba(255,255,255,0.06)',
             color:selScript?C.navy:C.gray,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,
