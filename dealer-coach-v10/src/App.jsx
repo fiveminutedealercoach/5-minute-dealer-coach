@@ -6483,6 +6483,16 @@ export default function App() {
   const [showProfile,setShowProfile] = useState(false)
   const [showDealerSettings,setShowDealerSettings] = useState(false)
   const [contactEmails,setContactEmails] = useState(null) // null = not loaded yet
+  // Load dealership contact emails once for managers (recap-email backfill banner).
+  // MUST live above App's early returns - hooks after a conditional return crash
+  // React the moment the condition flips (e.g. right after Create Dealership).
+  useEffect(()=>{
+    if(!isManager(dealer?.role) || !dealer?.dealerId) return
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
+      .then(r=>r.json()).then(d=>setContactEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[]))
+      .catch(()=>{})
+  },[dealer?.dealerId, dealer?.role])
   // ── PROGRESS RESTORE ───────────────────────────────────────
   // Rejoining rep on a new device: rebuild stats/streak/results
   // from their Supabase activity history
@@ -6653,15 +6663,6 @@ export default function App() {
 
   const role  = dealer.role||'sales_rep'
   const isMgr = isManager(role)
-
-  // Load dealership contact emails once for managers (recap-email backfill banner)
-  useEffect(()=>{
-    if(!isMgr || !dealer?.dealerId) return
-    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
-      .then(r=>r.json()).then(d=>setContactEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[]))
-      .catch(()=>{})
-  },[isMgr, dealer?.dealerId])
 
   // Role-based tab sets — reps get 2 tabs, managers get 3, GM gets 3
   const TABS = isMgr ? [
