@@ -1156,11 +1156,28 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
     if(!dealer?.dealerId || !dealer?.repName) return
     fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'getSettings',dealerId:dealer.dealerId,data:{key:assignKey}})})
-      .then(r=>r.json()).then(d=>{ if(Array.isArray(d?.value)) setAssigned(d.value) }).catch(()=>{})
+      .then(r=>r.json()).then(d=>{
+        if(!Array.isArray(d?.value)) return
+        let done = []
+        try { done = JSON.parse(localStorage.getItem('5md-assign-done')||'[]') } catch {}
+        setAssigned(d.value.filter(a=>a && !done.includes(a.id)))
+        // prune tombstones the server has caught up on
+        try { localStorage.setItem('5md-assign-done', JSON.stringify(done.filter(id=>d.value.some(a=>a&&a.id===id)))) } catch {}
+      }).catch(()=>{})
+  },[])
+  // Instant removal when a drill completes while Home is mounted
+  useEffect(()=>{
+    const h = (e)=>setAssigned(prev=>prev.filter(a=>a.id!==e?.detail?.id))
+    window.addEventListener('5md-assign-cleared',h)
+    return ()=>window.removeEventListener('5md-assign-cleared',h)
   },[])
   const removeAssigned = (id) => {
     const next = assigned.filter(a=>a && a.id!==id)
     setAssigned(next)
+    try {
+      const done = JSON.parse(localStorage.getItem('5md-assign-done')||'[]')
+      if(!done.includes(id)){ done.push(id); localStorage.setItem('5md-assign-done', JSON.stringify(done)) }
+    } catch {}
     fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'saveSettings',dealerId:dealer.dealerId,data:{key:assignKey,value:next.length?next:null}})}).catch(()=>{})
   }
@@ -1280,7 +1297,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
             return (
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
                 <div style={{flex:1,fontFamily:fH,fontSize:12,fontWeight:700,color:C.white,lineHeight:1.35}}>{s.objection.split('"').join('')}</div>
-                <button onClick={()=>{removeAssigned(a.id); onDrill && onDrill(s)}} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.35)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:10,letterSpacing:1,textTransform:'uppercase',padding:'7px 12px',borderRadius:8,cursor:'pointer',whiteSpace:'nowrap'}}>Drill Now</button>
+                <button onClick={()=>{ onDrill && onDrill(s) }} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.35)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:10,letterSpacing:1,textTransform:'uppercase',padding:'7px 12px',borderRadius:8,cursor:'pointer',whiteSpace:'nowrap'}}>Drill Now</button>
                 <button onClick={()=>removeAssigned(a.id)} style={{background:'none',border:'none',color:C.gray,fontSize:14,cursor:'pointer',padding:'4px'}}>x</button>
               </div>
             )
@@ -3012,6 +3029,32 @@ ${diffMod ? '\n' + diffMod : ''}`
         setDrillHistory(h => ({...h, [String(activeS.id)]: hist}))
       } catch {}
     }
+    // If this script was assigned by the manager, completing it clears the
+    // assignment (cleared on COMPLETION, not launch - bailing out keeps it).
+    // Works no matter how the rep reached the drill: gold card, browse, or random.
+    try {
+      if(dealer?.dealerId && dealer?.repName){
+        const aKey = 'assign_' + String(dealer.repName).replace(/[^a-zA-Z0-9_-]/g,'')
+        fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'getSettings',dealerId:dealer.dealerId,data:{key:aKey}})})
+          .then(r=>r.json())
+          .then(d=>{
+            if(!Array.isArray(d?.value)) return
+            if(!d.value.some(x=>x&&x.id===activeS.id)) return
+            const next = d.value.filter(x=>x&&x.id!==activeS.id)
+            return fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({action:'saveSettings',dealerId:dealer.dealerId,data:{key:aKey,value:next.length?next:null}})})
+          }).catch(()=>{})
+        // Instant UX: tombstone locally (KV reads are eventually consistent and
+        // could briefly resurrect the card) and broadcast so a mounted Home
+        // screen drops the card immediately.
+        try {
+          const done = JSON.parse(localStorage.getItem('5md-assign-done')||'[]')
+          if(!done.includes(activeS.id)){ done.push(activeS.id); localStorage.setItem('5md-assign-done', JSON.stringify(done)) }
+        } catch {}
+        try { window.dispatchEvent(new CustomEvent('5md-assign-cleared',{detail:{id:activeS.id}})) } catch {}
+      }
+    } catch {}
     onLog({
       dept: activeS.dept,
       script: activeS.objection.split('"').join(''),
