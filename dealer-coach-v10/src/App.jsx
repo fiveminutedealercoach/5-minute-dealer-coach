@@ -301,7 +301,7 @@ h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;ma
 .cb-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:7px;}.cb{width:14px;height:14px;border:2px solid #ccc;border-radius:3px;flex-shrink:0;margin-top:2px;}
 @media print{.no-print{display:none!important;}}
 </style></head><body>
-<div class="no-print"><span>Ready to print or save as PDF</span><button onclick="window.print()" style="background:#1a6bff;color:#fff;border:none;padding:8px 18px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">Print / Save PDF</button></div>
+<div class="no-print"><button onclick="window.close()" style="background:#fff;color:#1a6bff;border:1px solid #1a6bff;padding:8px 18px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">← Back to App</button><span>Ready to print or save as PDF</span><button onclick="window.print()" style="background:#1a6bff;color:#fff;border:none;padding:8px 18px;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">Print / Save PDF</button></div>
 ${body}
 <div class="divider"></div><div style="font-size:11px;color:#999;text-align:center;margin-top:12px;">5-Minute Dealer Coaching System · 5minutedealercoach.com · ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
 </body></html>`)
@@ -3181,7 +3181,8 @@ RETURN ONLY valid JSON:
     const persona = PERSONAS.find(p=>p.id===activePersId)
     return(
       <div style={{padding:'16px 16px 96px', animation:'fadeUp 0.3s ease both'}}>
-        <div style={{display:'flex',gap:8,marginBottom:16}}>
+        <div style={{display:'flex',gap:8,position:'sticky',top:0,zIndex:50,
+          background:C.navy,padding:'8px 0',marginBottom:16}}>
           <button onClick={()=>{setPhase('list');setActiveS(null);stopSpeaking()}}
             style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
               color:C.white,fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,
@@ -3463,27 +3464,23 @@ RETURN ONLY valid JSON:
             </div>
           )}
           {livePhase==='live' && liveRecording && !micLive && (
-            <div onClick={()=>{ playTurnCue(); setLiveStatus(''); accumulatedRef.current=''; setTranscript(''); setInterimTranscript(''); lastResultAtRef.current=0; acceptingInputRef.current = true; setMicLive(true); startRec(50); armMicWatchdog() }}
-              style={{background:'rgba(184,255,60,0.15)',border:'2px solid rgba(184,255,60,0.7)',
-              borderRadius:10,padding:'14px',textAlign:'center',cursor:'pointer',
-              animation:'livepulse 1.2s ease-in-out infinite'}}>
-              <div style={{fontFamily:fH,fontSize:17,fontWeight:900,color:C.green,letterSpacing:1}}>
-                🎙 TAP TO ANSWER
-              </div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.6)',marginTop:3}}>
-                tap, then speak your response
+            <div style={{background:'rgba(184,255,60,0.10)',border:'1px solid rgba(184,255,60,0.35)',
+              borderRadius:10,padding:'8px 14px',textAlign:'center'}}>
+              <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.green,letterSpacing:1}}>
+                🎙 YOUR TURN — TAP THE GREEN BUTTON BELOW
               </div>
             </div>
           )}
           {livePhase==='live' && liveRecording && micLive && (
-            <div onClick={()=>{ setLiveStatus('Restarting mic...'); stopRec(); setTimeout(()=>{ startRec(100); acceptingInputRef.current = true; setLiveStatus('Mic restarted  -  go ahead and speak'); armMicWatchdog() }, 700) }}
-              style={{background:'rgba(255,40,40,0.15)',border:'2px solid rgba(255,40,40,0.6)',
-              borderRadius:10,padding:'10px 14px',textAlign:'center',
+            <div style={{background:'rgba(255,40,40,0.12)',border:'1px solid rgba(255,40,40,0.45)',
+              borderRadius:10,padding:'8px 14px',textAlign:'center',
               animation:'livepulse 1.2s ease-in-out infinite'}}>
-              <div style={{fontFamily:fH,fontSize:15,fontWeight:900,color:'#ff4444',letterSpacing:1}}>
+              <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:'#ff4444',letterSpacing:1}}>
                 🔴 LISTENING — SPEAK NOW
               </div>
-              <div style={{fontSize:9,color:'rgba(255,255,255,0.5)',marginTop:3}}>
+              <div onClick={()=>{ setLiveStatus('Restarting mic...'); stopRec(); setTimeout(()=>{ startRec(100); acceptingInputRef.current = true; setLiveStatus('Mic restarted  -  go ahead and speak'); armMicWatchdog() }, 700) }}
+                style={{fontSize:9,color:'rgba(255,255,255,0.55)',marginTop:3,cursor:'pointer',
+                textDecoration:'underline'}}>
                 mic not picking up? tap here to restart it
               </div>
             </div>
@@ -3549,19 +3546,30 @@ RETURN ONLY valid JSON:
 
         {/* ── BOTTOM: Fixed action bar ── */}
         {livePhase==='live' && (
-          <div style={{flexShrink:0,padding:'10px 16px 20px',
+          <div style={{flexShrink:0,padding:'10px 16px calc(14px + env(safe-area-inset-bottom))',
             borderTop:'1px solid rgba(255,255,255,0.08)',background:C.navyMid}}>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>{ if(submitRef.current) submitRef.current() }}
-                disabled={!liveRecording}
-                style={{flex:1,background:liveRecording?'rgba(255,40,40,0.2)':'rgba(255,255,255,0.04)',
-                  border:liveRecording?'2px solid rgba(255,40,40,0.5)':'1px solid rgba(255,255,255,0.08)',
-                  color:liveRecording?'#ff4444':C.gray,
-                  fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',
-                  padding:'14px',borderRadius:12,cursor:liveRecording?'pointer':'not-allowed',
-                  minHeight:52}}>
-                {liveRecording ? '📤 Send Response' : '⏳ Wait...'}
-              </button>
+              {liveRecording && !micLive ? (
+                <button onClick={()=>{ playTurnCue(); setLiveStatus(''); accumulatedRef.current=''; setTranscript(''); setInterimTranscript(''); lastResultAtRef.current=0; acceptingInputRef.current = true; setMicLive(true); startRec(50); armMicWatchdog() }}
+                  style={{flex:1,background:'rgba(184,255,60,0.18)',
+                    border:'2px solid rgba(184,255,60,0.7)',color:C.green,
+                    fontFamily:fH,fontWeight:900,fontSize:15,letterSpacing:1,textTransform:'uppercase',
+                    padding:'14px',borderRadius:12,cursor:'pointer',minHeight:52,
+                    animation:'livepulse 1.2s ease-in-out infinite'}}>
+                  🎙 Tap to Answer
+                </button>
+              ) : (
+                <button onClick={()=>{ if(submitRef.current) submitRef.current() }}
+                  disabled={!liveRecording}
+                  style={{flex:1,background:liveRecording?'rgba(255,40,40,0.2)':'rgba(255,255,255,0.04)',
+                    border:liveRecording?'2px solid rgba(255,40,40,0.5)':'1px solid rgba(255,255,255,0.08)',
+                    color:liveRecording?'#ff4444':C.gray,
+                    fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',
+                    padding:'14px',borderRadius:12,cursor:liveRecording?'pointer':'not-allowed',
+                    minHeight:52}}>
+                  {liveRecording ? '📤 Send Response' : '⏳ Wait...'}
+                </button>
+              )}
               <button onClick={()=>endLiveDrill(activeS,liveTranscript)}
                 style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',
                   color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,
@@ -4094,6 +4102,16 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
               textTransform:'uppercase',padding:'8px 14px',borderRadius:8,cursor:'pointer'}}>
             ✕ Exit
           </button>
+          {step===1 && selScript && (
+            <button onClick={readFullScript}
+              style={{background:scriptPlaying?'rgba(255,107,107,0.15)':'rgba(184,255,60,0.12)',
+                border:`1px solid ${scriptPlaying?'rgba(255,107,107,0.35)':'rgba(184,255,60,0.3)'}`,
+                color:scriptPlaying?C.red:C.green,fontFamily:fH,fontWeight:700,fontSize:13,
+                letterSpacing:1,textTransform:'uppercase',padding:'10px 14px',borderRadius:8,
+                cursor:'pointer',minHeight:44,whiteSpace:'nowrap'}}>
+              {scriptPlaying ? '⏹ Stop' : '🔊 Read Script'}
+            </button>
+          )}
           <button onClick={()=>{if(running){clearInterval(intRef.current);setRunning(false)}
             else{intRef.current=setInterval(()=>setTimeLeft(p=>Math.max(0,p-1)),1000);setRunning(true)}}}
             style={{flex:1,background:`${col}22`,border:`1px solid ${col}44`,color:col,
@@ -4309,7 +4327,22 @@ function QuickLogSheet({onLog,onClose,dealer}) {
   const [selObj,setSelObj] = useState(null)
   const [result,setResult] = useState(null)
   const [rep,setRep]     = useState('')
+  const [roster,setRoster] = useState([])
+  const [repOther,setRepOther] = useState(false)
   const isMgr = isManager(dealer?.role||'sales_rep')
+
+  // Pull the dealership roster so managers pick a name instead of typing it.
+  // Local dealer.reps (from join time) is the instant fallback; the fetch refreshes it.
+  useEffect(()=>{
+    if(!isMgr||!dealer?.dealerId) return
+    const local = (dealer?.reps||[]).filter(r=>r&&r!==dealer?.repName)
+    if(local.length) setRoster(local)
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
+      .then(r=>r.json())
+      .then(d=>{ if(Array.isArray(d?.reps)) setRoster(d.reps.filter(r=>r&&r!==dealer?.repName)) })
+      .catch(()=>{})
+  },[])
 
   const filteredScripts = dept ? SCRIPTS.filter(s=>s.dept===dept) : []
 
@@ -4370,11 +4403,21 @@ function QuickLogSheet({onLog,onClose,dealer}) {
           </>
         )}
 
-        {/* Step 4  -  Rep name (managers only) */}
+        {/* Step 4  -  Rep name (managers only): roster dropdown + free-type fallback */}
         {isMgr&&result&&(
           <>
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>4. Team Member (optional)</div>
-            <input style={{...inp,marginBottom:16}} placeholder="Rep name  -  leave blank for yourself" value={rep} onChange={e=>setRep(e.target.value)}/>
+            {roster.length>0 && !repOther && (
+              <select style={{...inp,marginBottom:10,cursor:'pointer'}} value={rep}
+                onChange={e=>{ if(e.target.value==='__other__'){ setRepOther(true); setRep('') } else { setRep(e.target.value) } }}>
+                <option value="">Myself ({dealer?.repName||'me'})</option>
+                {roster.map(r=><option key={r} value={r}>{r}</option>)}
+                <option value="__other__">Other (type a name)...</option>
+              </select>
+            )}
+            {(roster.length===0 || repOther) && (
+              <input style={{...inp,marginBottom:16}} placeholder="Rep name  -  leave blank for yourself" value={rep} onChange={e=>setRep(e.target.value)}/>
+            )}
           </>
         )}
 
@@ -4764,7 +4807,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 
 // ── Manager Hub tools (ShopTime, LeaderGrid, Lifecycle) ───────
 const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
-function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
+function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer||a.owner||a.by).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer||"(not selected)"}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
 const QUADS=[
   {id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',
    color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',
@@ -4774,7 +4817,7 @@ const QUADS=[
    word:"Let me show you exactly how I'd handle that, then we'll practice together.",
    coaching:'Direct & Guide  -  clear expectations, role-play.',
    voiceTone:{stability:0.55,similarity_boost:0.80,style:0.40,voiceId:'EXAVITQu4vr4xnSDxMaL'},
-   coachingCats:['Mindset & Gross Awareness','Selling the Menu & Recommended Services','MPI Conversion'],
+   coachingCats:['Handling Objections & Value Selling','Selling the Menu & Recommended Services','MPI Conversion'],
    repPersona:'jake'},
   {id:'delegate',label:'Delegate',title:'High Performers',sub:'High Commit · High Cap',
    color:C.green,bg:'rgba(184,255,60,0.07)',bdr:'rgba(184,255,60,0.3)',
@@ -4784,7 +4827,7 @@ const QUADS=[
    word:"I trust you. Here's the outcome - how you get there is yours.",
    coaching:'Delegate  -  give ownership, recognize publicly.',
    voiceTone:{stability:0.45,similarity_boost:0.85,style:0.55,voiceId:'ErXwobaYiN019PkySvjV'},
-   coachingCats:['Sales Tactics for Higher Gross','Add-Ons & After-Sale','Menu Selling & Finance'],
+   coachingCats:['Sales Tactics for Higher Gross','Add-Ons & After-Sale','Menu Selling & Finance','Selling Specific Services'],
    repPersona:'ashley'},
   {id:'direct',label:'Direct',title:'Up or Out',sub:'Low Commit · Low Cap',
    color:C.red,bg:'rgba(255,107,107,0.07)',bdr:'rgba(255,107,107,0.25)',
@@ -4794,7 +4837,7 @@ const QUADS=[
    word:"Here are the results I need in 30 days. The change starts now.",
    coaching:'Direct  -  documented expectations, 30-day plan.',
    voiceTone:{stability:0.72,similarity_boost:0.82,style:0.20,voiceId:'TxGEqnHWrfWFTfGW9XjX'},
-   coachingCats:['Mindset & Customer-Pay Focus','Handling Objections & Price Pushback','Phone Ups & Appointment Setting'],
+   coachingCats:['Handling Objections & Value Selling','Handling Objections & Price Pushback','Phone Ups & Appointment Setting'],
    repPersona:'carlos'},
   {id:'excite',label:'Excite',title:'Experienced, Not Engaged',sub:'Low Commit · High Cap',
    color:C.yellow,bg:'rgba(255,201,71,0.07)',bdr:'rgba(255,201,71,0.25)',
@@ -4804,9 +4847,40 @@ const QUADS=[
    word:"I've noticed a shift. Help me understand what's changed.",
    coaching:'Excite  -  honest 1:1, find root cause.',
    voiceTone:{stability:0.50,similarity_boost:0.78,style:0.45,voiceId:'onwK4e9ZLuTAKqWW03F9'},
-   coachingCats:['Mindset & Gross Awareness','Sales Tactics for Higher Gross','Mindset & Customer-Pay Focus'],
+   coachingCats:['Used Car Gross & Reconditioning','Sales Tactics for Higher Gross','MPI Conversion','Menu Selling & Finance'],
    repPersona:'marcus'},
 ]
+
+// Curated coaching conversations per quadrant: [script id, why it fits this profile]
+const QUAD_COACH_MAP = {
+  guide: [
+    [2,  "Reframe the prejudging mindset  -  teach it, then role-play it together"],
+    [33, "Coach them to present EVERY recommendation instead of deciding for the customer"],
+    [35, "Build confidence to present without fearing the no  -  classic developing-rep gap"],
+  ],
+  delegate: [
+    [3,  "Involve them in setting the goal  -  ownership is what drives high performers"],
+    [4,  "Public recognition is their fuel  -  celebrate the gross wins loudly"],
+    [30, "Develop them toward leadership  -  teach them to take the T.O."],
+  ],
+  direct: [
+    [1,  "Reset the discounting excuse with clear, stated expectations"],
+    [32, "The order-taker conversation  -  documented expectations and a timeline"],
+    [34, "No daily target means no accountability  -  set the number every morning"],
+  ],
+  excite: [
+    [31, "Price cynicism is disengagement talking  -  ask and find the root cause"],
+    [5,  "The one-price crutch  -  reignite the value conversation they have stopped having"],
+    [4,  "Recognition reaches the checked-out veteran  -  catch them doing it right"],
+  ],
+}
+// One-line rationale for the assigned-drills section per quadrant
+const QUAD_DRILL_WHY = {
+  guide:    "Fundamentals  -  drill these WITH them. Demonstrate first, then let them run it.",
+  delegate: "Advanced gross plays  -  assign the drill, review the grade, stay out of the process.",
+  direct:   "Core accountability skills  -  assign, measure, and document the reps.",
+  excite:   "Fresh challenges re-engage a skilled rep  -  have them mentor others on these.",
+}
 
 function LeaderGrid(){
   const[team,setTeam]=useState([])
@@ -5007,48 +5081,63 @@ function LeaderGrid(){
               </div>
             )
           })()}
-          {/* Coaching script cards */}
+          {/* Coaching script cards - two labeled sections so the WHY is visible */}
           {(()=>{
-            // Build pool from ALL quadrant coaching categories
-            const allQCats = new Set(QUADS.flatMap(q=>q.coachingCats||[]))
-            const qCats = new Set(coachQ.coachingCats || [])
-            // Start with scripts in this quadrant's categories
-            const qScripts = SCRIPTS.filter(s=>qCats.has(s.category))
-            // If quadrant has scripts, use those; otherwise use all coaching cats
-            const basePool = qScripts.length>0 ? qScripts : SCRIPTS.filter(s=>allQCats.has(s.category))
-            // Apply dept filter
-            const display = coachDept==="both"
-              ? basePool
-              : basePool.filter(s=>s.dept===coachDept)
-            // If dept filter yields nothing, show unfiltered (graceful fallback)
-            const finalDisplay = display.length>0 ? display : basePool
-            return finalDisplay.slice(0,6).map((s,idx)=>{
+            const cardStyle = {background:"linear-gradient(135deg,rgba(26,107,255,0.06) 0%,rgba(5,13,31,0.95) 100%)",border:"1px solid "+C.border,borderRadius:12,padding:"12px 14px",marginBottom:10}
+            const readBtn = (s) => {
               const isReading = readingCard===s.id
-              const objText = (s.objection||"").substring(0,60)
-              const deptLabel = s.dept==="sales" ? "SALES" : "SERVICE"
-              const isReading2 = isReading
-              return(
-                <div key={s.id} style={{background:"linear-gradient(135deg,rgba(26,107,255,0.06) 0%,rgba(5,13,31,0.95) 100%)",border:"1px solid "+C.border,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:C.gray}}>{s.category}</div>
-                    <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{deptLabel}</div>
-                  </div>
-                  <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6}}>{objText}</div>
-                  {s.script && (
-                    <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:"italic"}}>{s.script.substring(0,100)}...</div>
-                  )}
-                  <button onClick={()=>readCard(s.id,showCoaching)} style={{
-                    background:isReading2?"rgba(255,107,107,0.12)":"rgba(184,255,60,0.08)",
-                    border:"1px solid "+(isReading2?C.red+"66":C.green+"44"),
-                    color:isReading2?C.red:C.green,
-                    fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:"uppercase",
-                    padding:"8px 14px",borderRadius:8,cursor:"pointer",width:"100%",minHeight:36
-                  }}>
-                    {isReading2 ? "Stop" : "Hear This Script"}
-                  </button>
-                </div>
+              return (
+                <button onClick={()=>readCard(s.id,showCoaching)} style={{
+                  background:isReading?"rgba(255,107,107,0.12)":"rgba(184,255,60,0.08)",
+                  border:"1px solid "+(isReading?C.red+"66":C.green+"44"),
+                  color:isReading?C.red:C.green,
+                  fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:"uppercase",
+                  padding:"8px 14px",borderRadius:8,cursor:"pointer",width:"100%",minHeight:36}}>
+                  {isReading ? "Stop" : "Hear This Script"}
+                </button>
               )
-            })
+            }
+            // SECTION A: the coaching conversations for this profile (curated manager scripts)
+            const coachItems = (QUAD_COACH_MAP[showCoaching]||[])
+              .map(([id,why])=>({s:SCRIPTS.find(x=>x.id===id), why}))
+              .filter(x=>x.s)
+            // SECTION B: customer drills matched to this profile, dept-filtered
+            const qCats = new Set(coachQ.coachingCats||[])
+            const drillBase = SCRIPTS.filter(s=>s.audience!=="manager"&&qCats.has(s.category))
+            const drillFiltered = coachDept==="both" ? drillBase : drillBase.filter(s=>s.dept===coachDept)
+            const drills = (drillFiltered.length>0?drillFiltered:drillBase).slice(0,4)
+            return (
+              <>
+                <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:coachQ.color,margin:"4px 0 4px"}}>👔 Coach Them With This</div>
+                <div style={{fontSize:11,color:C.gray,marginBottom:10}}>The coaching conversations for this profile.</div>
+                {coachItems.map(({s,why})=>(
+                  <div key={"c"+s.id} style={cardStyle}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:C.gray}}>{s.category}</div>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept==="sales"?"SALES":"SERVICE"}</div>
+                    </div>
+                    <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:5}}>{(s.objection||"").substring(0,70)}</div>
+                    <div style={{fontSize:11,color:coachQ.color,marginBottom:8,lineHeight:1.5}}>↳ {why}</div>
+                    {readBtn(s)}
+                  </div>
+                ))}
+                <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:coachQ.color,margin:"14px 0 4px"}}>🎯 Assign These Drills</div>
+                <div style={{fontSize:11,color:C.gray,marginBottom:10}}>{QUAD_DRILL_WHY[showCoaching]||""}</div>
+                {drills.map(s=>(
+                  <div key={"d"+s.id} style={cardStyle}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:C.gray}}>{s.category}</div>
+                      <div style={{fontFamily:fH,fontSize:9,fontWeight:700,color:C.gray}}>{s.dept==="sales"?"SALES":"SERVICE"}</div>
+                    </div>
+                    <div style={{fontFamily:fH,fontSize:13,fontWeight:900,color:C.white,marginBottom:6}}>{(s.objection||"").substring(0,70)}</div>
+                    {s.script && (
+                      <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:"italic"}}>{s.script.substring(0,100)}...</div>
+                    )}
+                    {readBtn(s)}
+                  </div>
+                ))}
+              </>
+            )
           })()}
 
           {generatedTrack && (
@@ -5172,8 +5261,69 @@ const LC_STEPS = [
 ]
 
 
+// Merge a dealership's custom step labels onto the defaults. Rename-only:
+// shape (ids, step count, action count per step) always comes from defaults.
+const mergeLCSteps = (custom) => {
+  if(!Array.isArray(custom)) return LC_STEPS
+  return LC_STEPS.map(def => {
+    const c = custom.find(x => x && x.id === def.id)
+    if(!c) return def
+    return {...def,
+      label: c.label || def.label,
+      title: c.title || def.title,
+      focus: c.focus || def.focus,
+      metrics: Array.isArray(c.metrics) && c.metrics.length === def.metrics.length ? c.metrics : def.metrics,
+      actions: Array.isArray(c.actions) && c.actions.length === def.actions.length ? c.actions : def.actions,
+    }
+  })
+}
+
 function Lifecycle() {
-  const [expanded, setExpanded] = useState(LC_STEPS[0]?.id || 'sell1')
+  const dealerLocal = loadJSON('5md-dealer', null)
+  const canEdit = isManager(dealerLocal?.role || '')
+  // Steps: defaults, overlaid with this dealership's custom labels (local cache
+  // first for instant paint, then refreshed from the dealer-sync KV store)
+  const [steps, setSteps] = useState(() => {
+    try { return mergeLCSteps(JSON.parse(localStorage.getItem('5md-se-custom') || 'null')) } catch { return LC_STEPS }
+  })
+  const [editOpen, setEditOpen] = useState(false)
+  const [draft, setDraft] = useState(null)
+  useEffect(() => {
+    if(!dealerLocal?.dealerId) return
+    fetch('/dealer-sync', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'getSettings', dealerId: dealerLocal.dealerId, data:{key:'lifecycle_steps'}})})
+      .then(r => r.json())
+      .then(d => {
+        if(d && d.value) {
+          setSteps(mergeLCSteps(d.value))
+          try { localStorage.setItem('5md-se-custom', JSON.stringify(d.value)) } catch {}
+        }
+      }).catch(()=>{})
+  }, [])
+  const openEdit = () => {
+    setDraft(steps.map(s => ({id:s.id, label:s.label, title:s.title, focus:s.focus, metrics:[...s.metrics], actions:[...s.actions]})))
+    setEditOpen(true)
+  }
+  const saveSettingsRemote = (value) => {
+    if(!dealerLocal?.dealerId) return
+    fetch('/dealer-sync', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'saveSettings', dealerId: dealerLocal.dealerId, data:{key:'lifecycle_steps', value}})}).catch(()=>{})
+  }
+  const saveEdit = () => {
+    setSteps(mergeLCSteps(draft))
+    try { localStorage.setItem('5md-se-custom', JSON.stringify(draft)) } catch {}
+    saveSettingsRemote(draft)
+    setEditOpen(false)
+  }
+  const resetEdit = () => {
+    setSteps(LC_STEPS)
+    try { localStorage.removeItem('5md-se-custom') } catch {}
+    saveSettingsRemote(null)
+    setEditOpen(false)
+  }
+  const setDraftField = (si, field, val) => { const d=[...draft]; d[si]={...d[si],[field]:val}; setDraft(d) }
+  const setDraftItem  = (si, field, ii, val) => { const d=[...draft]; const arr=[...d[si][field]]; arr[ii]=val; d[si]={...d[si],[field]:arr}; setDraft(d) }
+  const [expanded, setExpanded] = useState(steps[0]?.id || 'sell1')
   const [checked, setChecked] = useState(()=>{
     try{return JSON.parse(localStorage.getItem('5md-se-checked')||'{}')}catch{return {}}
   })
@@ -5197,12 +5347,12 @@ function Lifecycle() {
     return Math.round((done / step.actions.length) * 100)
   }
 
-  const overall = LC_STEPS.length > 0
-    ? Math.round(LC_STEPS.reduce((a,s) => a + pct(s), 0) / LC_STEPS.length)
+  const overall = steps.length > 0
+    ? Math.round(steps.reduce((a,s) => a + pct(s), 0) / steps.length)
     : 0
 
   const shareAssessment = () => {
-    const text = LC_STEPS.map(s => {
+    const text = steps.map(s => {
       const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
       if(!unchecked.length) return null
       return s.label + ':\n' + unchecked.map(a => '  ☐ ' + a).join('\n')
@@ -5218,7 +5368,7 @@ function Lifecycle() {
 
   const expPDF = () => {
     const repLabel = repName ? ' — ' + repName : ''
-    const rows = LC_STEPS.map(s => {
+    const rows = steps.map(s => {
       const unchecked = s.actions.filter((_,i) => !checked[s.id+'-'+i])
       const checkedActs = s.actions.filter((_,i) => checked[s.id+'-'+i])
       const actionRows = [
@@ -5240,6 +5390,40 @@ function Lifecycle() {
   return (
     <div style={{padding:'0 0 20px', overflowX:'hidden'}}>
 
+      {/* Customize sheet - rename steps and sub-steps for this dealership */}
+      {editOpen && draft && (
+        <div style={{position:'fixed',inset:0,zIndex:9500,background:C.navy,display:'flex',flexDirection:'column'}}>
+          <div style={{flexShrink:0,padding:'14px 16px',borderBottom:'1px solid rgba(255,255,255,0.1)',display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:fH,fontSize:16,fontWeight:900,textTransform:'uppercase',color:C.white}}>Customize Steps</div>
+              <div style={{fontSize:10,color:C.gray}}>Saved for your whole dealership - every device sees your version</div>
+            </div>
+            <button onClick={()=>setEditOpen(false)} style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px 12px',borderRadius:8,cursor:'pointer'}}>Cancel</button>
+          </div>
+          <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'14px 16px'}}>
+            {draft.map((d,si)=>(
+              <div key={d.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 14px',marginBottom:12}}>
+                <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}}>Step {si+1}</div>
+                <div style={{fontSize:9,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase',marginBottom:3}}>Name</div>
+                <input style={{...inp,marginBottom:8}} value={d.label} onChange={e=>setDraftField(si,'label',e.target.value)}/>
+                <div style={{fontSize:9,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase',marginBottom:3}}>Subtitle</div>
+                <input style={{...inp,marginBottom:8}} value={d.title} onChange={e=>setDraftField(si,'title',e.target.value)}/>
+                <div style={{fontSize:9,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase',marginBottom:3}}>Focus</div>
+                <input style={{...inp,marginBottom:8}} value={d.focus} onChange={e=>setDraftField(si,'focus',e.target.value)}/>
+                <div style={{fontSize:9,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase',marginBottom:3}}>Sub-Steps</div>
+                {d.actions.map((a,ai)=>(
+                  <input key={ai} style={{...inp,marginBottom:6,fontSize:13}} value={a} onChange={e=>setDraftItem(si,'actions',ai,e.target.value)}/>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{flexShrink:0,padding:'12px 16px calc(14px + env(safe-area-inset-bottom))',borderTop:'1px solid rgba(255,255,255,0.1)',display:'flex',gap:8,background:C.navyMid}}>
+            <button onClick={resetEdit} style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'12px 14px',borderRadius:10,cursor:'pointer'}}>Reset Defaults</button>
+            <button onClick={saveEdit} style={{flex:1,background:'rgba(184,255,60,0.15)',border:'2px solid rgba(184,255,60,0.5)',color:C.green,fontFamily:fH,fontWeight:900,fontSize:13,letterSpacing:1,textTransform:'uppercase',padding:'12px',borderRadius:10,cursor:'pointer'}}>💾 Save for Dealership</button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6}}>
         <div>
@@ -5247,6 +5431,9 @@ function Lifecycle() {
           <div style={{fontFamily:fH,fontSize:12,color:C.blueBright,textTransform:'uppercase',letterSpacing:1}}>8-Stage Assessment</div>
         </div>
         <div style={{display:'flex',gap:6}}>
+          {canEdit && (
+            <button onClick={openEdit} style={{background:'rgba(255,201,71,0.12)',border:'1px solid rgba(255,201,71,0.3)',color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>✏️ Edit</button>
+          )}
           <button onClick={shareAssessment} style={{background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>↗ Share</button>
           <button onClick={expPDF} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 10px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
         </div>
@@ -5274,7 +5461,7 @@ function Lifecycle() {
 
       {/* Vertical accordion steps */}
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {LC_STEPS.map(s => {
+        {steps.map(s => {
           const isOpen = expanded === s.id
           const p = pct(s)
           const stepColor = s.color || C.blue
