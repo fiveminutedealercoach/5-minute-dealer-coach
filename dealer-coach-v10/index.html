@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="5-Min Coach" />
@@ -11,15 +11,32 @@
     <title>5-Minute Dealer Coach</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+      html {
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+      }
       body {
         background: #050d1f;
         overflow-x: hidden;
         overscroll-behavior: none;
         padding-top: env(safe-area-inset-top);
+        /* Native-app feel: instant taps, no double-tap zoom gesture */
+        touch-action: manipulation;
+        /* Kill the gray flash on every tap (the biggest "this is a website" tell) */
+        -webkit-tap-highlight-color: transparent;
+        /* No long-press text-selection magnifier on buttons and cards */
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      /* Re-enable selection and native behavior where typing happens */
+      input, textarea, select, [contenteditable] {
+        -webkit-user-select: text;
+        user-select: text;
       }
       #root {
         min-height: 100vh;
         min-height: -webkit-fill-available;
+        min-height: 100dvh;
       }
     </style>
   </head>
