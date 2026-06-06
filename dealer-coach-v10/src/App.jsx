@@ -424,15 +424,17 @@ function Onboarding({onDone}) {
   }, [dealerCode, step])
   const [loading,setLoading]     = useState(false)
   const [error,setError]         = useState('')
+  const [mgrEmail,setMgrEmail]   = useState('')
 
   const btnPrimary = {background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'13px 20px',borderRadius:8,border:'none',cursor:'pointer',width:'100%',marginBottom:12}
   const btnSecondary = {background:'rgba(26,107,255,0.2)',color:C.white,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'13px 20px',borderRadius:8,border:'1px solid rgba(26,107,255,0.4)',cursor:'pointer',width:'100%'}
 
   const createDealer = async () => {
     if (!dealerName.trim()||!repName.trim()||!role) { setError('Please fill in all fields.'); return }
+    if (!mgrEmail.trim()||!mgrEmail.includes('@')) { setError('Please enter a valid email address.'); return }
     setLoading(true); setError('')
     const code = dealerName.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)+Math.floor(Math.random()*100)
-    const res = await dealerSync('registerDealer',code,repName.trim(),{dealerName:dealerName.trim(),dept:roleDept(role)})
+    const res = await dealerSync('registerDealer',code,repName.trim(),{dealerName:dealerName.trim(),dept:roleDept(role),email:mgrEmail.trim()})
     if (res.error&&!res.code) { setError('Setup failed. Try again.'); setLoading(false); return }
     const finalCode = res.code||code
     onDone({dealerId:finalCode,repName:repName.trim(),repTitle:repTitle.trim(),dealerName:dealerName.trim(),role,isManager:isManager(role)},true)
@@ -473,6 +475,7 @@ function Onboarding({onDone}) {
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealership Name</div><input style={inp} placeholder="e.g. Sunset Auto Group" value={dealerName} onChange={e=>setDealerName(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div><input style={inp} placeholder="Your name" value={repName} onChange={e=>setRepName(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. General Manager, Sales Manager" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
+          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Email</div><input style={inp} type="email" placeholder="you@dealership.com" value={mgrEmail} onChange={e=>setMgrEmail(e.target.value)}/><div style={{fontSize:10,color:C.gray,marginTop:4}}>For weekly team recaps and account updates</div></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
         </div>
         {error&&<div style={{fontSize:13,color:C.red,marginBottom:12}}>{error}</div>}
@@ -4357,6 +4360,80 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 // Managers: 3 zones (Health Bar, Who Needs Attention, Activity Feed) + floating log
 // Reps: personal stats + team rank
 // ══════════════════════════════════════════════════════════════
+// ── Dealership Settings (managers): recap emails + roster cleanup ──
+function DealerSettingsSheet({dealer,onClose,onEmailsChanged}){
+  const [emails,setEmails] = useState([])
+  const [reps,setReps]     = useState([])
+  const [newEmail,setNewEmail] = useState('')
+  const [loaded,setLoaded] = useState(false)
+  const callSync = (action,data) => fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action,dealerId:dealer?.dealerId,data})}).then(r=>r.json())
+  useEffect(()=>{
+    callSync('getRoster',{}).then(d=>{
+      setReps(Array.isArray(d?.reps)?d.reps:[])
+      setEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[])
+      setLoaded(true)
+    }).catch(()=>setLoaded(true))
+  },[])
+  const persistEmails = (list) => {
+    setEmails(list)
+    onEmailsChanged && onEmailsChanged(list)
+    callSync('updateContacts',{emails:list}).catch(()=>{})
+  }
+  const addEmail = () => {
+    const e = newEmail.trim().toLowerCase()
+    if(!e.includes('@') || !e.includes('.')) return
+    if(!emails.includes(e)) persistEmails([...emails,e])
+    setNewEmail('')
+  }
+  const removeEmail = (e) => persistEmails(emails.filter(x=>x!==e))
+  const removeRepName = (r) => {
+    if(!window.confirm('Remove ' + r + ' from the roster? Their drill history stays on the dashboard.')) return
+    setReps(reps.filter(x=>x!==r))
+    callSync('removeRep',{rep:r}).catch(()=>{})
+  }
+  const sectionLabel = {fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:8}
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:1100,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.6)'}}/>
+      <div style={{position:'relative',background:C.navyMid,borderRadius:'16px 16px 0 0',maxHeight:'88vh',
+        display:'flex',flexDirection:'column',border:`1px solid ${C.border}`,
+        padding:'20px 16px calc(24px + env(safe-area-inset-bottom))',overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{width:36,height:4,background:'rgba(255,255,255,0.2)',borderRadius:100,margin:'0 auto 16px'}}/>
+        <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:2}}>Dealership Settings</div>
+        <div style={{fontSize:12,color:C.gray,marginBottom:16}}>{dealer?.dealerName || dealer?.dealerId}</div>
+
+        <div style={sectionLabel}>📧 Recap Emails</div>
+        <div style={{fontSize:11,color:C.gray,marginBottom:10}}>Weekly team recaps and account updates go to these addresses. When a manager leaves, remove them and add the new manager here.</div>
+        {emails.map(e=>(
+          <div key={e} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'9px 12px',marginBottom:6}}>
+            <div style={{flex:1,fontSize:13,color:C.white,wordBreak:'break-all'}}>{e}</div>
+            <button onClick={()=>removeEmail(e)} style={{background:'none',border:'none',color:C.red,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+          </div>
+        ))}
+        {loaded && emails.length===0 && <div style={{fontSize:12,color:C.yellow,marginBottom:6}}>No email on file - add one to receive weekly recaps.</div>}
+        <div style={{display:'flex',gap:8,marginBottom:20}}>
+          <input style={{...inp,flex:1}} type="email" placeholder="manager@dealership.com" value={newEmail}
+            onChange={e=>setNewEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addEmail()}/>
+          <button onClick={addEmail} style={{background:'rgba(184,255,60,0.15)',border:'1px solid rgba(184,255,60,0.4)',color:C.green,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'0 16px',borderRadius:8,cursor:'pointer'}}>Add</button>
+        </div>
+
+        <div style={sectionLabel}>👥 Team Roster</div>
+        <div style={{fontSize:11,color:C.gray,marginBottom:10}}>Remove reps who have left the dealership. This cleans up pickers and rosters - their logged history is kept.</div>
+        {reps.map(r=>(
+          <div key={r} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'9px 12px',marginBottom:6}}>
+            <div style={{flex:1,fontSize:13,color:C.white}}>{r}</div>
+            <button onClick={()=>removeRepName(r)} style={{background:'none',border:'none',color:C.red,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✕</button>
+          </div>
+        ))}
+        {loaded && reps.length===0 && <div style={{fontSize:12,color:C.gray,marginBottom:6}}>No reps have joined yet.</div>}
+
+        <button onClick={onClose} style={{marginTop:16,width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',color:C.white,fontFamily:fH,fontWeight:700,fontSize:13,letterSpacing:1,textTransform:'uppercase',padding:'13px',borderRadius:10,cursor:'pointer'}}>Done</button>
+      </div>
+    </div>
+  )
+}
+
 function QuickLogSheet({onLog,onClose,dealer}) {
   const [dept,setDept]   = useState(null)
   const [selObj,setSelObj] = useState(null)
@@ -4842,7 +4919,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 
 // ── Manager Hub tools (ShopTime, LeaderGrid, Lifecycle) ───────
 const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
-function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const clearAll=()=>{setMins(Array(TS_LIST.length).fill(''));setTechs('');setElr('');setActs([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}])};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer||a.owner||a.by).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer||"(not selected)"}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><div style={{display:'flex',gap:8,alignItems:'flex-start'}}><PDFBtn onClick={expPDF}/><button onClick={clearAll} style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>↺ Clear</button></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
+function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const clearAll=()=>{setMins(Array(TS_LIST.length).fill(''));setTechs('');setElr('');setActs([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);try{localStorage.removeItem('5md-shopnotes')}catch(e){};window.dispatchEvent(new Event('5md-shopnotes-cleared'))};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer||a.owner||a.by).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer||"(not selected)"}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}${(()=>{try{const n=localStorage.getItem('5md-shopnotes')||'';return n.trim()?`<h2>Notes &amp; To-Do</h2><div class="card"><div class="val">${n.replace(/&/g,'&amp;').replace(/</g,'&lt;').split('\n').join('<br>')}</div></div>`:''}catch(e){return ''}})()}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><div style={{display:'flex',gap:8,alignItems:'flex-start'}}><PDFBtn onClick={expPDF}/><button onClick={clearAll} style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>↺ Clear</button></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
 const QUADS=[
   {id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',
    color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',
@@ -5096,7 +5173,19 @@ function LeaderGrid(){
       {/* Add team member */}
       <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',marginBottom:14}}>
         <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Add Team Member</div>
-        <input style={{...inp,marginBottom:8}} placeholder="Rep name..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addMember()}/>
+        {(()=>{
+          const onGrid = new Set(team.map(m=>m.name))
+          const avail = gridRoster.filter(r=>r && !onGrid.has(r))
+          if(!avail.length) return null
+          return (
+            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+              {avail.map(n=>(
+                <button key={n} onClick={()=>setNm(n)} style={{background:nm===n?'rgba(184,255,60,0.15)':'rgba(26,107,255,0.1)',border:`1px solid ${nm===n?'rgba(184,255,60,0.45)':'rgba(26,107,255,0.25)'}`,color:nm===n?C.green:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,padding:'5px 11px',borderRadius:100,cursor:'pointer'}}>{n}</button>
+              ))}
+            </div>
+          )
+        })()}
+        <input style={{...inp,marginBottom:8}} placeholder="Rep name (or tap a name above)..." value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addMember()}/>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
           {QUADS.map(q=>(
             <button key={q.id} onClick={()=>setQid(q.id)} style={{padding:'8px 6px',borderRadius:8,border:`2px solid ${qid===q.id?q.color:'transparent'}`,background:qid===q.id?q.bg:'rgba(255,255,255,0.03)',color:qid===q.id?q.color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:.5,textTransform:'uppercase',cursor:'pointer',textAlign:'left'}}>
@@ -5942,6 +6031,11 @@ function OwnershipLifecycle() {
 function ShopNotes(){
   const[notes,setNotes]=useState(()=>{try{return localStorage.getItem('5md-shopnotes')||''}catch{return ''}})
   const save=(v)=>{setNotes(v);try{localStorage.setItem('5md-shopnotes',v)}catch{}}
+  useEffect(()=>{
+    const onClear=()=>setNotes('')
+    window.addEventListener('5md-shopnotes-cleared',onClear)
+    return ()=>window.removeEventListener('5md-shopnotes-cleared',onClear)
+  },[])
   return(
     <div style={{background:'rgba(26,107,255,0.08)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:16,padding:'16px',marginTop:16}}>
       <div style={{fontFamily:'Barlow Condensed, sans-serif',fontSize:12,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:'#3d8bff',marginBottom:8}}>Notes & To-Do</div>
@@ -6382,11 +6476,22 @@ function MasterDashboard({adminKey,onExit}) {
 }
 
 export default function App() {
+  // Load dealership contact emails once for managers (recap-email backfill banner)
+  useEffect(()=>{
+    if(!isMgr || !dealer?.dealerId) return
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getRoster',dealerId:dealer.dealerId})})
+      .then(r=>r.json()).then(d=>setContactEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[]))
+      .catch(()=>{})
+  },[isMgr, dealer?.dealerId])
+
   // ── Admin mode detection  -  ?admin=KEY in URL ──────────────
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
   const [showProfile,setShowProfile] = useState(false)
+  const [showDealerSettings,setShowDealerSettings] = useState(false)
+  const [contactEmails,setContactEmails] = useState(null) // null = not loaded yet
   // ── PROGRESS RESTORE ───────────────────────────────────────
   // Rejoining rep on a new device: rebuild stats/streak/results
   // from their Supabase activity history
@@ -6612,6 +6717,14 @@ export default function App() {
               <div style={{fontFamily:fH,fontSize:20,fontWeight:900,letterSpacing:3,color:C.green}}>{dealer?.dealerId}</div>
               {isMgr && <div style={{fontSize:10,color:C.gray,marginTop:6}}>Share this code with your team so they can join.</div>}
             </div>
+            {isMgr && (
+              <button onClick={()=>{setShowProfile(false);setShowDealerSettings(true)}}
+                style={{width:'100%',background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',
+                  color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+                  padding:'13px',borderRadius:10,cursor:'pointer',marginBottom:10}}>
+                🏢 Dealership Settings
+              </button>
+            )}
             <div style={{display:'flex',gap:10}}>
               <button onClick={()=>setShowProfile(false)}
                 style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
@@ -6630,9 +6743,23 @@ export default function App() {
         </div>
       )}
 
+      {showDealerSettings && <DealerSettingsSheet dealer={dealer} onClose={()=>setShowDealerSettings(false)} onEmailsChanged={setContactEmails}/>}
+
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
         {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}} onBrowse={()=>setTab('scripts')}/>}
+        {tab==='home' && isMgr && contactEmails!==null && contactEmails.length===0 && (
+          <div onClick={()=>setShowDealerSettings(true)}
+            style={{margin:'12px 16px 0',background:'rgba(255,201,71,0.1)',border:'1px solid rgba(255,201,71,0.35)',
+              borderRadius:12,padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:20}}>📧</span>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:1,textTransform:'uppercase',color:C.yellow}}>Add your email for weekly team recaps</div>
+              <div style={{fontSize:11,color:C.gray}}>Tap to add it in Dealership Settings</div>
+            </div>
+            <span style={{color:C.yellow,fontSize:16}}>→</span>
+          </div>
+        )}
         {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}}/>}
         {/* Rep tabs */}
         {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
