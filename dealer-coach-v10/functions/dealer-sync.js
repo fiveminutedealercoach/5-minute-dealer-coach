@@ -89,6 +89,41 @@ export async function onRequestPost(context) {
       })
     }
 
+    // ── GET ROSTER (light read: just the rep names for a dealer) ──
+    if (action === 'getRoster') {
+      const code = dealerId.toUpperCase()
+      const raw = await env.DEALER_KV.get(`dealer:${code}`)
+      const dealer = raw ? JSON.parse(raw) : null
+      return new Response(JSON.stringify({ success: true, reps: dealer?.reps || [] }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
+    // ── SAVE SETTINGS (dealer-level customization, e.g. Sales Experience steps) ──
+    // data: { key, value }  — value of null deletes the setting (reset to defaults)
+    if (action === 'saveSettings') {
+      const code = dealerId.toUpperCase()
+      const settingKey = `settings:${code}:${(data?.key || 'general').replace(/[^a-zA-Z0-9_-]/g, '')}`
+      if (data?.value === null || data?.value === undefined) {
+        await env.DEALER_KV.delete(settingKey)
+      } else {
+        await env.DEALER_KV.put(settingKey, JSON.stringify(data.value))
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
+    // ── GET SETTINGS ──────────────────────────────────────────────
+    if (action === 'getSettings') {
+      const code = dealerId.toUpperCase()
+      const settingKey = `settings:${code}:${(data?.key || 'general').replace(/[^a-zA-Z0-9_-]/g, '')}`
+      const raw = await env.DEALER_KV.get(settingKey)
+      return new Response(JSON.stringify({ success: true, value: raw ? JSON.parse(raw) : null }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
     // ── GET DASHBOARD ─────────────────────────────────────────────
     if (action === 'getDashboard') {
       const code = dealerId.toUpperCase()
