@@ -1144,6 +1144,22 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
   }
 
   const suggested = getSuggestedScript()
+
+  // Drills assigned by the manager (LeaderGrid > Assign to Rep) - dealer KV sync
+  const [assigned, setAssigned] = useState([])
+  const assignKey = 'assign_' + String(dealer?.repName||'').replace(/[^a-zA-Z0-9_-]/g,'')
+  useEffect(()=>{
+    if(!dealer?.dealerId || !dealer?.repName) return
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getSettings',dealerId:dealer.dealerId,data:{key:assignKey}})})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d?.value)) setAssigned(d.value) }).catch(()=>{})
+  },[])
+  const removeAssigned = (id) => {
+    const next = assigned.filter(a=>a && a.id!==id)
+    setAssigned(next)
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'saveSettings',dealerId:dealer.dealerId,data:{key:assignKey,value:next.length?next:null}})}).catch(()=>{})
+  }
   const drillsThisWeek = results.filter(r => {
     const d = new Date(r.date); const now = new Date()
     return (now - d) < 7*24*60*60*1000 && (r.type === 'voice' || r.type === 'voice_drill' || r.result !== undefined)
@@ -1249,6 +1265,24 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
         </div>
 
       </div>
+
+      {/* Drills assigned by the manager */}
+      {assigned.length>0 && (
+        <div style={{background:'rgba(255,201,71,0.07)',border:'1px solid rgba(255,201,71,0.3)',borderRadius:14,padding:'14px 16px',marginBottom:14}}>
+          <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:6}}>ASSIGNED BY YOUR MANAGER</div>
+          {assigned.map(a=>{
+            const s = SCRIPTS.find(x=>x.id===a.id)
+            if(!s) return null
+            return (
+              <div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                <div style={{flex:1,fontFamily:fH,fontSize:12,fontWeight:700,color:C.white,lineHeight:1.35}}>{s.objection.split('"').join('')}</div>
+                <button onClick={()=>{removeAssigned(a.id); onDrill && onDrill(s)}} style={{background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.35)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:10,letterSpacing:1,textTransform:'uppercase',padding:'7px 12px',borderRadius:8,cursor:'pointer',whiteSpace:'nowrap'}}>Drill Now</button>
+                <button onClick={()=>removeAssigned(a.id)} style={{background:'none',border:'none',color:C.gray,fontSize:14,cursor:'pointer',padding:'4px'}}>x</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Suggested drill card */}
       {suggested ? (
@@ -2968,7 +3002,8 @@ ${diffMod ? '\n' + diffMod : ''}`
     onLog({
       dept: activeS.dept,
       script: activeS.objection.split('"').join(''),
-      result: '',
+      result: fb.total !== '-' ? ((fb.score==='A+'||fb.score==='A')?'won':(fb.score==='B+'||fb.score==='B')?'progress':'practice') : '',
+      auto: true,   // bucket derived from the grade - an outcome tap can override it
       notes: 'Voice drill  -  AI coached',
       type: 'voice',
       score: fb.total !== '-' ? fb.score : undefined,  // grade badge on Recent Drills cards
@@ -4807,7 +4842,7 @@ function TrackDash({results,onRemove,onLog,preloadScript,dealer}) {
 
 // ── Manager Hub tools (ShopTime, LeaderGrid, Lifecycle) ───────
 const TS_LIST=[{label:'Waiting for first job to arrive',r:true},{label:'Moving cars in and out of workshop',r:true},{label:'Waiting for parts',r:true},{label:'Ad-hoc breaks (smoking, chatting)',r:true},{label:'Asking advice / collecting tools',r:true},{label:'Completing repair order information',r:true},{label:'Liaison with service advisor  -  extra work',r:true},{label:'Cleaning the work bay area',r:false},{label:'Down-time between jobs',r:true},{label:'Natural / scheduled breaks',r:false},{label:'Re-work / warranty corrections',r:true}]
-function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer||a.owner||a.by).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer||"(not selected)"}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><PDFBtn onClick={expPDF}/><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
+function ShopTime(){const[mins,setMins]=useState(Array(TS_LIST.length).fill(''));const[techs,setTechs]=useState('');const[dy,setDy]=useState('5');const[wks,setWks]=useState('49');const[elr,setElr]=useState('');const[acts,setActs]=useState([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}]);const total=mins.reduce((a,v)=>a+(parseFloat(v)||0),0);const annHrs=total&&techs?(total*(parseFloat(techs)||0)*(parseFloat(dy)||0)*(parseFloat(wks)||0))/60:0;const annLost=annHrs*(parseFloat(elr)||0);const sm={...inp,width:66,textAlign:'right'};const clearAll=()=>{setMins(Array(TS_LIST.length).fill(''));setTechs('');setElr('');setActs([{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''},{stealer:'',owner:'',by:''}])};const expPDF=()=>{const rows=TS_LIST.map((st,i)=>mins[i]?`<tr><td style="padding:7px 10px;border-bottom:1px solid #eee;">${st.label}</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;">${mins[i]} mins</td><td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:${st.r?'#1a6bff':'#999'};">${st.r?'Recoverable':'Partial'}</td></tr>`:'').filter(Boolean).join('');const ar=acts.filter(a=>a.stealer||a.owner||a.by).map((a,i)=>`<div class="card blue"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Priority #${i+1}: ${a.stealer||"(not selected)"}</div><div style="display:flex;gap:20px;"><div><div class="label">Owner</div><div class="val">${a.owner||' - '}</div></div><div><div class="label">By When</div><div class="val">${a.by||' - '}</div></div></div></div>`).join('');printPDF('Shop Time Stealer',`<h1>Shop Time Stealer</h1><div class="sub">Lost Revenue Calculator</div><div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>${rows?`<h2>Assessment</h2><table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f0f4ff;"><th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Activity</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Mins</th><th style="padding:8px 10px;font-size:11px;text-transform:uppercase;color:#666;">Status</th></tr></thead><tbody>${rows}</tbody></table>`:''}<div class="card" style="background:#f0f8f0;border-color:#90c090;margin-bottom:20px;"><div class="label">Total Mins Lost/Day</div><div style="font-size:28px;font-weight:900;color:#1a6bff;">${total.toFixed(0)} mins</div>${annLost>0?`<div style="font-size:20px;font-weight:700;color:#e85d4a;margin-top:6px;">Annual Lost: $${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}</div>`:''}</div><h2>Action Plan</h2>${ar||'<div class="card blue"><div class="label">Priority #1</div><div style="border-bottom:1px solid #ccc;min-height:26px;"></div></div>'}`)};return(<div><div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:4}}>Shop Time Stealer</div><div style={{fontFamily:fH,fontSize:13,color:C.blueBright,textTransform:'uppercase',letterSpacing:1,marginBottom:14}}>Lost Revenue Calculator</div><div style={{display:'flex',gap:8,alignItems:'flex-start'}}><PDFBtn onClick={expPDF}/><button onClick={clearAll} style={{background:'rgba(255,107,107,0.1)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:8,cursor:'pointer'}}>↺ Clear</button></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Assessment</div></div>{TS_LIST.map((st,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,fontSize:12,color:C.lightText}}>{st.label}</div><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:st.r?C.green:C.yellow,minWidth:70,textAlign:'right'}}>{st.r?'✓ Recov.':'◑ Partial'}</div><input style={sm} type="number" min="0" placeholder="mins" value={mins[i]} onChange={e=>{const n=[...mins];n[i]=e.target.value;setMins(n)}}/></div>)}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px'}}><div style={{fontFamily:fH,fontSize:12,fontWeight:700,textTransform:'uppercase',color:C.white}}>Total/Day</div><div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:total>0?C.green:C.gray}}>{total>0?total.toFixed(0):' - '} <span style={{fontSize:12,color:C.gray}}>mins</span></div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',marginBottom:14}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Calculator</div></div><div style={{padding:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{[{lbl:'Mins/Day',val:total.toFixed(0),ro:true,suf:'mins'},{lbl:'Technicians',val:techs,set:setTechs,ph:'8',suf:'techs'},{lbl:'Days/Week',val:dy,set:setDy,ph:'5',suf:'days'},{lbl:'Weeks/Year',val:wks,set:setWks,ph:'49',suf:'wks'},{lbl:'Labor Rate',val:elr,set:setElr,ph:'185',pre:'$',suf:'/hr'}].map((r,i)=>(<div key={i} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:5}}>{r.lbl}</div><div style={{display:'flex',alignItems:'center',gap:4}}>{r.pre&&<span style={{color:C.gray,fontSize:13}}>{r.pre}</span>}{r.ro?<div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.green}}>{r.val||' - '}</div>:<input style={{...inp,fontSize:15}} type="number" min="0" placeholder={r.ph} value={r.val} onChange={e=>r.set(e.target.value)}/>}<span style={{color:C.gray,fontSize:11}}>{r.suf}</span></div></div>))}<div style={{background:annLost>0?'rgba(184,255,60,0.06)':'rgba(255,255,255,0.03)',border:annLost>0?'1px solid rgba(184,255,60,0.3)':`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',gridColumn:'1 / -1'}}><div style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginBottom:4}}>Annual Lost Revenue</div><div style={{fontFamily:fH,fontSize:36,fontWeight:900,color:annLost>0?C.green:C.gray}}>{annLost>0?`$${annLost.toLocaleString('en-US',{maximumFractionDigits:0})}`:' - '}</div>{annLost>0&&<div style={{display:'flex',gap:10,marginTop:10}}>{[25,50].map(p=><div key={p} style={{background:'rgba(26,107,255,0.1)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:6,padding:'6px 10px'}}><div style={{fontSize:10,color:C.gray,fontFamily:fH,letterSpacing:1,textTransform:'uppercase'}}>{p}% Recovery</div><div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.blueBright}}>${(annLost*p/100).toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>)}</div>}</div></div></div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}><div style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 16px',borderBottom:`1px solid ${C.border}`}}><div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green}}>Action Plan</div></div><div style={{padding:14}}>{acts.map((a,n)=>(<div key={n} style={{background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'10px 12px',marginBottom:8}}><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Priority #{n+1}</div><div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:6}}><select style={{...inp,cursor:'pointer'}} value={a.stealer} onChange={e=>{const x=[...acts];x[n]={...x[n],stealer:e.target.value};setActs(x)}}><option value="">Select from assessment...</option>{TS_LIST.map((st,si)=>parseFloat(mins[si])>0?<option key={si} value={st.label}>{st.label} ({mins[si]} mins)</option>:null).filter(Boolean)}</select><input style={inp} placeholder="Owner..." value={a.owner} onChange={e=>{const x=[...acts];x[n]={...x[n],owner:e.target.value};setActs(x)}}/><input style={{...inp,cursor:'pointer',colorScheme:'dark'}} type="date" value={a.by} onChange={e=>{const x=[...acts];x[n]={...x[n],by:e.target.value};setActs(x)}}/></div></div>))}</div></div></div>)}
 const QUADS=[
   {id:'guide',label:'Guide',title:'Lack of Experience',sub:'High Commit · Low Cap',
    color:C.blue,bg:'rgba(26,107,255,0.08)',bdr:'rgba(26,107,255,0.25)',
@@ -4899,6 +4934,69 @@ function LeaderGrid(){
   const[genLoading,setGenLoading]=useState(false)
   const[readingCard,setReadingCard]=useState(null) // script id being read
   const[autoPlaying,setAutoPlaying]=useState(false)
+  const[assignFor,setAssignFor]=useState(null)      // drill id with the assign picker open
+  const[assignedMsg,setAssignedMsg]=useState(null)  // "name|scriptId" toast after assigning
+  const[gridRoster,setGridRoster]=useState([])
+  const dealerLocal = loadJSON('5md-dealer', null)
+
+  // Roster for the assign picker (merged with grid team names)
+  useEffect(()=>{
+    if(!dealerLocal?.dealerId) return
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getRoster',dealerId:dealerLocal.dealerId})})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d?.reps)) setGridRoster(d.reps.filter(Boolean)) }).catch(()=>{})
+  },[])
+
+  const sanitizeKey = (n) => String(n||'').replace(/[^a-zA-Z0-9_-]/g,'')
+  // Assign a drill to a rep: stored in dealer KV under assign_<RepName>;
+  // the rep's Home screen reads the same key and shows it with a Start button
+  const assignDrill = (scriptId, repNm) => {
+    if(!dealerLocal?.dealerId || !repNm) return
+    const key = 'assign_' + sanitizeKey(repNm)
+    fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getSettings',dealerId:dealerLocal.dealerId,data:{key}})})
+      .then(r=>r.json())
+      .then(d=>{
+        const list = Array.isArray(d?.value) ? d.value : []
+        if(!list.find(x=>x&&x.id===scriptId)) list.push({id:scriptId, q:showCoaching, at:Date.now()})
+        return fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'saveSettings',dealerId:dealerLocal.dealerId,data:{key,value:list}})})
+      }).catch(()=>{})
+    setAssignFor(null)
+    setAssignedMsg(repNm + '|' + scriptId)
+    setTimeout(()=>setAssignedMsg(null), 2500)
+  }
+
+  // Coaching plan data for Share / PDF output
+  const planData = (quadId, dept) => {
+    const q = QUADS.find(x=>x.id===quadId)
+    const coachItems = (QUAD_COACH_MAP[quadId]||[]).map(([id,why])=>({s:SCRIPTS.find(x=>x.id===id),why})).filter(x=>x.s)
+    const qc = new Set(q?.coachingCats||[])
+    const base = SCRIPTS.filter(s=>s.audience!=='manager'&&qc.has(s.category))
+    const f = dept==='both'?base:base.filter(s=>s.dept===dept)
+    return {q, coachItems, drills:(f.length?f:base).slice(0,4)}
+  }
+  const sharePlan = () => {
+    const {q,coachItems,drills} = planData(showCoaching,coachDept)
+    const mem = team.filter(m=>m.quad===showCoaching).map(m=>m.name).join(', ')
+    const text = 'Coaching Plan - ' + q.label + ' (' + q.title + ')' + (mem?'\nTeam: '+mem:'') +
+      '\n\nApproach: ' + q.styleGuide +
+      '\n\nCOACHING CONVERSATIONS:\n' + coachItems.map(c=>'- '+c.s.objection.split('"').join('')+'\n  > '+c.why).join('\n') +
+      '\n\nASSIGNED DRILLS:\n' + drills.map(s=>'- '+s.objection.split('"').join('')).join('\n')
+    if(navigator.share){ navigator.share({title:'Coaching Plan',text}).catch(()=>{}) }
+    else { navigator.clipboard?.writeText(text); alert('Copied to clipboard!') }
+  }
+  const planPDF = () => {
+    const {q,coachItems,drills} = planData(showCoaching,coachDept)
+    const mem = team.filter(m=>m.quad===showCoaching).map(m=>m.name).join(', ')
+    printPDF('Coaching Plan - '+q.label,
+      `<h1>Coaching Plan - ${q.label}</h1><div class="sub">${q.title} · ${q.sub}</div>` +
+      (mem?`<div class="sub">Team: ${mem}</div>`:'') +
+      `<div class="date">${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div><div class="divider"></div>` +
+      `<h2>Approach</h2><div class="card blue"><div class="val">${q.styleGuide}</div></div>` +
+      `<h2>Coaching Conversations</h2>` + coachItems.map(c=>`<div class="card green"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">${c.s.objection.split('"').join('')}</div><div class="val">${c.why}</div></div>`).join('') +
+      `<h2>Assigned Drills</h2>` + drills.map(s=>`<div class="card yellow"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">${s.objection.split('"').join('')}</div><div class="val" style="font-style:italic;">${(s.script||'').substring(0,180)}...</div></div>`).join(''))
+  }
 
   // Load saved team
   useEffect(()=>{
@@ -5010,6 +5108,9 @@ function LeaderGrid(){
         <button onClick={addMember} style={{width:'100%',background:`${C.green}22`,border:`1px solid ${C.green}44`,color:C.green,fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>+ Add to Grid</button>
       </div>
 
+      {/* Ask Coach — manager coaching situations */}
+      <AskCoach dept={'both'} mode={"situation"}/>
+
       {/* Team grid */}
       {team.length > 0 && (
         <div style={{marginBottom:14}}>
@@ -5057,7 +5158,11 @@ function LeaderGrid(){
       {showCoaching && coachQ && (
         <div style={{background:'rgba(255,255,255,0.02)',border:`1px solid ${coachQ.color}33`,borderRadius:12,padding:'14px',marginBottom:14}}>
           <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:coachQ.color,marginBottom:4}}>Coaching Conversations — {coachQ.label}</div>
-          <div style={{fontSize:11,color:C.gray,marginBottom:12}}>{coachQ.styleGuide}</div>
+          <div style={{fontSize:11,color:C.gray,marginBottom:10}}>{coachQ.styleGuide}</div>
+          <div style={{display:'flex',gap:6,marginBottom:12}}>
+            <button onClick={sharePlan} style={{flex:1,background:'rgba(26,107,255,0.12)',border:'1px solid rgba(26,107,255,0.3)',color:C.blueBright,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>↗ Share Plan</button>
+            <button onClick={planPDF} style={{flex:1,background:'rgba(184,255,60,0.12)',border:'1px solid rgba(184,255,60,0.3)',color:C.green,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px',borderRadius:8,cursor:'pointer'}}>📄 PDF</button>
+          </div>
 
           {/* Dept filter toggle */}
           {(()=>{
@@ -5134,6 +5239,27 @@ function LeaderGrid(){
                       <div style={{fontSize:12,color:C.lightText,marginBottom:8,lineHeight:1.6,fontStyle:"italic"}}>{s.script.substring(0,100)}...</div>
                     )}
                     {readBtn(s)}
+                    {(()=>{
+                      const names = [...new Set([...gridRoster, ...team.map(m=>m.name)])].filter(Boolean)
+                      const just = assignedMsg && assignedMsg.split('|')[1]===String(s.id)
+                      return (
+                        <div style={{marginTop:8}}>
+                          {just ? (
+                            <div style={{textAlign:'center',fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,padding:'6px 0'}}>✓ Assigned to {assignedMsg.split('|')[0]}</div>
+                          ) : assignFor===s.id ? (
+                            <div style={{display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+                              {names.length===0 && <div style={{fontSize:11,color:C.gray}}>Add team members above to assign drills</div>}
+                              {names.map(n=>(
+                                <button key={n} onClick={()=>assignDrill(s.id,n)} style={{background:'rgba(255,201,71,0.12)',border:'1px solid rgba(255,201,71,0.35)',color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:0.5,padding:'6px 12px',borderRadius:100,cursor:'pointer'}}>{n}</button>
+                              ))}
+                              <button onClick={()=>setAssignFor(null)} style={{background:'none',border:'none',color:C.gray,fontSize:13,cursor:'pointer',padding:'4px 8px'}}>✕</button>
+                            </div>
+                          ) : (
+                            <button onClick={()=>setAssignFor(s.id)} style={{width:'100%',background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.25)',color:C.yellow,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:8,cursor:'pointer'}}>📋 Assign to Rep</button>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 ))}
               </>
@@ -5170,8 +5296,6 @@ function LeaderGrid(){
         </div>
       )}
 
-      {/* Ask Coach — manager coaching situations */}
-      <AskCoach dept={'both'} mode={"situation"}/>
 
 
       {/* ── ACTION PLAN ─────────────────────────────── */}
@@ -6380,10 +6504,10 @@ export default function App() {
     // instead of appending a duplicate - the drill was already counted in
     // stats/streak when the report was generated.
     if(entry.updateResult){
-      const idx = results.findIndex(r => r.type==='voice' && r.rep===repName && !r.result && r.script===entry.script)
+      const idx = results.findIndex(r => r.type==='voice' && r.rep===repName && (r.auto || !r.result) && r.script===entry.script)
       if(idx >= 0){
         const updated = [...results]
-        updated[idx] = {...updated[idx], result: entry.result||'', notes: entry.notes||updated[idx].notes}
+        updated[idx] = {...updated[idx], result: entry.result||'', auto: false, notes: entry.notes||updated[idx].notes}
         setResults(updated); saveJSON('5md-results',updated)
         const msg = pickWelcome(repName,false)
         setWelcomeMsg(msg)
