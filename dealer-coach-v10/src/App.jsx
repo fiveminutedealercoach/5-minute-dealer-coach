@@ -4118,6 +4118,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
   const [selScript,setSelScript] = useState(null)
   const [fwOpen,setFwOpen] = useState(false)     // 5-minute framework reference, collapsed by default
   const [pickOpen,setPickOpen] = useState(true)  // script picker - auto-collapses on selection
+  const [hudCats,setHudCats] = useState([])      // expanded categories inside the picker
   const [timeLeft,setTimeLeft]   = useState(TOTAL_H)
   const [running,setRunning]     = useState(false)
   const [huddleTab,setHuddleTab] = useState('scripts')  // scripts | leaderboard
@@ -4468,20 +4469,43 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
         <span style={{color:C.gray,fontSize:11}}>{pickOpen?'▲ hide':'▼ change'}</span>
       </div>
       {pickOpen&&(<>
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')}/>
-      <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16,maxHeight:300,overflowY:'auto'}}>
-        {filtered.map((s,filteredIdx)=>(
-          <div key={s.id} onClick={()=>{setSelScript(s);setPickOpen(false)}} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):C.card,border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:8,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
-
-            
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')} compact/>
+      {(()=>{
+        const renderRow = (s) => (
+          <div key={s.id} onClick={()=>{setSelScript(s);setPickOpen(false)}} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):'linear-gradient(135deg, rgba(26,107,255,0.06) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:10,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
             <div style={{flex:1}}>
               <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:2}}>{s.objection.split('"').join('')}</div>
-              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><span style={{fontSize:10,color:C.gray,alignSelf:'center'}}>{s.category}</span></div>
+              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag></div>
             </div>
             {selScript?.id===s.id&&<div style={{color:C.green,fontSize:16}}>✓</div>}
           </div>
-        ))}
-      </div>
+        )
+        const flatMode = search.trim()!=='' || cat!=='all'
+        if(flatMode) return <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16}}>{filtered.map(renderRow)}</div>
+        const groups = []
+        filtered.forEach(s=>{ const g=groups.find(x=>x.c===s.category); if(g) g.items.push(s); else groups.push({c:s.category, d:s.dept, items:[s]}) })
+        return (
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
+            {groups.map(g=>{
+              const open = hudCats.includes(g.c)
+              const accent = g.d==='sales'?C.blueBright:C.green
+              return (
+                <div key={g.c}>
+                  <div onClick={()=>setHudCats(open?hudCats.filter(x=>x!==g.c):[...hudCats,g.c])}
+                    style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',
+                      background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',
+                      border:`1px solid ${open?accent+'55':C.border}`,borderRadius:12,padding:'13px 14px'}}>
+                    <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:1.5,textTransform:'uppercase',color:open?accent:C.white,flex:1,lineHeight:1.2}}>{g.c}</div>
+                    <div style={{background:'rgba(255,255,255,0.07)',borderRadius:100,padding:'2px 10px',fontFamily:fH,fontSize:10,fontWeight:700,color:C.gray}}>{g.items.length}</div>
+                    <div style={{color:open?accent:C.gray,fontSize:11}}>{open?'▲':'▼'}</div>
+                  </div>
+                  {open && <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>{g.items.map(renderRow)}</div>}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
       </>)}
       {/* Script preview when selected */}
       {selScript && (
