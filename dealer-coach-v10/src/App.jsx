@@ -6407,6 +6407,23 @@ function MasterDashboard({adminKey,onExit}) {
           <div style={{fontFamily:fH,fontSize:13,color:C.gray,marginTop:4}}>5-Minute Dealer Coaching System</div>
         </div>
         <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
+          <button onClick={()=>{setSelMode(m=>!m);setSelected([])}}
+            style={{background:selMode?'rgba(255,107,107,0.15)':'rgba(255,255,255,0.06)',
+              border:`1px solid ${selMode?'rgba(255,107,107,0.4)':'rgba(255,255,255,0.15)'}`,
+              color:selMode?C.red:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,
+              letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:8,cursor:'pointer'}}>
+            {selMode?'✕ Cancel':'🗑 Select'}
+          </button>
+          {selMode && (
+            <button onClick={()=>deleteDealers(selected)} disabled={!selected.length||deleting}
+              style={{background:selected.length?'rgba(255,107,107,0.2)':'rgba(255,255,255,0.04)',
+                border:`1px solid ${selected.length?'rgba(255,107,107,0.5)':C.border}`,
+                color:selected.length?C.red:C.gray,fontFamily:fH,fontWeight:900,fontSize:11,
+                letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:8,
+                cursor:selected.length?'pointer':'default'}}>
+              {deleting?'Deleting...':`Delete ${selected.length||''}`}
+            </button>
+          )}
           <PDFBtn onClick={exportMasterPDF} label="📄 Export Report"/>
           <button onClick={onExit} style={{background:'rgba(255,255,255,0.06)',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'8px 14px',borderRadius:6,cursor:'pointer'}}>← Exit Admin</button>
         </div>
