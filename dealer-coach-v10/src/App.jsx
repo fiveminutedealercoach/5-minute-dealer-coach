@@ -6311,15 +6311,34 @@ function MasterDashboard({adminKey,onExit}) {
   const [sortBy,setSortBy] = useState('health')
   const [filter,setFilter] = useState('all')
   const [expanded,setExpanded] = useState(null)
+  const [selMode,setSelMode] = useState(false)   // bulk-delete selection mode
+  const [selected,setSelected] = useState([])    // codes selected for deletion
+  const [deleting,setDeleting] = useState(false)
 
-  useEffect(()=>{
+  const loadData = () => {
     fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'getMasterDashboard',dealerId:'MASTER',repName:'admin',data:{adminKey}})
     }).then(r=>r.json()).then(d=>{
-      if(d.error){setError(d.error)}else{setData(d)}
+      if(d.error){setError(d.error)}else{setError('');setData(d)}
       setLoading(false)
     }).catch(()=>{setError('Connection error');setLoading(false)})
-  },[])
+  }
+  useEffect(loadData,[])
+
+  // Permanently delete dealerships (admin-gated server-side)
+  const deleteDealers = async (codes) => {
+    if(!codes.length) return
+    if(!window.confirm(`Permanently delete ${codes.length} dealership${codes.length===1?'':'s'}? This removes their data and cannot be undone.`)) return
+    setDeleting(true)
+    for(const code of codes){
+      try {
+        await fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'deleteDealer',dealerId:'MASTER',repName:'admin',data:{adminKey,code}})})
+      } catch {}
+    }
+    setSelected([]); setSelMode(false); setExpanded(null); setDeleting(false)
+    loadData()
+  }
 
   const healthColor = h => h>=70?C.green:h>=40?C.yellow:C.red
   const healthLabel = h => h>=70?'🟢 Healthy':h>=40?'🟡 At Risk':'🔴 Inactive'
@@ -6339,20 +6358,17 @@ function MasterDashboard({adminKey,onExit}) {
   // Claude API: ~$0.003 per drill (haiku pricing)
   // OpenAI Realtime: ~$0.68 per live session (estimated 10% of drills)
   // ElevenLabs: $22/month flat split across dealers
-  const MONTHLY_REVENUE  = 997
-  const CLAUDE_PER_DRILL = 0.003
-  const REALTIME_PER_SESSION = 0.68
-  const ELEVENLABS_FLAT  = 22
-  const elevenlabsPerDealer = dealers.length>0 ? ELEVENLABS_FLAT/dealers.length : 22
+  // Current stack per voice drill: Claude Haiku (~$0.02) + ElevenLabs TTS (~$0.28).
+  // Speech recognition is browser-native = $0. Estimates until usage metering lands.
+  const MONTHLY_REVENUE   = 997
+  const VOICE_DRILL_COST  = 0.30
+  const OTHER_AI_PER_DRILL = 0.01
 
   const dealerCosts = dealers.map(d=>{
-    const drills       = d.voiceDrills||0
-    const liveSessions = Math.round(drills*0.10) // estimate 10% use live AI
-    const claudeCost   = drills * CLAUDE_PER_DRILL
-    const realtimeCost = liveSessions * REALTIME_PER_SESSION
-    const totalCost    = claudeCost + realtimeCost + elevenlabsPerDealer
-    const margin       = MONTHLY_REVENUE - totalCost
-    return { ...d, estCost:totalCost, estMargin:margin, liveSessions }
+    const vDrills   = d.voiceDrills||0
+    const totalCost = vDrills * VOICE_DRILL_COST + (d.totalDrills||0) * OTHER_AI_PER_DRILL
+    const margin    = MONTHLY_REVENUE - totalCost
+    return { ...d, estCost:totalCost, estMargin:margin, liveSessions:vDrills }
   })
   const totalEstCost   = dealerCosts.reduce((a,d)=>a+d.estCost,0)
   const totalEstMargin = dealers.length * MONTHLY_REVENUE - totalEstCost
@@ -6496,7 +6512,15 @@ function MasterDashboard({adminKey,onExit}) {
               return(
                 <div key={d.code} style={{background:C.card,border:`1px solid ${isExp?hc+'55':C.border}`,borderRadius:12,overflow:'hidden',transition:'border-color 0.2s'}}>
                   {/* Main row */}
-                  <div onClick={()=>setExpanded(isExp?null:d.code)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
+                  <div onClick={()=>{ if(selMode){ setSelected(sel=>sel.includes(d.code)?sel.filter(c=>c!==d.code):[...sel,d.code]) } else { setExpanded(isExp?null:d.code) } }} style={{padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
+                    {selMode && (
+                      <div style={{width:24,height:24,borderRadius:6,flexShrink:0,
+                        border:`2px solid ${selected.includes(d.code)?C.red:'rgba(255,255,255,0.25)'}`,
+                        background:selected.includes(d.code)?'rgba(255,107,107,0.25)':'transparent',
+                        display:'flex',alignItems:'center',justifyContent:'center',color:C.red,fontSize:14,fontWeight:900}}>
+                        {selected.includes(d.code)?'✓':''}
+                      </div>
+                    )}
                     {/* Health score circle */}
                     <div style={{width:52,height:52,borderRadius:'50%',background:`${hc}15`,border:`2px solid ${hc}`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       <div style={{fontFamily:fH,fontSize:16,fontWeight:900,color:hc,lineHeight:1}}>{d.health}</div>
@@ -6587,7 +6611,7 @@ function MasterDashboard({adminKey,onExit}) {
                         <div style={{background:'rgba(255,107,107,0.05)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
                           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'#ff9f43',marginBottom:3}}>Est. Cost</div>
                           <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:'#ff9f43'}}>${dc.estCost.toFixed(0)}</div>
-                          <div style={{fontSize:9,color:C.gray,marginTop:2}}>{dc.liveSessions} live sessions</div>
+                          <div style={{fontSize:9,color:C.gray,marginTop:2}}>{dc.liveSessions} voice drills × ~$0.30</div>
                         </div>
                         <div style={{background:'rgba(26,107,255,0.05)',border:'1px solid rgba(26,107,255,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
                           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginBottom:3}}>Net Margin</div>
