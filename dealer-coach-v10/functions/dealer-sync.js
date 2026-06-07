@@ -161,6 +161,42 @@ export async function onRequestPost(context) {
       })
     }
 
+    // ── DELETE DEALER (operator only - permanent, complete removal) ──
+    // Removes: dealer record, all activity entries, all settings (incl. drill
+    // assignments and lifecycle customizations), and the master-index entry.
+    if (action === 'deleteDealer') {
+      if (data?.adminKey !== env.ADMIN_KEY) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      }
+      const code = String(data?.code || '').toUpperCase()
+      if (!code) {
+        return new Response(JSON.stringify({ error: 'No dealer code provided' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      }
+      // Delete every key under this dealer's prefixes (paginated)
+      for (const prefix of [`activity:${code}:`, `settings:${code}:`]) {
+        let cursor = undefined
+        do {
+          const page = await env.DEALER_KV.list({ prefix, cursor })
+          await Promise.all(page.keys.map(k => env.DEALER_KV.delete(k.name)))
+          cursor = page.list_complete ? undefined : page.cursor
+        } while (cursor)
+      }
+      await env.DEALER_KV.delete(`dealer:${code}`)
+      // Remove from the master operator index
+      const masterRaw = await env.DEALER_KV.get('master:dealer_index')
+      if (masterRaw) {
+        const idx = JSON.parse(masterRaw).filter(d => d.code !== code)
+        await env.DEALER_KV.put('master:dealer_index', JSON.stringify(idx))
+      }
+      return new Response(JSON.stringify({ success: true, deleted: code }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
+
     // ── GET DASHBOARD ─────────────────────────────────────────────
     if (action === 'getDashboard') {
       const code = dealerId.toUpperCase()
