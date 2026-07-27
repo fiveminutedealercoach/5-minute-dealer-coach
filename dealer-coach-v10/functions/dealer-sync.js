@@ -298,6 +298,7 @@ export async function onRequest(context) {
     return err('Unknown action', 400)
 
   } catch (e) {
+    
     return err(e.message)
   }
 }
