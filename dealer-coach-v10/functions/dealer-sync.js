@@ -200,7 +200,12 @@ export async function onRequest(context) {
         `/activity?dealer_code=eq.${code}&select=*&order=timestamp.desc&limit=100`
       )
 
-      return ok({ dealer: dealers[0], activities })
+      // The app reads activity rows as a.repName; Supabase returns rep_name.
+      // Add the camelCase alias alongside the original column so both the app
+      // and anything reading rep_name keep working.
+      const shaped = activities.map(a => ({ ...a, repName: a.rep_name }))
+
+      return ok({ dealer: dealers[0], activities: shaped })
     }
 
     // ── UPDATE DEALER (operator only) ─────────────────────────
@@ -391,7 +396,7 @@ export async function onRequest(context) {
             lastActive,
             daysSinceActive,
             health,
-            recentActivity: acts.slice(0, 10),
+            recentActivity: acts.slice(0, 10).map(a => ({ ...a, repName: a.rep_name })),
             hasLoggedIn: (dealerData.reps || []).length > 0,
             hasActivity: acts.length > 0,
             hasHuddle: acts.some(a => a.type === 'huddle'),
