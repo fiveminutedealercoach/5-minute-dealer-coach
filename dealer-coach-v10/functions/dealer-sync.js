@@ -1,5 +1,5 @@
 // Cloudflare Pages Function — Dealer data sync via Supabase
-// v5 — Operator Console: seat limits, richer payload, per-rooftop notes.
+// v6 — Restores the five KV-era actions the app still calls.
 //      • verifyOperator  — lets the console check the admin key WITHOUT the key
 //                          ever being written into the console HTML.
 //      • updateDealer    — now returns the updated row so the console can patch
@@ -13,6 +13,14 @@
 //                        per rooftop so the console can show an activity feed.
 //      • notes         - free-text operator notes per rooftop (who you spoke to,
 //                        what they said, when to follow up).
+//      • getRoster      - rep list + recap emails for a dealership
+//      • getSettings    - read a per-dealership key (drill assignments, lifecycle steps)
+//      • saveSettings   - write/clear that key
+//      • updateContacts - set the recap email list
+//      • removeRep      - drop a rep from the roster
+//      These existed on the old Cloudflare KV backend and were missed in the
+//      Supabase migration, which silently broke drill assignments, the rep
+//      picker, Dealership Settings and the lifecycle editor. Requires SQL v5.
 //      Existing app calls are unchanged and still require no admin key.
 
 const SUPABASE_URL = 'https://zthgswndbgekoboknpae.supabase.co'
@@ -228,7 +236,10 @@ export async function onRequest(context) {
 
       // Hand the fresh row back so the console can update one table row in place
       // instead of re-running the whole master dashboard query.
-      return ok({ success: true, dealer: updated[0] || null })
+      // A PATCH that matched zero rows used to return success, so the console
+      // would say "Saved" for a rooftop that no longer exists.
+      if (!updated.length) return err('Dealer not found', 404)
+      return ok({ success: true, dealer: updated[0] })
     }
 
     // ── DELETE DEALER (operator only) ─────────────────────────
@@ -236,12 +247,94 @@ export async function onRequest(context) {
       if (!isOperator()) return err('Unauthorized', 401)
       const code = dealerId.toUpperCase()
 
-      // Delete activity, dealer record, and index row
-      try { await sb(`/activity?dealer_code=eq.${code}`, 'DELETE') } catch {}
-      try { await sb(`/dealers?code=eq.${code}`, 'DELETE') } catch {}
-      try { await sb(`/dealer_index?code=eq.${code}`, 'DELETE') } catch {}
+      // Previously every failure was swallowed and success returned regardless,
+      // so a rejected delete still reported "Dealership deleted". Now we report
+      // exactly which parts went, and fail loudly if the dealer row survived.
+      const failed = []
+      const tryDel = async (path, label) => {
+        try { await sb(path, 'DELETE') } catch (e) { failed.push(label) }
+      }
+      await tryDel(`/activity?dealer_code=eq.${code}`, 'activity')
+      await tryDel(`/dealer_settings?dealer_code=eq.${code}`, 'settings')
+      await tryDel(`/dealers?code=eq.${code}`, 'dealer')
+      await tryDel(`/dealer_index?code=eq.${code}`, 'index')
 
-      return ok({ success: true })
+      if (failed.includes('dealer')) {
+        return err('Could not delete the dealership record. Nothing was fully removed.', 500)
+      }
+      return ok({ success: true, partial: failed.length ? failed : undefined })
+    }
+
+    // ── GET ROSTER ────────────────────────────────────────────
+    // Who is on this rooftop + where recap emails go. Used by the assign
+    // picker, Quick Log, Dealership Settings and the manager email list.
+    if (action === 'getRoster') {
+      const code = dealerId.toUpperCase()
+      const rows = await sb(`/dealers?code=eq.${code}&select=reps,contact_emails`)
+      if (!rows.length) return ok({ reps: [], contactEmails: [] })
+      return ok({
+        reps: rows[0].reps || [],
+        contactEmails: rows[0].contact_emails || []
+      })
+    }
+
+    // ── UPDATE CONTACTS ───────────────────────────────────────
+    if (action === 'updateContacts') {
+      const code = dealerId.toUpperCase()
+      const emails = Array.isArray(data?.emails) ? data.emails : []
+      const updated = await sb(`/dealers?code=eq.${code}`, 'PATCH', { contact_emails: emails })
+      if (!updated.length) return err('Dealer not found', 404)
+      return ok({ success: true, contactEmails: emails })
+    }
+
+    // ── REMOVE REP ────────────────────────────────────────────
+    // Drops the name from the roster. Their logged activity is left intact so
+    // the dashboard history stays honest.
+    if (action === 'removeRep') {
+      const code = dealerId.toUpperCase()
+      const rep = data?.rep
+      if (!rep) return err('No rep specified', 400)
+      const rows = await sb(`/dealers?code=eq.${code}&select=reps`)
+      if (!rows.length) return err('Dealer not found', 404)
+      const next = (rows[0].reps || []).filter(r => r !== rep)
+      await sb(`/dealers?code=eq.${code}`, 'PATCH', { reps: next })
+      return ok({ success: true, reps: next })
+    }
+
+    // ── GET SETTINGS ──────────────────────────────────────────
+    // KV replacement. Returns { value } — null when the key is unset, which is
+    // what the app checks before showing an assignment card.
+    if (action === 'getSettings') {
+      const code = dealerId.toUpperCase()
+      const key = String(data?.key || '')
+      if (!key) return err('No key specified', 400)
+      const rows = await sb(`/dealer_settings?dealer_code=eq.${code}&key=eq.${encodeURIComponent(key)}&select=value`)
+      return ok({ value: rows.length ? rows[0].value : null })
+    }
+
+    // ── SAVE SETTINGS ─────────────────────────────────────────
+    // value === null clears the key (that is how a completed drill assignment
+    // is removed). Otherwise upsert.
+    if (action === 'saveSettings') {
+      const code = dealerId.toUpperCase()
+      const key = String(data?.key || '')
+      if (!key) return err('No key specified', 400)
+      const value = data?.value
+
+      if (value === null || value === undefined) {
+        try { await sb(`/dealer_settings?dealer_code=eq.${code}&key=eq.${encodeURIComponent(key)}`, 'DELETE') } catch {}
+        return ok({ success: true, cleared: true })
+      }
+
+      const existing = await sb(`/dealer_settings?dealer_code=eq.${code}&key=eq.${encodeURIComponent(key)}&select=key`)
+      if (existing.length) {
+        await sb(`/dealer_settings?dealer_code=eq.${code}&key=eq.${encodeURIComponent(key)}`, 'PATCH',
+          { value, updated_at: Date.now() })
+      } else {
+        await sb('/dealer_settings', 'POST',
+          { dealer_code: code, key, value, updated_at: Date.now() })
+      }
+      return ok({ success: true, value })
     }
 
     // ── GET MASTER DASHBOARD ──────────────────────────────────
