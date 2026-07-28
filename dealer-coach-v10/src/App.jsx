@@ -415,20 +415,28 @@ function RoleGrid({selected,onSelect}) {
 function Onboarding({onDone}) {
   const [step,setStep]           = useState('choose')
   const [dealerName,setDealerName] = useState('')
-  const [repName,setRepName]     = useState('')
   const [repTitle,setRepTitle]   = useState('')
   const [role,setRole]           = useState('')
   const [dealerCode,setDealerCode] = useState('')
   const [teamNames,setTeamNames] = useState([])
   const [lookupDone,setLookupDone] = useState(false)
+  // Identity: first name + last initial. The composed value is what gets
+  // stamped on every drill, so it has to be one consistent string per person.
+  const [firstName,setFirstName] = useState('')
+  const [lastInitial,setLastInitial] = useState('')
+  const [pickedName,setPickedName] = useState('')   // tapped from the roster
+  const [showTypeIn,setShowTypeIn] = useState(false)
+  const composedName = (firstName.trim() + ' ' + lastInitial.trim().toUpperCase()).trim()
+  const effectiveName = pickedName || composedName
   const lookupTeam = async (codeArg) => {
-    const code = (codeArg || dealerCode).trim().toUpperCase()
+    const code = (codeArg || dealerCode).trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
     if(!code || code.length < 4) return
     setLookupDone(false)
-    const res = await dealerSync('getDashboard', code, '')
-    if(res && !res.error){
-      const names = [...new Set((res.activities||[]).map(a=>a.repName))].filter(Boolean)
-      setTeamNames(names.slice(0,12))
+    // The roster is the source of truth — it includes people who have joined
+    // but not drilled yet, which the old activity-based lookup missed.
+    const res = await dealerSync('getRoster', code, '')
+    if(res && !res.error && Array.isArray(res.reps)){
+      setTeamNames(res.reps.filter(Boolean).slice(0,20))
     } else {
       setTeamNames([])
     }
@@ -450,23 +458,28 @@ function Onboarding({onDone}) {
   const btnSecondary = {background:'rgba(26,107,255,0.2)',color:C.white,fontFamily:fH,fontWeight:900,fontSize:14,letterSpacing:1,textTransform:'uppercase',padding:'13px 20px',borderRadius:8,border:'1px solid rgba(26,107,255,0.4)',cursor:'pointer',width:'100%'}
 
   const createDealer = async () => {
-    if (!dealerName.trim()||!repName.trim()||!role) { setError('Please fill in all fields.'); return }
+    if (!dealerName.trim()||!firstName.trim()||!lastInitial.trim()||!role) { setError('Please fill in all fields.'); return }
     if (!mgrEmail.trim()||!mgrEmail.includes('@')) { setError('Please enter a valid email address.'); return }
     setLoading(true); setError('')
     const code = dealerName.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)+Math.floor(Math.random()*100)
-    const res = await dealerSync('registerDealer',code,repName.trim(),{dealerName:dealerName.trim(),dept:roleDept(role),email:mgrEmail.trim()})
+    const res = await dealerSync('registerDealer',code,composedName,{dealerName:dealerName.trim(),dept:roleDept(role),email:mgrEmail.trim(),gmRole:role})
     if (res.error&&!res.code) { setError('Setup failed. Try again.'); setLoading(false); return }
     const finalCode = res.code||code
-    onDone({dealerId:finalCode,repName:repName.trim(),repTitle:repTitle.trim(),dealerName:dealerName.trim(),role,isManager:isManager(role)},true)
+    onDone({dealerId:finalCode,repName:composedName,repTitle:repTitle.trim(),dealerName:dealerName.trim(),role,isManager:isManager(role)},true)
     setLoading(false)
   }
 
   const joinDealer = async () => {
-    if (!dealerCode.trim()||!repName.trim()||!role) { setError('Please fill in all fields.'); return }
+    const code = dealerCode.trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
+    if (!code||!effectiveName||!role) { setError('Please fill in all fields.'); return }
     setLoading(true); setError('')
-    const res = await dealerSync('joinDealer',dealerCode.trim().toUpperCase(),repName.trim(),{role})
-    if (res.error) { setError('Dealer code not found. Check with your manager.'); setLoading(false); return }
-    onDone({dealerId:dealerCode.trim().toUpperCase(),repName:repName.trim(),repTitle:repTitle.trim(),dealerName:res.dealer?.name||'',role,isManager:isManager(role)},true)
+    const res = await dealerSync('joinDealer',code,effectiveName,{role})
+    if (res.error) { setError(res.error||'Dealer code not found. Check with your manager.'); setLoading(false); return }
+    // Always store the name the backend hands back. If someone typed "billy"
+    // and the roster already has "Billy", this is what reunites them with
+    // their own history instead of creating a second person.
+    const finalName = res.repName || effectiveName
+    onDone({dealerId:res.code||code,repName:finalName,repTitle:repTitle.trim(),dealerName:res.dealer?.name||'',role,isManager:isManager(role)},true)
     setLoading(false)
   }
 
@@ -493,7 +506,13 @@ function Onboarding({onDone}) {
         <div style={{fontFamily:fH,fontSize:20,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:16}}>Set Up Dealership</div>
         <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:16}}>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealership Name</div><input style={inp} placeholder="e.g. Sunset Auto Group" value={dealerName} onChange={e=>setDealerName(e.target.value)}/></div>
-          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div><input style={inp} placeholder="Your name" value={repName} onChange={e=>setRepName(e.target.value)}/></div>
+          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div>
+            <div style={{display:"flex",gap:8}}>
+              <input style={{...inp,flex:1}} placeholder="First name" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
+              <input style={{...inp,width:74,textAlign:"center",textTransform:"uppercase"}} maxLength={1} placeholder="Last" value={lastInitial} onChange={e=>setLastInitial(e.target.value.replace(/[^a-zA-Z]/g,""))}/>
+            </div>
+            <div style={{fontSize:10,color:C.gray,marginTop:4}}>First name and last initial — this is how your team sees you.</div>
+          </div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. General Manager, Sales Manager" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Email</div><input style={inp} type="email" placeholder="you@dealership.com" value={mgrEmail} onChange={e=>setMgrEmail(e.target.value)}/><div style={{fontSize:10,color:C.gray,marginTop:4}}>For weekly team recaps and account updates</div></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
@@ -502,7 +521,7 @@ function Onboarding({onDone}) {
         <div style={{fontSize:11,color:C.gray,lineHeight:1.6,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:6,border:`1px solid ${C.border}`}}>
           By creating an account you agree that all content, scripts, word tracks, and coaching methodologies are the proprietary property of <span style={{color:C.lightText}}>Retail Performance Solutions LLC</span> and are licensed for internal dealership use only.
         </div>
-        <button onClick={createDealer} disabled={loading||!role} style={{...btnPrimary,marginBottom:0,background:role?C.green:'rgba(255,255,255,0.08)',color:role?C.navy:C.gray,cursor:role?'pointer':'default',opacity:loading?0.6:1}}>{loading?'Setting up...':'Create Dealership →'}</button>
+        <button onClick={createDealer} disabled={loading||!role||!composedName} style={{...btnPrimary,marginBottom:0,background:(role&&composedName)?C.green:'rgba(255,255,255,0.08)',color:(role&&composedName)?C.navy:C.gray,cursor:(role&&composedName)?'pointer':'default',opacity:loading?0.6:1}}>{loading?'Setting up...':'Create Dealership →'}</button>
       </div>
     </div>
   )
@@ -515,32 +534,49 @@ function Onboarding({onDone}) {
         <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:16}}>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Dealer Code</div><input style={{...inp,textTransform:'uppercase',letterSpacing:3,fontFamily:fH,fontSize:18,fontWeight:900}} placeholder="e.g. SUNSET42" value={dealerCode} onChange={e=>setDealerCode(e.target.value.toUpperCase())}/>
             {dealerCode.trim().length >= 5 && !lookupDone && (
-              <div style={{fontSize:11,color:C.gray,marginTop:6}}>Checking for your team...</div>
-            )}
-            {lookupDone && teamNames.length > 0 && (
-              <div style={{marginTop:10}}>
-                <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:6}}>
-                  Already on this team? Tap your name
-                </div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {teamNames.map(n=>(
-                    <button key={n} onClick={()=>setRepName(n)}
-                      style={{background: repName===n ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.05)",
-                        border:"1px solid "+(repName===n ? "rgba(184,255,60,0.5)" : "rgba(255,255,255,0.12)"),
-                        color: repName===n ? C.green : C.lightText,
-                        fontSize:12,padding:"7px 14px",borderRadius:100,cursor:"pointer"}}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                <div style={{fontSize:10,color:C.gray,marginTop:5}}>New here? Just type your name below.</div>
-              </div>
-            )}
-            {lookupDone && teamNames.length === 0 && dealerCode.trim().length >= 5 && (
-              <div style={{fontSize:11,color:C.gray,marginTop:6}}>No team activity found yet for this code — type your name below.</div>
+              <div style={{fontSize:11,color:C.gray,marginTop:6}}>Looking up your team...</div>
             )}
           </div>
-          <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div><input style={inp} placeholder="Your name" value={repName} onChange={e=>setRepName(e.target.value)}/></div>
+
+          {/* Identity. Tapping an existing name is the primary path — it is the
+              only way to guarantee a returning rep lands back on their own
+              history instead of creating a second entry. Typing is the fallback
+              for people genuinely new to the rooftop. */}
+          {lookupDone && teamNames.length > 0 && (
+            <div>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.green,marginBottom:6}}>
+                Tap your name
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {teamNames.map(n=>(
+                  <button key={n} onClick={()=>{setPickedName(n);setShowTypeIn(false);setFirstName("");setLastInitial("")}}
+                    style={{background: pickedName===n ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.05)",
+                      border:"1px solid "+(pickedName===n ? "rgba(184,255,60,0.5)" : "rgba(255,255,255,0.12)"),
+                      color: pickedName===n ? C.green : C.lightText,
+                      fontFamily:fH,fontWeight:700,fontSize:13,padding:"9px 16px",borderRadius:100,cursor:"pointer"}}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              {!showTypeIn && (
+                <button onClick={()=>{setShowTypeIn(true);setPickedName("")}}
+                  style={{background:"none",border:"none",color:C.blueBright,fontSize:12,cursor:"pointer",padding:"10px 0 0",textDecoration:"underline"}}>
+                  I am not on this list
+                </button>
+              )}
+            </div>
+          )}
+
+          {(showTypeIn || (lookupDone && teamNames.length===0)) && (
+            <div>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Name</div>
+              <div style={{display:"flex",gap:8}}>
+                <input style={{...inp,flex:1}} placeholder="First name" value={firstName} onChange={e=>{setFirstName(e.target.value);setPickedName("")}}/>
+                <input style={{...inp,width:74,textAlign:"center",textTransform:"uppercase"}} maxLength={1} placeholder="Last" value={lastInitial} onChange={e=>{setLastInitial(e.target.value.replace(/[^a-zA-Z]/g,""));setPickedName("")}}/>
+              </div>
+              <div style={{fontSize:10,color:C.gray,marginTop:4}}>First name and last initial — this is how your team sees you.</div>
+            </div>
+          )}
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Your Title <span style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:1}}>(optional)</span></div><input style={inp} placeholder="e.g. Sales Consultant, Service Advisor" value={repTitle} onChange={e=>setRepTitle(e.target.value)}/></div>
           <div><div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:8}}>Your Role</div><RoleGrid selected={role} onSelect={setRole}/></div>
         </div>
@@ -548,7 +584,7 @@ function Onboarding({onDone}) {
         <div style={{fontSize:11,color:C.gray,lineHeight:1.6,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,0.03)',borderRadius:6,border:`1px solid ${C.border}`}}>
           By joining you agree that all content, scripts, word tracks, and coaching methodologies are the proprietary property of <span style={{color:C.lightText}}>Retail Performance Solutions LLC</span> and are licensed for internal dealership use only. Unauthorized reproduction or redistribution is prohibited.
         </div>
-        <button onClick={joinDealer} disabled={loading||!role} style={{...btnPrimary,marginBottom:0,background:role?C.green:'rgba(255,255,255,0.08)',color:role?C.navy:C.gray,cursor:role?'pointer':'default',opacity:loading?0.6:1}}>{loading?'Joining...':'Join Dealership →'}</button>
+        <button onClick={joinDealer} disabled={loading||!role||!effectiveName} style={{...btnPrimary,marginBottom:0,background:(role&&effectiveName)?C.green:'rgba(255,255,255,0.08)',color:(role&&effectiveName)?C.navy:C.gray,cursor:(role&&effectiveName)?'pointer':'default',opacity:loading?0.6:1}}>{loading?'Joining...':'Join Dealership →'}</button>
       </div>
     </div>
   )
