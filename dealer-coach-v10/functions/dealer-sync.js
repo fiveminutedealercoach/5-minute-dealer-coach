@@ -145,7 +145,10 @@ export async function onRequest(context) {
 
     // ── JOIN DEALER ───────────────────────────────────────────
     if (action === 'joinDealer') {
-      const code = dealerId.toUpperCase()
+      // Sanitize the same way registerDealer does. A trailing space or an
+      // autocomplete artifact used to produce "Dealer code not found".
+      const code = String(dealerId || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (!code) return err('Dealer code not found', 404)
       const rows = await sb(`/dealers?code=eq.${code}&select=*`)
       if (!rows.length) return err('Dealer code not found', 404)
 
@@ -155,18 +158,28 @@ export async function onRequest(context) {
         return err('This dealership account is suspended. Please contact your administrator.', 403)
       }
       const reps = dealer.reps || []
-      if (!reps.includes(repName)) {
+
+      // The roster is the source of truth for identity. Match case-insensitively
+      // and hand back the name exactly as it is already stored, so "billy" and
+      // "Billy" resolve to one person instead of splitting seats, stats and
+      // drill assignments. The app saves whatever we return here.
+      const typed = String(repName || '').trim()
+      const existing = reps.find(r => String(r).trim().toLowerCase() === typed.toLowerCase())
+      let canonicalName = existing || typed
+
+      if (!existing && typed) {
         // Seat cap. Existing users can always get back in; only NEW joins are
         // blocked, so nobody gets locked out of an account they already use.
         const cap = dealer.seat_limit == null ? 15 : dealer.seat_limit
         if (reps.length >= cap) {
           return err('This dealership has reached its user limit of ' + cap + '. Please contact your manager.', 403)
         }
-        reps.push(repName)
+        reps.push(typed)
         await sb(`/dealers?code=eq.${code}`, 'PATCH', { reps })
+        canonicalName = typed
       }
 
-      return ok({ success: true, dealer })
+      return ok({ success: true, dealer, code, repName: canonicalName })
     }
 
     // ── LOG ACTIVITY ──────────────────────────────────────────
@@ -250,7 +263,11 @@ export async function onRequest(context) {
     // ── DELETE DEALER (operator only) ─────────────────────────
     if (action === 'deleteDealer') {
       if (!isOperator()) return err('Unauthorized', 401)
-      const code = dealerId.toUpperCase()
+      // Bulk delete posts dealerId:'MASTER' with the real code in data.code,
+      // while single delete puts it in dealerId. Accept either.
+      const raw = data?.code || dealerId
+      const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (!code || code === 'MASTER') return err('No dealership code specified', 400)
 
       // Previously every failure was swallowed and success returned regardless,
       // so a rejected delete still reported "Dealership deleted". Now we report
