@@ -345,6 +345,25 @@ export async function onRequest(context) {
       if (!rows.length) return err('Dealer not found', 404)
       const list = Array.isArray(rows[0].custom_scripts) ? rows[0].custom_scripts : []
 
+      // Editing an existing entry: the app sends the original id back. Replace in
+      // place so a correction doesn't create a duplicate.
+      const editId = s.id && String(s.id).indexOf('custom-') === 0 ? String(s.id) : null
+      if (editId && list.some(x => x && x.id === editId)) {
+        const next = list.map(x => (x && x.id === editId)
+          ? { ...x,
+              objection,
+              dept,
+              category,
+              script: String(s.script || x.script || '').slice(0, 1200),
+              followup: String(s.followup || x.followup || '').slice(0, 600),
+              situation: String(s.situation || x.situation || '').slice(0, 300),
+              mistake: String(s.mistake || x.mistake || '').slice(0, 300),
+              updatedAt: Date.now() }
+          : x)
+        await sb(`/dealers?code=eq.${code}`, 'PATCH', { custom_scripts: next })
+        return ok({ success: true, updated: true, custom_scripts: next })
+      }
+
       // de-dupe on objection text, case-insensitive
       if (list.some(x => x && String(x.objection || '').trim().toLowerCase() === objection.toLowerCase())) {
         return ok({ success: true, duplicate: true, custom_scripts: list })
