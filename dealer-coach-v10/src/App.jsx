@@ -504,7 +504,7 @@ function Onboarding({onDone}) {
     setLoading(true); setError('')
     const code = dealerName.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)+Math.floor(Math.random()*100)
     const res = await dealerSync('registerDealer',code,composedName,{dealerName:dealerName.trim(),dept:roleDept(role),email:mgrEmail.trim(),gmRole:role})
-    if (res.error&&!res.code) { setError('Setup failed. Try again.'); setLoading(false); return }
+    if (res.error&&!res.code) { setError(res.error || 'Could not create the dealership. Check your connection and try again.'); setLoading(false); return }
     const finalCode = res.code||code
     onDone({dealerId:finalCode,repName:composedName,repTitle:repTitle.trim(),dealerName:dealerName.trim(),role,isManager:isManager(role)},true)
     setLoading(false)
@@ -1039,6 +1039,11 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
 
   ]
 
+  // A brand-new rep lands on a screen full of tabs, a streak counter and an
+  // empty suggestion slot with no idea what to do first. The product promise is
+  // "five minutes" — say which five. Disappears once they've drilled once.
+  const isFirstRun = (results?.length || 0) === 0
+
   return (
     <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
 
@@ -1194,8 +1199,8 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
         </div>
       ) : (
         <div style={{...glass,padding:'24px',textAlign:'center'}}>
-          <div style={{fontSize:11,color:C.gray,marginBottom:8}}>No activity logged yet.</div>
-          <div style={{fontSize:11,color:C.gray}}>Run your first huddle to get started.</div>
+          <div style={{fontSize:12,color:C.lightText,marginBottom:4,fontWeight:600}}>Nothing logged yet</div>
+          <div style={{fontSize:11,color:C.gray,lineHeight:1.6}}>Run a 5-minute huddle or have a rep complete a voice drill — activity shows up here the moment they do.</div>
         </div>
       )}
 
@@ -1305,6 +1310,17 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
 
   return (
     <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
+
+      {isFirstRun && (
+        <div style={{background:'linear-gradient(135deg, rgba(184,255,60,0.12) 0%, rgba(5,13,31,0.9) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderRadius:14,padding:'16px 18px',marginBottom:18}}>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:6}}>Start here</div>
+          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.15,marginBottom:8}}>Your first drill takes five minutes</div>
+          <div style={{fontSize:13,color:C.lightText,lineHeight:1.65,marginBottom:12}}>
+            You'll hear a real customer objection out loud. Answer it in your own words, and you'll get a graded report card with the exact wording that closes it.
+          </div>
+          <button onClick={()=>onDrill&&onDrill(null)} style={{...btnPrimary,marginBottom:0,width:'100%'}}>▶ Start My First Drill</button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{marginBottom:24}}>
@@ -1492,10 +1508,67 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
       {/* Empty state */}
       {results.filter(r=>r.type==='voice').length === 0 && (
         <div style={{textAlign:'center',padding:'24px 0',color:C.gray}}>
-          <div style={{fontSize:11}}>No drills yet. Start your first one above.</div>
+          <div style={{fontSize:11,lineHeight:1.6}}>No drills yet — tap Start Drill above. It takes about five minutes and you'll get a graded report card at the end.</div>
         </div>
       )}
 
+    </div>
+  )
+}
+
+// ── CATEGORY PICKER ──────────────────────────────────────────────
+// Custom objections file under the SAME topics as the built-in 60 (Price
+// Pushback, Menu Selling, ...) so a rep hunting price objections finds the
+// dealership's own alongside them. "Ours" is shown as a badge, never as a
+// category. Managers can add a genuinely new topic, but via a deliberate
+// action rather than free-typing, so you don't end up with Price / price /
+// Pricing as three categories.
+function CategoryPicker({value, onChange, dept}) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft]   = useState('')
+  const cats = [...new Set(
+    allScripts()
+      .filter(s => !dept || s.dept === dept)
+      .map(s => s.category)
+      .filter(c => c && c !== 'Custom Objection')
+  )].sort()
+  const commit = () => {
+    const v = draft.trim()
+    if(!v) { setAdding(false); return }
+    onChange(v.charAt(0).toUpperCase() + v.slice(1))
+    setDraft(''); setAdding(false)
+  }
+  return (
+    <div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+        {cats.map(c=>(
+          <button key={c} onClick={()=>onChange(c)}
+            style={{background: value===c ? 'rgba(184,255,60,0.15)' : 'rgba(255,255,255,0.05)',
+              border:'1px solid '+(value===c ? 'rgba(184,255,60,0.5)' : C.border),
+              color: value===c ? C.green : C.lightText,
+              fontFamily:fH,fontWeight:700,fontSize:11,letterSpacing:0.5,
+              padding:'7px 12px',borderRadius:100,cursor:'pointer',textAlign:'left'}}>{c}</button>
+        ))}
+        {value && !cats.includes(value) && (
+          <button onClick={()=>onChange(value)}
+            style={{background:'rgba(184,255,60,0.15)',border:'1px solid rgba(184,255,60,0.5)',color:C.green,
+              fontFamily:fH,fontWeight:700,fontSize:11,padding:'7px 12px',borderRadius:100,cursor:'pointer'}}>{value} ✓</button>
+        )}
+        {!adding && (
+          <button onClick={()=>setAdding(true)}
+            style={{background:'transparent',border:'1px dashed '+C.border,color:C.gray,
+              fontFamily:fH,fontWeight:700,fontSize:11,padding:'7px 12px',borderRadius:100,cursor:'pointer'}}>+ New category</button>
+        )}
+      </div>
+      {adding && (
+        <div style={{display:'flex',gap:6,marginBottom:8}}>
+          <input autoFocus value={draft} onChange={e=>setDraft(e.target.value)}
+            onKeyDown={e=>{ if(e.key==='Enter') commit() }}
+            placeholder="e.g. EV Objections" style={{...inp,flex:1}}/>
+          <button onClick={commit} style={{background:C.green,color:C.navy,border:'none',fontFamily:fH,fontWeight:900,fontSize:11,letterSpacing:1,textTransform:'uppercase',padding:'0 14px',borderRadius:6,cursor:'pointer'}}>Add</button>
+          <button onClick={()=>{setAdding(false);setDraft('')}} style={{background:'transparent',border:'1px solid '+C.border,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:11,padding:'0 12px',borderRadius:6,cursor:'pointer'}}>Cancel</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1524,6 +1597,10 @@ function ScriptLibrary({dealer}) {
   const [search,setSearch] = useState('')
   const [openId,setOpenId] = useState(null)
   const [openCats,setOpenCats] = useState([])   // expanded category sections
+  const [editing,setEditing]     = useState(null)  // custom script being edited
+  const [confirmDel,setConfirmDel] = useState(null) // custom script being deleted
+  const [busy,setBusy]           = useState(false)
+  const [err,setErr]             = useState('')
 
   // Reps see customer-facing scripts only. Managers (gm/sales_mgr/svc_mgr) see
   // everything, including manager coaching situations (audience:'manager' in scripts.js).
@@ -1535,6 +1612,10 @@ function ScriptLibrary({dealer}) {
     if(search&&!s.objection.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+  // The dealership's own objections lead — they are the ones that reflect what
+  // this rooftop actually hears, so they should never be buried down the list.
+  .sort((a,b)=> (b.custom?1:0)-(a.custom?1:0))
+  const playbookCount = visible.filter(s=>s.custom).length
 
   return (
     <div style={{padding:'16px 16px 96px'}}>
@@ -1546,7 +1627,7 @@ function ScriptLibrary({dealer}) {
           [visible.length,'Scripts',C.white],
           [visible.filter(s=>s.dept==='sales').length,'Sales',C.blueBright],
           [visible.filter(s=>s.dept==='service').length,'Service',C.green],
-          [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
+          playbookCount>0 ? [playbookCount,'Our Playbook',C.green] : [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
         ].map(([n,l,c])=>(
           <div key={l} style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:12,padding:'10px 6px',textAlign:'center'}}>
             <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:c,lineHeight:1}}>{n}</div>
@@ -1557,11 +1638,11 @@ function ScriptLibrary({dealer}) {
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible} compact/>
       {(()=>{
         const renderCard = (s) => (
-          <div key={s.id} style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):C.border}`,borderRadius:14,overflow:'hidden',boxShadow:'0 2px 12px rgba(0,0,0,0.25)'}}>
+          <div key={s.id} style={{background: s.custom ? 'linear-gradient(135deg, rgba(184,255,60,0.10) 0%, rgba(5,13,31,0.95) 100%)' : 'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${openId===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.3)'):(s.custom?'rgba(184,255,60,0.30)':C.border)}`,borderLeft: s.custom ? `4px solid ${C.green}` : undefined,borderRadius:14,overflow:'hidden',boxShadow:'0 2px 12px rgba(0,0,0,0.25)'}}>
             <div onClick={()=>setOpenId(openId===s.id?null:s.id)} style={{padding:'12px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,background:openId===s.id?`linear-gradient(135deg,${C.navyLight},#0c1f40)`:'transparent'}}>
 
               <div style={{flex:1}}>
-                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag>{s.audience==='manager'&&<Tag color={C.yellow}>👔 Manager Coaching</Tag>}{bestGrades[s.id]&&<span style={{background:`${gradeCol(bestGrades[s.id])}1c`,border:`1px solid ${gradeCol(bestGrades[s.id])}55`,color:gradeCol(bestGrades[s.id]),fontFamily:fH,fontSize:9,fontWeight:900,letterSpacing:1,padding:'2px 8px',borderRadius:100}}>🏅 {bestGrades[s.id]}</span>}</div>
+                <div style={{display:'flex',gap:5,marginBottom:3,flexWrap:'wrap'}}><Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag><Tag color={C.gray}>{s.category}</Tag>{s.custom&&<span style={{background:'rgba(184,255,60,0.16)',border:'1px solid rgba(184,255,60,0.55)',color:C.green,fontFamily:fH,fontSize:9,fontWeight:900,letterSpacing:1.2,textTransform:'uppercase',padding:'2px 9px',borderRadius:100}}>★ Our Playbook</span>}{s.audience==='manager'&&<Tag color={C.yellow}>👔 Manager Coaching</Tag>}{bestGrades[s.id]&&<span style={{background:`${gradeCol(bestGrades[s.id])}1c`,border:`1px solid ${gradeCol(bestGrades[s.id])}55`,color:gradeCol(bestGrades[s.id]),fontFamily:fH,fontSize:9,fontWeight:900,letterSpacing:1,padding:'2px 8px',borderRadius:100}}>🏅 {bestGrades[s.id]}</span>}</div>
                 <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{s.objection.split('"').join('')}</div>
               </div>
               <div style={{color:C.gray,fontSize:12}}>{openId===s.id?'▲':'▼'}</div>
@@ -1574,6 +1655,17 @@ function ScriptLibrary({dealer}) {
                 <div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>The Script</div><div style={{background:'rgba(184,255,60,0.05)',border:'1px solid rgba(184,255,60,0.2)',borderLeft:`3px solid ${C.green}`,borderRadius:'0 6px 6px 0',padding:'10px 12px',fontSize:13,color:C.white,fontStyle:'italic',lineHeight:1.75}}>{s.script}</div></div>
                 <div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.blueBright,marginBottom:4}}>Why It Works</div><div style={{background:'rgba(26,107,255,0.07)',border:'1px solid rgba(26,107,255,0.18)',borderRadius:6,padding:'8px 10px',fontSize:12,color:C.lightText,lineHeight:1.65}}>{s.why}</div></div>
                 <div><div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:4}}>The Follow-Up</div><div style={{background:'rgba(255,201,71,0.05)',border:'1px solid rgba(255,201,71,0.15)',borderRadius:6,padding:'8px 10px',fontSize:12,color:'#ffe08a',fontStyle:'italic',lineHeight:1.65}}>{s.followup}</div></div>
+                {s.custom&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,borderTop:`1px solid ${C.border}`,paddingTop:10,marginTop:2}}>
+                    <div style={{flex:1,fontSize:11,color:C.gray}}>★ Added to your playbook{s.addedBy?' by '+s.addedBy:''}</div>
+                    {showMgrScripts&&(
+                      <>
+                        <button onClick={(e)=>{e.stopPropagation();setEditing(s)}} style={{background:'rgba(255,255,255,0.06)',border:`1px solid ${C.border}`,color:C.lightText,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:6,cursor:'pointer'}}>Edit</button>
+                        <button onClick={(e)=>{e.stopPropagation();setConfirmDel(s)}} style={{background:'rgba(255,107,107,0.08)',border:'1px solid rgba(255,107,107,0.3)',color:C.red,fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'6px 12px',borderRadius:6,cursor:'pointer'}}>Delete</button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1606,6 +1698,74 @@ function ScriptLibrary({dealer}) {
           </div>
         )
       })()}
+
+      {/* Edit a custom objection (managers). Saving re-uses saveCustomScript with
+          the existing id, so the entry is replaced rather than duplicated. */}
+      {editing && (
+        <div style={{position:'fixed',inset:0,background:'rgba(5,13,31,0.78)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}
+          onClick={()=>{ if(!busy){ setEditing(null); setErr('') } }}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.navyMid,border:'1px solid rgba(184,255,60,0.35)',borderRadius:14,padding:20,width:'100%',maxWidth:460,maxHeight:'86vh',overflowY:'auto'}}>
+            <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:12}}>★ Edit Playbook Objection</div>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Objection</div>
+            <input value={editing.objection} onChange={e=>setEditing({...editing,objection:e.target.value})} style={{...inp,marginBottom:14}}/>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Department</div>
+            <div style={{display:'flex',gap:8,marginBottom:14}}>
+              {[['sales','Sales'],['service','Service']].map(([v,l])=>(
+                <button key={v} onClick={()=>setEditing({...editing,dept:v})}
+                  style={{flex:1,padding:'10px',borderRadius:8,cursor:'pointer',fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:'uppercase',
+                    background: editing.dept===v ? 'rgba(184,255,60,0.15)' : 'rgba(255,255,255,0.04)',
+                    border:'1px solid '+(editing.dept===v ? 'rgba(184,255,60,0.5)' : C.border),
+                    color: editing.dept===v ? C.green : C.lightText}}>{l}</button>
+              ))}
+            </div>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:5}}>Category</div>
+            <CategoryPicker value={editing.category} onChange={c=>setEditing({...editing,category:c})} dept={editing.dept}/>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,margin:'6px 0 5px'}}>The Script</div>
+            <textarea value={editing.script||''} onChange={e=>setEditing({...editing,script:e.target.value})} rows={4} style={{...inp,marginBottom:14,resize:'vertical',lineHeight:1.6}}/>
+
+            {err && <div style={{fontSize:12,color:C.red,marginBottom:10}}>{err}</div>}
+
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{ if(!busy){ setEditing(null); setErr('') } }} style={{flex:1,background:'transparent',border:'1px solid '+C.border,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,padding:'11px',borderRadius:8,cursor:'pointer'}}>Cancel</button>
+              <button disabled={busy} onClick={async()=>{
+                if(!editing.objection.trim()){ setErr('Objection text is required.'); return }
+                setBusy(true); setErr('')
+                const res = await dealerSync('saveCustomScript', dealer?.dealerId, '', {script:{...editing, id:editing.id}})
+                setBusy(false)
+                if(res && res.success && Array.isArray(res.custom_scripts)){ setCustomScripts(res.custom_scripts); setEditing(null) }
+                else setErr(res?.error || 'Could not save your changes.')
+              }} style={{flex:2,background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',border:'none',padding:'11px',borderRadius:8,cursor:'pointer',opacity:busy?0.6:1}}>{busy?'Saving…':'Save Changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {confirmDel && (
+        <div style={{position:'fixed',inset:0,background:'rgba(5,13,31,0.78)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}
+          onClick={()=>{ if(!busy) setConfirmDel(null) }}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.navyMid,border:'1px solid rgba(255,107,107,0.35)',borderRadius:14,padding:20,width:'100%',maxWidth:400}}>
+            <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:2,textTransform:'uppercase',color:C.red,marginBottom:8}}>Remove from playbook?</div>
+            <div style={{fontSize:13,color:C.lightText,fontStyle:'italic',marginBottom:6,lineHeight:1.5}}>"{String(confirmDel.objection||'').split('"').join('')}"</div>
+            <div style={{fontSize:12,color:C.gray,marginBottom:16,lineHeight:1.5}}>Your team will no longer see this objection. Drill history already recorded is kept.</div>
+            {err && <div style={{fontSize:12,color:C.red,marginBottom:10}}>{err}</div>}
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{ if(!busy) setConfirmDel(null) }} style={{flex:1,background:'transparent',border:'1px solid '+C.border,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,padding:'11px',borderRadius:8,cursor:'pointer'}}>Keep</button>
+              <button disabled={busy} onClick={async()=>{
+                setBusy(true); setErr('')
+                const res = await dealerSync('deleteCustomScript', dealer?.dealerId, '', {id:confirmDel.id})
+                setBusy(false)
+                if(res && res.success && Array.isArray(res.custom_scripts)){ setCustomScripts(res.custom_scripts); setConfirmDel(null) }
+                else setErr(res?.error || 'Could not remove it.')
+              }} style={{flex:1,background:C.red,color:C.white,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',border:'none',padding:'11px',borderRadius:8,cursor:'pointer',opacity:busy?0.6:1}}>{busy?'Removing…':'Remove'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
@@ -1733,6 +1893,7 @@ function AskCoach({onDrill, dept, mode, dealer}) {
   const canSaveToPlaybook = isManager(dealer?.role) && activeMode === 'objection'
   const [saveSheet, setSaveSheet] = useState(null)   // holds {dept,category} being confirmed
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved | dup | error
+  const [saveErr, setSaveErr]     = useState('')
 
 
 
@@ -1862,7 +2023,9 @@ function AskCoach({onDrill, dept, mode, dealer}) {
     setSaveState('idle')
     setSaveSheet({
       dept: (dept === 'service' || dept === 'sales') ? dept : (result.dept || 'sales'),
-      category: result.category || 'Custom Objection',
+      // No longer defaults to the literal "Custom Objection" — that turned every
+      // saved objection into one undifferentiated bucket. Manager picks a real topic.
+      category: (result.category && result.category !== 'Custom Objection') ? result.category : '',
     })
   }
 
@@ -1887,9 +2050,10 @@ function AskCoach({onDrill, dept, mode, dealer}) {
         setSaveState(res.duplicate ? 'dup' : 'saved')
         setTimeout(()=>{ setSaveSheet(null); setSaveState('idle') }, 1400)
       } else {
+        setSaveErr(res?.error || 'Could not save. Check your connection.')
         setSaveState('error')
       }
-    } catch { setSaveState('error') }
+    } catch { setSaveErr('Could not reach the server.'); setSaveState('error') }
   }
 
   const readAloud = () => {
@@ -2162,17 +2326,17 @@ function AskCoach({onDrill, dept, mode, dealer}) {
             </div>
 
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.gray,marginBottom:6}}>Category</div>
-            <input value={saveSheet.category} onChange={e=>setSaveSheet(s=>({...s,category:e.target.value}))}
-              style={{...inp,marginBottom:18}} placeholder="e.g. Price, Trade, Payment"/>
+            <div style={{fontSize:11,color:C.gray,marginBottom:8,lineHeight:1.5}}>File it with the topic it belongs to, so your team finds it next to the objections they already drill.</div>
+            <CategoryPicker value={saveSheet.category} onChange={c=>setSaveSheet(s=>({...s,category:c}))} dept={saveSheet.dept}/>
 
-            {saveState==='error' && <div style={{fontSize:12,color:C.red,marginBottom:10}}>Couldn't save. Try again.</div>}
+            {saveState==='error' && <div style={{fontSize:12,color:C.red,marginBottom:10}}>{saveErr || 'Could not save.'}</div>}
             {saveState==='dup'   && <div style={{fontSize:12,color:C.yellow,marginBottom:10}}>Already in your playbook.</div>}
             {saveState==='saved' && <div style={{fontSize:12,color:C.green,marginBottom:10}}>✓ Saved to your playbook.</div>}
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{ if(saveState!=='saving'){ setSaveSheet(null); setSaveState('idle') } }}
                 style={{flex:1,background:"transparent",border:"1px solid "+C.border,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,padding:"11px",borderRadius:8,cursor:"pointer"}}>Cancel</button>
-              <button onClick={confirmSave} disabled={saveState==='saving'||saveState==='saved'}
+              <button onClick={confirmSave} disabled={saveState==='saving'||saveState==='saved'||!saveSheet.category}
                 style={{flex:2,background: C.yellow,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:"uppercase",border:"none",padding:"11px",borderRadius:8,cursor:"pointer",opacity: saveState==='saving'?0.6:1}}>
                 {saveState==='saving' ? "Saving…" : "Save Objection"}
               </button>
@@ -4225,7 +4389,7 @@ function HuddleComplete({selScript,dealer,onLog,onNew}) {
         </div>
       ):(
         <div style={{background:'rgba(26,107,255,0.08)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:10,padding:'12px 14px',marginBottom:14,fontSize:12,color:C.gray}}>
-          No reps found yet. Log some drills first to populate attendance.
+          No reps on the roster yet. Share your dealer code from Home — reps appear here as soon as they join.
         </div>
       )}
 
@@ -6902,6 +7066,7 @@ export default function App() {
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
+  const [staleSession,setStaleSession] = useState(false)
   // Load this dealership's custom objection library once per session and feed
   // the merged script pool. localStorage already seeded the store synchronously
   // above, so the UI shows the last-known library instantly; this refreshes it.
@@ -6910,6 +7075,12 @@ export default function App() {
     dealerSync('getDashboard', dealer.dealerId, '').then(res=>{
       if(res && !res.error && res.dealer && Array.isArray(res.dealer.custom_scripts)){
         setCustomScripts(res.dealer.custom_scripts)
+      }
+      // The rooftop this session points at no longer exists (deleted or the code
+      // changed). Sitting on a dashboard of dashes while every write silently
+      // fails is worse than saying so — send them back to sign in.
+      if(res && typeof res.error === 'string' && res.error.toLowerCase().indexOf('not found') !== -1){
+        setStaleSession(true)
       }
     }).catch(()=>{})
   },[dealer?.dealerId, dealer?.repName])
@@ -7093,6 +7264,21 @@ export default function App() {
   if(adminKey) return <MasterDashboard adminKey={adminKey} onExit={()=>window.location.href=window.location.pathname}/>
 
   if(!dealer) return <Onboarding onDone={handleDealerDone}/>
+  if(staleSession) return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24,background:C.navy}}>
+      <div style={{maxWidth:400,textAlign:'center'}}>
+        <div style={{fontSize:40,marginBottom:14}}>🔑</div>
+        <div style={{fontFamily:fH,fontSize:22,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:10,lineHeight:1.1}}>This dealership is no longer active</div>
+        <div style={{fontSize:14,color:C.lightText,lineHeight:1.65,marginBottom:24}}>
+          Your saved sign-in points to a dealer code that no longer exists. Check the current code with your manager and sign in again.
+        </div>
+        <button onClick={()=>{
+          ['5md-dealer','5md-results','5md-stats','5md-streak','5md-schedule','5md-custom-scripts'].forEach(k=>{ try{ localStorage.removeItem(k) }catch{} })
+          window.location.reload()
+        }} style={{...btnPrimary,marginBottom:0}}>Sign In Again</button>
+      </div>
+    </div>
+  )
 
   const role  = dealer.role||'sales_rep'
   const isMgr = isManager(role)
