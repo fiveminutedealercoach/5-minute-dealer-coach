@@ -1039,11 +1039,6 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
 
   ]
 
-  // A brand-new rep lands on a screen full of tabs, a streak counter and an
-  // empty suggestion slot with no idea what to do first. The product promise is
-  // "five minutes" — say which five. Disappears once they've drilled once.
-  const isFirstRun = (results?.length || 0) === 0
-
   return (
     <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
 
@@ -1307,6 +1302,11 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
   const ringPct = Math.min(drillsThisWeek / weeklyGoal, 1)
   const ringR = 32
   const ringCirc = 2 * Math.PI * ringR
+
+  // A brand-new rep lands on a screen full of tabs, a streak counter and an
+  // empty suggestion slot with no idea what to do first. The product promise is
+  // "five minutes" — say which five. Disappears once they've drilled once.
+  const isFirstRun = (results?.length || 0) === 0
 
   return (
     <div style={{padding:'24px 20px 100px', animation:'fadeUp 0.4s ease both', overflowX:'hidden', width:'100%', boxSizing:'border-box'}}>
