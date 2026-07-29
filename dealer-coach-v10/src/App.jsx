@@ -6912,7 +6912,7 @@ export default function App() {
         setCustomScripts(res.dealer.custom_scripts)
       }
     }).catch(()=>{})
-  },[dealer?.dealerId])
+  },[dealer?.dealerId, dealer?.repName])
   const [showProfile,setShowProfile] = useState(false)
   const [showDealerSettings,setShowDealerSettings] = useState(false)
   const [contactEmails,setContactEmails] = useState(null) // null = not loaded yet
