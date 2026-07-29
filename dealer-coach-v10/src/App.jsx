@@ -1168,10 +1168,10 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
         ))}
       </div>
 
-      {/* Ask Coach — managers can drill an objection themselves (practice before
-          a huddle) via the same live drill reps use, and can save a new objection
-          to the dealership playbook. */}
-      <AskCoach dealer={dealer} dept={mgrDept} mode={"objection"} onDrill={(script)=>onDrillScript&&onDrillScript(script)}/>
+      {/* Ask Coach — managers keep the Objection/Coaching toggle (no locked
+          mode). In Objection mode they can drill it themselves or save it to the
+          dealership playbook; in Coaching mode it's situation word tracks. */}
+      <AskCoach dealer={dealer} dept={mgrDept} onDrill={(script)=>onDrillScript&&onDrillScript(script)}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
