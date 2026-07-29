@@ -19,7 +19,18 @@ const setCustomScripts = (list) => {
   _customSubs.forEach(fn => { try { fn() } catch {} })
 }
 // Merged pool: built-ins first, then this dealership's custom objections.
-const allScripts = () => _customScripts.length ? [...SCRIPTS, ..._customScripts] : SCRIPTS
+const allScripts = () => {
+  if(!_customScripts.length) return SCRIPTS
+  // Entries saved before the category restructure carry the literal
+  // "Custom Objection" as their category, which created a junk-drawer bucket.
+  // Fold those into a neutral catch-all at read time so the accordion stays
+  // organised by topic; a manager can retag them properly via Edit.
+  const shaped = _customScripts.map(s =>
+    (s && s.category === 'Custom Objection')
+      ? {...s, category: 'Handling Objections & Value Selling'}
+      : s)
+  return [...SCRIPTS, ...shaped]
+}
 // Components call useAllScripts() to read the merged list and re-render on change.
 const useAllScripts = () => {
   const [, force] = useState(0)
@@ -1242,6 +1253,16 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
       })
       const weakest = Object.values(catScores).sort((a,b)=>b.score-a.score)[0]
       if(weakest) return {script:weakest.script, reason:'Focus area: '+weakest.script.category}
+      // Nothing drilled yet, so there is no weak area to target. Favour the
+      // dealership's own objections — a rep practising what this rooftop
+      // actually hears is worth more than a random built-in. Prefer ones they
+      // have not drilled yet.
+      const ours = pool.filter(s => s.custom)
+      const oursUndrilled = ours.filter(s => {
+        try { return JSON.parse(localStorage.getItem('5md-history-'+s.id)||'[]').length === 0 } catch { return true }
+      })
+      const ourPick = (oursUndrilled.length ? oursUndrilled : ours)
+      if(ourPick.length) return {script: ourPick[Math.floor(Math.random()*ourPick.length)], reason:'From your playbook'}
       return {script:pool[Math.floor(Math.random()*pool.length)], reason:'Suggested for today'}
     } catch { return null }
   }
@@ -1478,9 +1499,13 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
         Browse All Scripts
       </button>
 
+      {/* Ask Coach — a tool the rep acts on, so it sits above the drill history.
+          History grows over time and was pushing this off the bottom of Home. */}
+      <AskCoach dealer={dealer} dept={dept} mode={"objection"} onDrill={onDrill}/>
+
       {/* Recent results */}
       {results.filter(r=>r.type==='voice').slice(0,3).length > 0 && (
-        <div>
+        <div style={{marginTop:20}}>
           <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.gray,marginBottom:10}}>
             Recent Drills
           </div>
@@ -1501,9 +1526,6 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
           </div>
         </div>
       )}
-
-      {/* Ask Coach */}
-      <AskCoach dealer={dealer} dept={dept} mode={"objection"} onDrill={onDrill}/>
 
       {/* Empty state */}
       {results.filter(r=>r.type==='voice').length === 0 && (
@@ -2548,6 +2570,8 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     if(search&&!s.objection.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+  // The dealership's own objections lead here too, matching the Script Library.
+  .sort((a,b)=> (b.custom?1:0)-(a.custom?1:0))
 
   // ── PERSONA LIBRARY ─────────────────────────────────────────
   // 10 named characters with distinct personalities mapped to dept/category
@@ -4205,18 +4229,19 @@ RETURN ONLY valid JSON:
       </div>
 
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={allScripts().filter(s=>s.audience!=='manager')}/>
-      <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
+      <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills{filtered.filter(x=>x.custom).length>0?' · '+filtered.filter(x=>x.custom).length+' from your playbook':''}</div>
       <AskCoach dealer={dealer} onDrill={(script)=>launch(script)} dept={filterDept} mode="objection"/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map(s=>{
           const matchPersona = getPersonaForScript(s)
           return(
-            <div key={s.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
+            <div key={s.id} style={{background: s.custom ? 'rgba(184,255,60,0.07)' : C.card,border:`1px solid ${s.custom ? 'rgba(184,255,60,0.30)' : C.border}`,borderLeft: s.custom ? `4px solid ${C.green}` : undefined,borderRadius:10,padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
               
               <div style={{flex:1}}>
                 <div style={{fontFamily:fH,fontSize:13,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1,marginBottom:3}}>{s.objection.split('"').join('')}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
                   <Tag color={s.dept==='sales'?C.blue:C.green}>{s.dept}</Tag>
+                  {s.custom&&<span style={{background:'rgba(184,255,60,0.16)',border:'1px solid rgba(184,255,60,0.55)',color:C.green,fontFamily:fH,fontSize:9,fontWeight:900,letterSpacing:1.2,textTransform:'uppercase',padding:'2px 8px',borderRadius:100}}>★ Our Playbook</span>}
                   <span style={{fontSize:10,color:C.gray}}>{s.category}</span>
                   <span style={{fontSize:10,color:C.yellow}}>{matchPersona.emoji} {matchPersona.name}</span>
                   {(()=>{
