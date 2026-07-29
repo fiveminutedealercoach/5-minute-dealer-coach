@@ -323,6 +323,66 @@ export async function onRequest(context) {
       return ok({ success: true, reps: next })
     }
 
+    // ── SAVE CUSTOM SCRIPT ────────────────────────────────────
+    // Appends one dealership-authored objection to dealers.custom_scripts.
+    // There is no server-side session, so "manager only" is enforced in the UI
+    // (the Save button renders for managers only). Here we harden by validating
+    // the payload so a malformed or junk objection can't land: objection text is
+    // required, dept/category are normalized, and we de-dupe against existing
+    // objections (case-insensitive) so the same objection can't be saved twice.
+    if (action === 'saveCustomScript') {
+      const code = String(dealerId || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      const s = data?.script || {}
+      const objection = String(s.objection || '').trim()
+      if (!code) return err('No dealership code', 400)
+      if (objection.length < 3) return err('Objection text is required', 400)
+      if (objection.length > 300) return err('Objection is too long', 400)
+
+      const dept = (s.dept === 'service') ? 'service' : 'sales'
+      const category = String(s.category || 'Custom Objection').trim().slice(0, 60)
+
+      const rows = await sb(`/dealers?code=eq.${code}&select=custom_scripts`)
+      if (!rows.length) return err('Dealer not found', 404)
+      const list = Array.isArray(rows[0].custom_scripts) ? rows[0].custom_scripts : []
+
+      // de-dupe on objection text, case-insensitive
+      if (list.some(x => x && String(x.objection || '').trim().toLowerCase() === objection.toLowerCase())) {
+        return ok({ success: true, duplicate: true, custom_scripts: list })
+      }
+
+      const entry = {
+        id: 'custom-' + Date.now(),
+        objection,
+        dept,
+        category,
+        audience: 'rep',
+        custom: true,
+        script: String(s.script || '').slice(0, 1200),
+        followup: String(s.followup || '').slice(0, 600),
+        situation: String(s.situation || 'Objection added by this dealership.').slice(0, 300),
+        mistake: String(s.mistake || 'Not having a prepared response ready.').slice(0, 300),
+        addedBy: String(s.addedBy || '').slice(0, 60),
+        addedAt: Date.now(),
+      }
+      const next = [...list, entry]
+      await sb(`/dealers?code=eq.${code}`, 'PATCH', { custom_scripts: next })
+      return ok({ success: true, entry, custom_scripts: next })
+    }
+
+    // ── DELETE CUSTOM SCRIPT ──────────────────────────────────
+    // Removes one dealership-authored objection by id (manager cleanup).
+    if (action === 'deleteCustomScript') {
+      const code = String(dealerId || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      const id = String(data?.id || '')
+      if (!code || !id) return err('Missing dealership or id', 400)
+      const rows = await sb(`/dealers?code=eq.${code}&select=custom_scripts`)
+      if (!rows.length) return err('Dealer not found', 404)
+      const list = Array.isArray(rows[0].custom_scripts) ? rows[0].custom_scripts : []
+      const next = list.filter(x => x && x.id !== id)
+      await sb(`/dealers?code=eq.${code}`, 'PATCH', { custom_scripts: next })
+      return ok({ success: true, custom_scripts: next })
+    }
+
     // ── GET SETTINGS ──────────────────────────────────────────
     // KV replacement. Returns { value } — null when the key is unset, which is
     // what the app checks before showing an assignment card.
