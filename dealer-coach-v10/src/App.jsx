@@ -1,6 +1,36 @@
 import { useState, useEffect, useRef } from 'react'
 import { SCRIPTS } from './data/scripts'
 
+// ── DEALERSHIP CUSTOM OBJECTION LIBRARY ──────────────────────────
+// The built-in SCRIPTS are baked into the bundle (same for everyone). A
+// dealership can add its own objections via Ask Coach; those live in Supabase
+// on dealers.custom_scripts and are merged in here at runtime. Kept in a
+// module-level store (not threaded as props) because ~20 components read
+// SCRIPTS directly — this gives them one merged source with a single change
+// (SCRIPTS -> allScripts()) and a subscribe hook so they re-render on load.
+let _customScripts = []
+try { _customScripts = JSON.parse(localStorage.getItem('5md-custom-scripts') || '[]') } catch { _customScripts = [] }
+if (!Array.isArray(_customScripts)) _customScripts = []
+const _customSubs = new Set()
+const getCustomScripts = () => _customScripts
+const setCustomScripts = (list) => {
+  _customScripts = Array.isArray(list) ? list.filter(s => s && s.objection) : []
+  try { localStorage.setItem('5md-custom-scripts', JSON.stringify(_customScripts)) } catch {}
+  _customSubs.forEach(fn => { try { fn() } catch {} })
+}
+// Merged pool: built-ins first, then this dealership's custom objections.
+const allScripts = () => _customScripts.length ? [...SCRIPTS, ..._customScripts] : SCRIPTS
+// Components call useAllScripts() to read the merged list and re-render on change.
+const useAllScripts = () => {
+  const [, force] = useState(0)
+  useEffect(() => {
+    const fn = () => force(n => n + 1)
+    _customSubs.add(fn)
+    return () => { _customSubs.delete(fn) }
+  }, [])
+  return allScripts()
+}
+
 const C = { navy:'#050d1f',navyMid:'#0a1930',navyLight:'#0f2448',blue:'#1a6bff',blueBright:'#3d8bff',green:'#b8ff3c',white:'#ffffff',gray:'#8a9ab5',lightText:'#c8d4e8',card:'rgba(255,255,255,0.05)',border:'rgba(255,255,255,0.08)',red:'#ff6b6b',yellow:'#ffc947',orange:'#ff9f43' }
 
 // ── DESIGN SYSTEM ─────────────────────────────────────────────
@@ -158,6 +188,15 @@ const AI_OPENERS = {
   1:"My team keeps saying we have to discount to close. What's your response to that?",2:"I've already decided this customer won't pay sticker. There's no point trying.",3:"We never set gross goals in morning meetings. Is that really necessary?",4:"I don't see why we need to celebrate gross wins publicly. It creates competition.",5:"We use a one-price model so I just tell customers the price is the price.",6:"I just checked online and found this exact car for two thousand dollars less. Match that price.",7:"Look, I don't have time for a presentation. Just give me your absolute best price right now.",8:"I really like the car but I need to run it by my wife before I make any decisions.",9:"That monthly payment is way too high. There is absolutely no way I can do that number.",10:"I'm not ready to buy today. I'm just here to gather some information.",11:"I want to think about it and come back sometime next week when I've decided.",12:"I found this exact same car at another dealership and they're five hundred dollars cheaper.",13:"I'm honestly just browsing today and not looking to purchase anything.",14:"I don't need the extended warranty. I'll just take my chances if something breaks.",15:"GAP insurance sounds like a total ripoff to me. Why would I need that?",16:"I never buy warranties on anything. I'll deal with it if something goes wrong.",17:"I'm already approved at my credit union, so I won't be needing any of your financing options.",18:"Can you just show me the base payment without any of those add-ons?",19:"My trade-in is worth way more than what you're offering me for it.",20:"Why does reconditioning cost so much? That seems really inflated to me.",21:"I found the exact same used car at another lot for less money.",22:"The CarFax shows this car had an accident. I don't want to buy it.",23:"I can get a newer model for basically the same price somewhere else.",24:"I don't need the paint protection package. I'll take my chances with the finish.",25:"Those accessories seem really overpriced. I can get them cheaper online.",26:"Do I really need all of this? It feels like you're just adding stuff I don't want.",27:"I'll add the accessories later after I've had the car for a little while.",28:"I'm paying cash so I should be getting a much better deal than this.",29:"I need to see all my options laid out before I can decide on anything.",30:"Let me talk to your manager. I want to see what else you can do on this deal.",31:"Your prices are way too high compared to other shops I've called around.",32:"My advisors just write orders. They don't try to sell anything extra at all.",33:"I already know what I need done so just write up the order for that.",34:"Nobody told me what my target for customer-pay is today. I have no idea.",35:"I didn't present that recommendation because I knew they wouldn't buy it.",36:"I'll just skip the maintenance package presentation for this customer today.",37:"I'm in a hurry today. Just do the oil change please. I don't have time to wait around for any inspection.",38:"Just do whatever the car needs. I trust you guys to figure it out.",39:"How do I know this inspection is even real? Did you actually check everything?",40:"I'll approve just the oil change but skip everything else on that list.",41:"Can you just email me the inspection results? I don't really want to go over it.",42:"The car has been running fine for two years. I'll wait until it actually breaks to fix it.",43:"My brother-in-law is a mechanic and he can do it for half the price you're quoting.",44:"Seven hundred and eighty dollars? I thought this was only going to be around two hundred.",45:"I just had that exact service done somewhere else just three months ago.",46:"My other dealership charges significantly less than you for the same labor.",47:"If that's really the price you're quoting me, I'll just take it somewhere else.",48:"How much does a basic oil change cost? Just give me a number right now.",49:"I'm calling around to compare prices. What's your cheapest oil change option?",50:"I need to bring my car in urgently today. Can you fit me in without an appointment?",51:"Can I just drop it off without scheduling? I'm pretty flexible on timing.",52:"Just do the oil change please. Skip everything else on that list today.",53:"I need to call my husband first before I approve any of these repairs.",54:"I'll take care of that recommendation next time I come in for service.",55:"Which of these items is actually urgent versus which ones can wait a while?",56:"The car is twelve years old. I really don't want to put any more money into it.",57:"My tires look perfectly fine to me. I don't think I need new ones right now.",58:"The brakes seem completely fine to me. I don't understand why you're recommending this.",59:"I don't think I need a coolant flush. The car runs perfectly fine without it.",60:"I've never done a transmission service in ten years and the car has been totally fine.",
 }
 const getOpener = id => AI_OPENERS[id] || "Tell me why I should trust your recommendation here."
+// For a drill launched from a real script the numeric id maps to a scripted
+// opener. Ask Coach builds an ad-hoc script whose id is a string ("askcoach-…"),
+// which is not in AI_OPENERS — so fall back to the objection the user actually
+// typed instead of the generic line. Pass the whole script object here.
+const openerForScript = s => {
+  if (s && AI_OPENERS[s.id]) return AI_OPENERS[s.id]
+  const typed = (s && (s.objection || s.script)) ? String(s.objection || s.script).split('"').join('') : ''
+  return typed.trim() || "Tell me why I should trust your recommendation here."
+}
 
 const loadJSON = (k,d) => { try { return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)) } catch { return d } }
 const saveJSON = (k,v) => localStorage.setItem(k,JSON.stringify(v))
@@ -371,7 +410,9 @@ function ScriptCard({script,mode='full',defaultOpen=false}) {
     <div style={{background:'rgba(184,255,60,0.04)',border:'1px solid rgba(184,255,60,0.2)',borderRadius:10,overflow:'hidden',marginBottom:10}}>
       <div onClick={()=>setOpen(o=>!o)} style={{background:`linear-gradient(135deg,${C.navyLight},#0c1f40)`,padding:'10px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
         <div style={{flex:1}}>
-          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:2}}>Script Reference</div>
+          <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:2,display:'flex',alignItems:'center',gap:6}}>
+            {script.custom ? '★ Our Playbook' : 'Script Reference'}
+          </div>
           <div style={{fontFamily:fH,fontSize:15,fontWeight:900,textTransform:'uppercase',color:C.white,lineHeight:1.1}}>{script.objection.split('"').join('')}</div>
         </div>
         <div style={{color:C.green,fontSize:14}}>{open?'▲':'▼'}</div>
@@ -633,7 +674,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
   const sched    = getSched(dept)
   const schedIdx = Math.max(0,Math.min(now.getDay()-1,4))
   const todayRow = sched[schedIdx]
-  const todayScript = todayRow?.id ? SCRIPTS.find(s=>s.id===todayRow.id) : null
+  const todayScript = todayRow?.id ? allScripts().find(s=>s.id===todayRow.id) : null
 
   // AI Recommendations  -  managers use KV team data, reps use personal results
   const recSource = isMgr ? teamActs : results
@@ -930,7 +971,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
 // ══════════════════════════════════════════════════════════════
 // MANAGER HOME — huddle launcher + team momentum + quick actions
 // ══════════════════════════════════════════════════════════════
-function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
+function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillScript}) {
   const role = dealer?.role || 'sales_mgr'
   const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
   const isSvcMgr = role === 'svc_mgr'
@@ -1127,8 +1168,10 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
         ))}
       </div>
 
-      {/* Ask Coach */}
-      <AskCoach dept={mgrDept}/>
+      {/* Ask Coach — managers can drill an objection themselves (practice before
+          a huddle) via the same live drill reps use, and can save a new objection
+          to the dealership playbook. */}
+      <AskCoach dealer={dealer} dept={mgrDept} mode={"objection"} onDrill={(script)=>onDrillScript&&onDrillScript(script)}/>
 
       {/* Recent activity */}
       {results.slice(0,3).length > 0 ? (
@@ -1164,6 +1207,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub}) {
 // REP HOME — focused drill launcher with streak + progress rings
 // ══════════════════════════════════════════════════════════════
 function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
+  useAllScripts()
   const role = dealer?.role || 'sales_rep'
   const dept = roleDept(role)
   const firstName = dealer?.repName?.split(' ')[0] || 'Hey'
@@ -1171,7 +1215,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
   // Best suggested script based on weakest category
   const getSuggestedScript = () => {
     try {
-      const pool = SCRIPTS.filter(s => s.audience!=='manager' && (dept==='both'||s.dept===dept))
+      const pool = allScripts().filter(s => s.audience!=='manager' && (dept==='both'||s.dept===dept))
       if(!pool.length) return null
       // Check assigned drill first
       const assignedKey = '5md-assigned-' + (dealer?.dealerId||'local')
@@ -1347,7 +1391,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
         <div style={{background:'rgba(255,201,71,0.07)',border:'1px solid rgba(255,201,71,0.3)',borderRadius:14,padding:'14px 16px',marginBottom:14}}>
           <div style={{fontFamily:fH,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:6}}>ASSIGNED BY YOUR MANAGER</div>
           {assigned.map(a=>{
-            const s = SCRIPTS.find(x=>x.id===a.id)
+            const s = allScripts().find(x=>x.id===a.id)
             if(!s) return null
             return (
               <div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
@@ -1443,7 +1487,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
       )}
 
       {/* Ask Coach */}
-      <AskCoach dept={dept} mode={"objection"} onDrill={onDrill}/>
+      <AskCoach dealer={dealer} dept={dept} mode={"objection"} onDrill={onDrill}/>
 
       {/* Empty state */}
       {results.filter(r=>r.type==='voice').length === 0 && (
@@ -1457,12 +1501,13 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
 }
 
 function ScriptLibrary({dealer}) {
+  useAllScripts()  // re-render when the dealership's custom library loads
   // Best grade ever earned per script (from voice drill history) - read once on mount
   const [bestGrades] = useState(()=>{
     const m = {}
     const rank = ['A+','A','B+','B','C+','C','D','F']
     try {
-      SCRIPTS.forEach(s=>{
+      allScripts().forEach(s=>{
         const h = JSON.parse(localStorage.getItem('5md-history-'+s.id)||'[]')
         let best = null
         h.forEach(x=>{ if(x?.score && rank.includes(x.score) && (best===null || rank.indexOf(x.score)<rank.indexOf(best))) best = x.score })
@@ -1483,7 +1528,7 @@ function ScriptLibrary({dealer}) {
   // Reps see customer-facing scripts only. Managers (gm/sales_mgr/svc_mgr) see
   // everything, including manager coaching situations (audience:'manager' in scripts.js).
   const showMgrScripts = isManager(dealer?.role)
-  const visible = SCRIPTS.filter(s => showMgrScripts || s.audience !== 'manager')
+  const visible = allScripts().filter(s => showMgrScripts || s.audience !== 'manager')
   const filtered = visible.filter(s=>{
     if(filterDept!=='all'&&s.dept!==filterDept) return false
     if(cat!=='all'&&s.category!==cat) return false
@@ -1667,7 +1712,7 @@ function PersonaCard({persona, script, onStart, onBack}) {
 
 // ══════════════════════════════════════════════════════════════
 
-function AskCoach({onDrill, dept, mode}) {
+function AskCoach({onDrill, dept, mode, dealer}) {
 
   // mode: 'objection' (rep) | 'situation' (manager)
 
@@ -1682,6 +1727,12 @@ function AskCoach({onDrill, dept, mode}) {
   const [result, setResult] = useState(null)
 
   const [playing, setPlaying] = useState(false)
+
+  // Save-to-Playbook (managers only): confirm dept/category before saving so the
+  // objection files correctly, then persist to the dealership's custom library.
+  const canSaveToPlaybook = isManager(dealer?.role) && activeMode === 'objection'
+  const [saveSheet, setSaveSheet] = useState(null)   // holds {dept,category} being confirmed
+  const [saveState, setSaveState] = useState('idle') // idle | saving | saved | dup | error
 
 
 
@@ -1804,6 +1855,42 @@ function AskCoach({onDrill, dept, mode}) {
   }
 
 
+
+  // Open the confirm sheet with Ask Coach's guessed dept/category pre-filled.
+  const openSaveSheet = () => {
+    if(!result || result.error) return
+    setSaveState('idle')
+    setSaveSheet({
+      dept: (dept === 'service' || dept === 'sales') ? dept : (result.dept || 'sales'),
+      category: result.category || 'Custom Objection',
+    })
+  }
+
+  const confirmSave = async () => {
+    if(!saveSheet || !dealer?.dealerId || !result) return
+    setSaveState('saving')
+    try {
+      const res = await dealerSync('saveCustomScript', dealer.dealerId, '', {
+        script: {
+          objection: (inputText || result.objection || result.script || '').trim(),
+          dept: saveSheet.dept,
+          category: saveSheet.category,
+          script: result.script || '',
+          followup: result.followup || '',
+          situation: result.situation || 'Objection added by this dealership.',
+          mistake: result.mistake || 'Not having a prepared response ready.',
+          addedBy: dealer.repName || '',
+        }
+      })
+      if(res && res.success && Array.isArray(res.custom_scripts)){
+        setCustomScripts(res.custom_scripts)   // update merged pool everywhere
+        setSaveState(res.duplicate ? 'dup' : 'saved')
+        setTimeout(()=>{ setSaveSheet(null); setSaveState('idle') }, 1400)
+      } else {
+        setSaveState('error')
+      }
+    } catch { setSaveState('error') }
+  }
 
   const readAloud = () => {
 
@@ -2029,6 +2116,15 @@ function AskCoach({onDrill, dept, mode}) {
 
                 )}
 
+                {canSaveToPlaybook && (
+                  <button onClick={openSaveSheet}
+                    style={{flex: 1, background: "rgba(255,201,71,0.12)", border: "1px solid rgba(255,201,71,0.4)",
+                      color: C.yellow, fontFamily: fH, fontWeight: 900, fontSize: 12, letterSpacing: 1,
+                      textTransform: "uppercase", borderRadius: 10, cursor: "pointer", minHeight: 44}}>
+                    ★ Save to Playbook
+                  </button>
+                )}
+
               </div>
 
             </div>
@@ -2045,6 +2141,46 @@ function AskCoach({onDrill, dept, mode}) {
 
       )}
 
+      {/* Save-to-Playbook confirm: manager checks dept + category before it
+          enters the dealership objection library. */}
+      {saveSheet && (
+        <div style={{position:"fixed",inset:0,background:"rgba(5,13,31,0.75)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}
+          onClick={()=>{ if(saveState!=='saving'){ setSaveSheet(null); setSaveState('idle') } }}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.navyMid,border:"1px solid rgba(255,201,71,0.35)",borderRadius:14,padding:20,width:"100%",maxWidth:420}}>
+            <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:2,textTransform:"uppercase",color:C.yellow,marginBottom:4}}>★ Save to Our Playbook</div>
+            <div style={{fontSize:13,color:C.lightText,fontStyle:"italic",marginBottom:16,lineHeight:1.5}}>"{(inputText||result?.objection||'').split('"').join('')}"</div>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.gray,marginBottom:6}}>Department</div>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              {[["sales","Sales"],["service","Service"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setSaveSheet(s=>({...s,dept:v}))}
+                  style={{flex:1,padding:"10px",borderRadius:8,cursor:"pointer",fontFamily:fH,fontWeight:700,fontSize:12,letterSpacing:1,textTransform:"uppercase",
+                    background: saveSheet.dept===v ? "rgba(184,255,60,0.15)" : "rgba(255,255,255,0.04)",
+                    border: "1px solid "+(saveSheet.dept===v ? "rgba(184,255,60,0.5)" : C.border),
+                    color: saveSheet.dept===v ? C.green : C.lightText}}>{l}</button>
+              ))}
+            </div>
+
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.gray,marginBottom:6}}>Category</div>
+            <input value={saveSheet.category} onChange={e=>setSaveSheet(s=>({...s,category:e.target.value}))}
+              style={{...inp,marginBottom:18}} placeholder="e.g. Price, Trade, Payment"/>
+
+            {saveState==='error' && <div style={{fontSize:12,color:C.red,marginBottom:10}}>Couldn't save. Try again.</div>}
+            {saveState==='dup'   && <div style={{fontSize:12,color:C.yellow,marginBottom:10}}>Already in your playbook.</div>}
+            {saveState==='saved' && <div style={{fontSize:12,color:C.green,marginBottom:10}}>✓ Saved to your playbook.</div>}
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{ if(saveState!=='saving'){ setSaveSheet(null); setSaveState('idle') } }}
+                style={{flex:1,background:"transparent",border:"1px solid "+C.border,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:12,padding:"11px",borderRadius:8,cursor:"pointer"}}>Cancel</button>
+              <button onClick={confirmSave} disabled={saveState==='saving'||saveState==='saved'}
+                style={{flex:2,background: C.yellow,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:"uppercase",border:"none",padding:"11px",borderRadius:8,cursor:"pointer",opacity: saveState==='saving'?0.6:1}}>
+                {saveState==='saving' ? "Saving…" : "Save Objection"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
 
   )
@@ -2054,6 +2190,7 @@ function AskCoach({onDrill, dept, mode}) {
 
 
 function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
+  useAllScripts()  // custom objections appear in the drill picker on load
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
   const [filterDept,setFilterDept] = useState(lockDept||'all')
@@ -2212,7 +2349,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   useEffect(()=>{
     if(preloadScript){
       const s = preloadScript === 'random'
-        ? (() => { const pool=SCRIPTS.filter(sc=>sc.audience!=='manager'&&(dept==='both'||sc.dept===dept)); return pool[Math.floor(Math.random()*pool.length)] })()
+        ? (() => { const pool=allScripts().filter(sc=>sc.audience!=='manager'&&(dept==='both'||sc.dept===dept)); return pool[Math.floor(Math.random()*pool.length)] })()
         : preloadScript
       if(!s) return
       const persona = getPersonaForScript(s)
@@ -2239,7 +2376,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     return () => window.removeEventListener('5md-launch-drill', handler)
   },[])
 
-  const filtered = SCRIPTS.filter(s=>{
+  const filtered = allScripts().filter(s=>{
     if(s.audience==='manager') return false  // manager coaching situations are not customer drills
     const ed = lockDept||filterDept
     if(ed!=='all'&&s.dept!==ed) return false
@@ -2396,7 +2533,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   const getPersonaOpener = (persona, script) => {
     // Always use the script-specific objection as the opener
     // Persona character is delivered via their unique voice + AI pushback responses
-    return getOpener(script.id)
+    return openerForScript(script)
   }
 
   const launch = (script, personaId=null) => {
@@ -2416,7 +2553,7 @@ function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
     }
     setShowPersonaCard(false)
     if (!script) {
-      const pool = SCRIPTS.filter(s=>s.audience!=='manager'&&(dept==='both'||s.dept===dept))
+      const pool = allScripts().filter(s=>s.audience!=='manager'&&(dept==='both'||s.dept===dept))
       script = pool[Math.floor(Math.random()*pool.length)]
     }
     const persona = personaId ? PERSONAS.find(p=>p.id===personaId)||getPersonaForScript(script) : getPersonaForScript(script)
@@ -3053,7 +3190,7 @@ ${diffMod ? '\n' + diffMod : ''}`
     }
     warmupCharacter()
 
-    const scriptOpener = getOpener(script.id)
+    const scriptOpener = openerForScript(script)
     const first = [{ role: 'customer', text: scriptOpener }]
     setLiveTranscript(first)
     liveTranscriptRef.current = first
@@ -3903,9 +4040,9 @@ RETURN ONLY valid JSON:
         </div>
       </div>
 
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')}/>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={allScripts().filter(s=>s.audience!=='manager')}/>
       <div style={{fontSize:12,color:C.gray,marginBottom:10}}>{filtered.length} drills</div>
-      <AskCoach onDrill={(script)=>launch(script)} dept={filterDept} mode="objection"/>
+      <AskCoach dealer={dealer} onDrill={(script)=>launch(script)} dept={filterDept} mode="objection"/>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
         {filtered.map(s=>{
           const matchPersona = getPersonaForScript(s)
@@ -3981,7 +4118,7 @@ RETURN ONLY valid JSON:
             <div style={{background:'rgba(255,201,71,0.08)',border:'1px solid rgba(255,201,71,0.25)',borderRadius:10,padding:'12px 14px',marginBottom:12}}>
               <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.yellow,marginBottom:8}}>📋 Assigned to You ({assigned.length})</div>
               {assigned.map((a,i)=>{
-                const s = SCRIPTS.find(sc=>sc.id===a.scriptId)
+                const s = allScripts().find(sc=>sc.id===a.scriptId)
                 if(!s) return null
                 return(
                   <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
@@ -4309,7 +4446,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
     setPhase('setup'); setSelScript(null); setTimeLeft(TOTAL_H); setRunning(false)
   }
 
-  const filtered = SCRIPTS.filter(s=>{
+  const filtered = allScripts().filter(s=>{
     if(s.audience==='manager') return false  // coaching scripts go to Manager Hub
     const ed=lockDept||filterDept
     if(ed!=='all'&&s.dept!==ed) return false
@@ -4531,7 +4668,7 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
         <span style={{color:C.gray,fontSize:11}}>{pickOpen?'▲ hide':'▼ change'}</span>
       </div>
       {pickOpen&&(<>
-      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={SCRIPTS.filter(s=>s.audience!=='manager')} compact/>
+      <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={allScripts().filter(s=>s.audience!=='manager')} compact/>
       {(()=>{
         const renderRow = (s) => (
           <div key={s.id} onClick={()=>{setSelScript(s);setPickOpen(false)}} style={{background:selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.12)':'rgba(184,255,60,0.08)'):'linear-gradient(135deg, rgba(26,107,255,0.06) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${selScript?.id===s.id?(s.dept==='sales'?'rgba(26,107,255,0.4)':'rgba(184,255,60,0.35)'):C.border}`,borderRadius:10,padding:'10px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
@@ -4700,7 +4837,7 @@ function QuickLogSheet({onLog,onClose,dealer}) {
       .catch(()=>{})
   },[])
 
-  const filteredScripts = dept ? SCRIPTS.filter(s=>s.dept===dept) : []
+  const filteredScripts = dept ? allScripts().filter(s=>s.dept===dept) : []
 
   const submit = () => {
     if(!dept||!selObj||!result) return
@@ -5291,9 +5428,9 @@ function LeaderGrid(){
   // Coaching plan data for Share / PDF output
   const planData = (quadId, dept) => {
     const q = QUADS.find(x=>x.id===quadId)
-    const coachItems = (QUAD_COACH_MAP[quadId]||[]).map(([id,why])=>({s:SCRIPTS.find(x=>x.id===id),why})).filter(x=>x.s)
+    const coachItems = (QUAD_COACH_MAP[quadId]||[]).map(([id,why])=>({s:allScripts().find(x=>x.id===id),why})).filter(x=>x.s)
     const qc = new Set(q?.coachingCats||[])
-    const base = SCRIPTS.filter(s=>s.audience!=='manager'&&qc.has(s.category))
+    const base = allScripts().filter(s=>s.audience!=='manager'&&qc.has(s.category))
     const f = dept==='both'?base:base.filter(s=>s.dept===dept)
     return {q, coachItems, drills:(f.length?f:base).slice(0,4)}
   }
@@ -5336,7 +5473,7 @@ function LeaderGrid(){
   // Coaching scripts mapped to IDs — these are the 15 coaching-type scripts
   // Read a coaching script card aloud
   const readCard = (scriptId, quadId) => {
-    const script = SCRIPTS.find(s => s.id === scriptId)
+    const script = allScripts().find(s => s.id === scriptId)
     if(!script) return
     if(readingCard === scriptId) { stopSpeaking(); setReadingCard(null); return }
     stopSpeaking()
@@ -5442,7 +5579,7 @@ function LeaderGrid(){
       </div>
 
       {/* Ask Coach — manager coaching situations */}
-      <AskCoach dept={'both'} mode={"situation"}/>
+      <AskCoach dealer={dealer} dept={'both'} mode={"situation"}/>
 
       {/* Team grid */}
       {team.length > 0 && (
@@ -5499,7 +5636,7 @@ function LeaderGrid(){
 
           {/* Dept filter toggle */}
           {(()=>{
-            const pool = SCRIPTS.filter(s=>s.audience==='manager')
+            const pool = allScripts().filter(s=>s.audience==='manager')
             const counts = {both:pool.length, sales:pool.filter(s=>s.dept==='sales').length, service:pool.filter(s=>s.dept==='service').length}
             return (
               <div style={{display:'flex',gap:6,marginBottom:12}}>
@@ -5537,11 +5674,11 @@ function LeaderGrid(){
             }
             // SECTION A: the coaching conversations for this profile (curated manager scripts)
             const coachItems = (QUAD_COACH_MAP[showCoaching]||[])
-              .map(([id,why])=>({s:SCRIPTS.find(x=>x.id===id), why}))
+              .map(([id,why])=>({s:allScripts().find(x=>x.id===id), why}))
               .filter(x=>x.s)
             // SECTION B: customer drills matched to this profile, dept-filtered
             const qCats = new Set(coachQ.coachingCats||[])
-            const drillBase = SCRIPTS.filter(s=>s.audience!=="manager"&&qCats.has(s.category))
+            const drillBase = allScripts().filter(s=>s.audience!=="manager"&&qCats.has(s.category))
             const drillFiltered = coachDept==="both" ? drillBase : drillBase.filter(s=>s.dept===coachDept)
             const drills = (drillFiltered.length>0?drillFiltered:drillBase).slice(0,4)
             return (
@@ -6765,6 +6902,17 @@ export default function App() {
   const adminKey = typeof window!=='undefined' ? new URLSearchParams(window.location.search).get('admin') : null
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
+  // Load this dealership's custom objection library once per session and feed
+  // the merged script pool. localStorage already seeded the store synchronously
+  // above, so the UI shows the last-known library instantly; this refreshes it.
+  useEffect(()=>{
+    if(!dealer?.dealerId) return
+    dealerSync('getDashboard', dealer.dealerId, '').then(res=>{
+      if(res && !res.error && res.dealer && Array.isArray(res.dealer.custom_scripts)){
+        setCustomScripts(res.dealer.custom_scripts)
+      }
+    }).catch(()=>{})
+  },[dealer?.dealerId])
   const [showProfile,setShowProfile] = useState(false)
   const [showDealerSettings,setShowDealerSettings] = useState(false)
   const [contactEmails,setContactEmails] = useState(null) // null = not loaded yet
@@ -7046,7 +7194,7 @@ export default function App() {
             <span style={{color:C.yellow,fontSize:16}}>→</span>
           </div>
         )}
-        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}}/>}
+        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}} onDrillScript={(script)=>{setPreloadDrill(script);setTab('drill')}}/>}
         {/* Rep tabs */}
         {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
         {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
