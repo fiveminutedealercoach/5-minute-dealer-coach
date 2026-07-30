@@ -448,11 +448,15 @@ export async function onRequest(context) {
         try {
           const dealerRows = await sb(`/dealers?code=eq.${d.code}&select=*`)
           const dealerData = dealerRows[0] || {}
+          // Was capped at 200, so a heavy rooftop silently stopped accruing cost
+          // and its totals froze. 2000 comfortably covers a busy month.
           const acts = await sb(
-            `/activity?dealer_code=eq.${d.code}&select=*&order=timestamp.desc&limit=200`
+            `/activity?dealer_code=eq.${d.code}&select=*&order=timestamp.desc&limit=2000`
           )
-          const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-          const weekActs = acts.filter(a => a.timestamp > weekAgo)
+          const weekAgo  = Date.now() - 7 * 24 * 60 * 60 * 1000
+          const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+          const weekActs  = acts.filter(a => a.timestamp > weekAgo)
+          const monthActs = acts.filter(a => a.timestamp > monthAgo)
           const reps = [...new Set(acts.map(a => a.rep_name))].filter(Boolean)
           const won = acts.filter(a => a.result === 'won' || a.result?.startsWith('A') || a.result?.startsWith('B')).length
           const lastActive = acts[0]?.timestamp || d.created_at
@@ -488,6 +492,10 @@ export async function onRequest(context) {
             weekDrills: weekActs.length,
             weekHuddles: weekActs.filter(a => a.type === 'huddle').length,
             voiceDrills: acts.filter(a => a.type === 'voice_drill' || a.type === 'voice').length,
+            // 30-day figures: cost is a monthly number, so it has to be compared
+            // against a month of activity, not lifetime.
+            monthDrills: monthActs.length,
+            monthVoiceDrills: monthActs.filter(a => a.type === 'voice_drill' || a.type === 'voice').length,
             winRate: acts.length > 0 ? Math.round((won / acts.length) * 100) : 0,
             lastActive,
             daysSinceActive,
