@@ -1456,7 +1456,7 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
                 {suggested.reason}
               </div>
               <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:C.white,lineHeight:1.2,maxWidth:220}}>
-                "{suggested.script.objection.replace(/['"]/g,'').substring(0,55)}"
+                "{(()=>{ const o = suggested.script.objection.replace(/['"]/g,''); if(o.length<=55) return o; const cut = o.slice(0,55); const sp = cut.lastIndexOf(' '); return (sp>25 ? cut.slice(0,sp) : cut) + '…' })()}"
               </div>
             </div>
             {/* Last score badge */}
@@ -1536,6 +1536,43 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
 
     </div>
   )
+}
+
+// ── OBJECTION TEXT NORMALISER ────────────────────────────────────
+// People type objections fast and in lower case, and skip apostrophes. Stored
+// raw that reads sloppy on every card and makes the TTS stumble ("dont" reads
+// oddly). Clean it once at save time rather than patching each display.
+// Deliberately conservative: sentence case, a fixed contraction list, and
+// standalone "i" -> "I". No spell-correction, nothing that could mangle a
+// legitimate phrase or a brand name.
+const CONTRACTIONS = {
+  dont:"don't", doesnt:"doesn't", didnt:"didn't", cant:"can't", wont:"won't",
+  isnt:"isn't", arent:"aren't", wasnt:"wasn't", werent:"weren't",
+  havent:"haven't", hasnt:"hasn't", hadnt:"hadn't", couldnt:"couldn't",
+  wouldnt:"wouldn't", shouldnt:"shouldn't", aint:"ain't", thats:"that's",
+  theres:"there's", heres:"here's", whats:"what's", lets:"let's",
+  youre:"you're", theyre:"they're", weve:"we've", ive:"I've", im:"I'm",
+  id:"I'd", ill:"I'll", youve:"you've", youll:"you'll", theyll:"they'll",
+  wed:"we'd", theyve:"they've", whos:"who's", its:"it's",
+}
+const tidyObjection = (raw) => {
+  let t = String(raw == null ? '' : raw).trim()
+  if (!t) return ''
+  t = t.replace(/\s+/g, ' ')
+  t = t.split(' ').map(w => {
+    const bare = w.toLowerCase().replace(/[^a-z]/g, '')
+    if (CONTRACTIONS[bare] && w.toLowerCase().replace(/[^a-z']/g,'') === bare) {
+      const punct = w.replace(/[A-Za-z']/g, '')
+      return CONTRACTIONS[bare] + punct
+    }
+    if (bare === 'i') return w.replace(/i/i, 'I')
+    return w
+  }).join(' ')
+  // Sentence case — only touch the first character, leave any deliberate caps alone.
+  t = t.charAt(0).toUpperCase() + t.slice(1)
+  // Objections read as spoken lines; a trailing period adds nothing on a card.
+  t = t.replace(/\.+$/, '')
+  return t
 }
 
 // ── CATEGORY PICKER ──────────────────────────────────────────────
@@ -1756,7 +1793,7 @@ function ScriptLibrary({dealer}) {
               <button disabled={busy} onClick={async()=>{
                 if(!editing.objection.trim()){ setErr('Objection text is required.'); return }
                 setBusy(true); setErr('')
-                const res = await dealerSync('saveCustomScript', dealer?.dealerId, '', {script:{...editing, id:editing.id}})
+                const res = await dealerSync('saveCustomScript', dealer?.dealerId, '', {script:{...editing, objection: tidyObjection(editing.objection), id:editing.id}})
                 setBusy(false)
                 if(res && res.success && Array.isArray(res.custom_scripts)){ setCustomScripts(res.custom_scripts); setEditing(null) }
                 else setErr(res?.error || 'Could not save your changes.')
@@ -2057,7 +2094,7 @@ function AskCoach({onDrill, dept, mode, dealer}) {
     try {
       const res = await dealerSync('saveCustomScript', dealer.dealerId, '', {
         script: {
-          objection: (inputText || result.objection || result.script || '').trim(),
+          objection: tidyObjection(inputText || result.objection || result.script || ''),
           dept: saveSheet.dept,
           category: saveSheet.category,
           script: result.script || '',
@@ -2334,7 +2371,7 @@ function AskCoach({onDrill, dept, mode, dealer}) {
           onClick={()=>{ if(saveState!=='saving'){ setSaveSheet(null); setSaveState('idle') } }}>
           <div onClick={e=>e.stopPropagation()} style={{background:C.navyMid,border:"1px solid rgba(255,201,71,0.35)",borderRadius:14,padding:20,width:"100%",maxWidth:420}}>
             <div style={{fontFamily:fH,fontSize:12,fontWeight:900,letterSpacing:2,textTransform:"uppercase",color:C.yellow,marginBottom:4}}>★ Save to Our Playbook</div>
-            <div style={{fontSize:13,color:C.lightText,fontStyle:"italic",marginBottom:16,lineHeight:1.5}}>"{(inputText||result?.objection||'').split('"').join('')}"</div>
+            <div style={{fontSize:13,color:C.lightText,fontStyle:"italic",marginBottom:16,lineHeight:1.5}}>"{tidyObjection((inputText||result?.objection||'').split('"').join(''))}"</div>
 
             <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:C.gray,marginBottom:6}}>Department</div>
             <div style={{display:"flex",gap:8,marginBottom:16}}>
