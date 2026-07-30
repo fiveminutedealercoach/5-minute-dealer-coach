@@ -5122,6 +5122,13 @@ function HuddleTimer({onLog,dealer,preloadScript,onClearPreload}) {
 function DealerSettingsSheet({dealer,onClose,onEmailsChanged}){
   const [emails,setEmails] = useState([])
   const [reps,setReps]     = useState([])
+  // GM + sales manager + service manager, with emails. Alerts route by
+  // department; the weekly recap goes to all three. Kept separate from the
+  // roster on purpose — turnover is just an edit here, not roster surgery.
+  const [contacts,setContacts] = useState({gm:{name:'',email:''},salesMgr:{name:'',email:''},svcMgr:{name:'',email:''}})
+  const [cSaving,setCSaving]   = useState(false)
+  const [cSaved,setCSaved]     = useState(false)
+  const [cErr,setCErr]         = useState('')
   const [newEmail,setNewEmail] = useState('')
   const [loaded,setLoaded] = useState(false)
   const callSync = (action,data) => fetch('/dealer-sync',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -5132,6 +5139,14 @@ function DealerSettingsSheet({dealer,onClose,onEmailsChanged}){
       setEmails(Array.isArray(d?.contactEmails)?d.contactEmails:[])
       setLoaded(true)
     }).catch(()=>setLoaded(true))
+    callSync('getManagerContacts',{}).then(d=>{
+      const c = d?.contacts || {}
+      setContacts({
+        gm:       {name:c.gm?.name||'',       email:c.gm?.email||''},
+        salesMgr: {name:c.salesMgr?.name||'', email:c.salesMgr?.email||''},
+        svcMgr:   {name:c.svcMgr?.name||'',   email:c.svcMgr?.email||''},
+      })
+    }).catch(()=>{})
   },[])
   const persistEmails = (list) => {
     setEmails(list)
@@ -5160,6 +5175,40 @@ function DealerSettingsSheet({dealer,onClose,onEmailsChanged}){
         <div style={{width:36,height:4,background:'rgba(255,255,255,0.2)',borderRadius:100,margin:'0 auto 16px'}}/>
         <div style={{fontFamily:fH,fontSize:18,fontWeight:900,textTransform:'uppercase',color:C.white,marginBottom:2}}>Dealership Settings</div>
         <div style={{fontSize:12,color:C.gray,marginBottom:16}}>{dealer?.dealerName || dealer?.dealerId}</div>
+
+        <div style={sectionLabel}>👔 Managers &amp; Alerts</div>
+        <div style={{fontSize:11,color:C.gray,marginBottom:12,lineHeight:1.6}}>
+          Who gets the Monday recap and the alerts. Service alerts go to your service manager, sales alerts to your sales manager, and the GM is copied on everything. When someone leaves, just change the email here.
+        </div>
+        {[['gm','General Manager'],['salesMgr','Sales Manager'],['svcMgr','Service Manager']].map(([k,label])=>(
+          <div key={k} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',marginBottom:8}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.green,marginBottom:6}}>{label}</div>
+            <div style={{display:'flex',gap:8}}>
+              <input style={{...inp,flex:1}} placeholder="Name" value={contacts[k].name}
+                onChange={e=>setContacts(c=>({...c,[k]:{...c[k],name:e.target.value}}))}/>
+              <input style={{...inp,flex:1.4}} type="email" placeholder="email@dealership.com" value={contacts[k].email}
+                onChange={e=>setContacts(c=>({...c,[k]:{...c[k],email:e.target.value}}))}/>
+            </div>
+          </div>
+        ))}
+        {cErr && <div style={{fontSize:12,color:C.red,marginBottom:8}}>{cErr}</div>}
+        {cSaved && <div style={{fontSize:12,color:C.green,marginBottom:8}}>✓ Saved</div>}
+        <button disabled={cSaving} onClick={async()=>{
+          setCSaving(true); setCErr(''); setCSaved(false)
+          const bad = ['gm','salesMgr','svcMgr'].find(k=>{
+            const e=(contacts[k].email||'').trim()
+            return e && e.indexOf('@')<1
+          })
+          if(bad){ setCErr('That email address does not look right.'); setCSaving(false); return }
+          try{
+            const res = await callSync('saveManagerContacts',{contacts})
+            if(res && res.success){ setCSaved(true); setTimeout(()=>setCSaved(false),2000) }
+            else setCErr(res?.error || 'Could not save.')
+          }catch{ setCErr('Could not reach the server.') }
+          setCSaving(false)
+        }} style={{width:'100%',background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:12,letterSpacing:1,textTransform:'uppercase',border:'none',padding:'11px',borderRadius:8,cursor:'pointer',marginBottom:22,opacity:cSaving?0.6:1}}>
+          {cSaving?'Saving…':'Save Managers'}
+        </button>
 
         <div style={sectionLabel}>📧 Recap Emails</div>
         <div style={{fontSize:11,color:C.gray,marginBottom:10}}>Weekly team recaps and account updates go to these addresses. When a manager leaves, remove them and add the new manager here.</div>
