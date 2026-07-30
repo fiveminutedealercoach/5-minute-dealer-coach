@@ -1179,6 +1179,27 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
         ))}
       </div>
 
+      {/* Our Playbook — a GM should SEE the library growing without going looking
+          for it. This is the number that proves the product is becoming theirs. */}
+      {(()=>{
+        const pb = allScripts().filter(s=>s.custom)
+        if(!pb.length) return null
+        const monthAgo = Date.now() - 30*24*60*60*1000
+        const added = pb.filter(s=>(s.addedAt||0)>monthAgo).length
+        return (
+          <div onClick={()=>onNav('scripts')} style={{background:'linear-gradient(135deg, rgba(184,255,60,0.12) 0%, rgba(5,13,31,0.92) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderLeft:`4px solid ${C.green}`,borderRadius:12,padding:'14px 16px',marginBottom:16,cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
+            <div>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:3}}>★ Our Playbook</div>
+              <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:C.white,lineHeight:1}}>{pb.length} objection{pb.length===1?'':'s'}</div>
+              <div style={{fontSize:11,color:C.gray,marginTop:4,lineHeight:1.5}}>
+                {added>0 ? added+' added this month — your team is building it.' : 'Objections your dealership added.'}
+              </div>
+            </div>
+            <div style={{marginLeft:'auto',color:C.green,fontSize:20,flexShrink:0}}>→</div>
+          </div>
+        )
+      })()}
+
       {/* Ask Coach — managers keep the Objection/Coaching toggle (no locked
           mode). In Objection mode they can drill it themselves or save it to the
           dealership playbook; in Coaching mode it's situation word tracks. */}
@@ -1656,6 +1677,10 @@ function ScriptLibrary({dealer}) {
   const [search,setSearch] = useState('')
   const [openId,setOpenId] = useState(null)
   const [openCats,setOpenCats] = useState([])   // expanded category sections
+  // Filing custom objections into real topics made them findable for a rep, but
+  // invisible as a COLLECTION — and the collection is the story a GM tells.
+  // This is a filter, not a re-filing: same data, gathered for the pitch.
+  const [playbookOnly,setPlaybookOnly] = useState(false)
   const [editing,setEditing]     = useState(null)  // custom script being edited
   const [confirmDel,setConfirmDel] = useState(null) // custom script being deleted
   const [busy,setBusy]           = useState(false)
@@ -1666,6 +1691,7 @@ function ScriptLibrary({dealer}) {
   const showMgrScripts = isManager(dealer?.role)
   const visible = allScripts().filter(s => showMgrScripts || s.audience !== 'manager')
   const filtered = visible.filter(s=>{
+    if(playbookOnly && !s.custom) return false
     if(filterDept!=='all'&&s.dept!==filterDept) return false
     if(cat!=='all'&&s.category!==cat) return false
     if(search&&!s.objection.toLowerCase().includes(search.toLowerCase())) return false
@@ -1675,6 +1701,10 @@ function ScriptLibrary({dealer}) {
   // this rooftop actually hears, so they should never be buried down the list.
   .sort((a,b)=> (b.custom?1:0)-(a.custom?1:0))
   const playbookCount = visible.filter(s=>s.custom).length
+  const playbookAll   = visible.filter(s=>s.custom)
+  const monthAgo      = Date.now() - 30*24*60*60*1000
+  const playbookMonth = playbookAll.filter(s => (s.addedAt||0) > monthAgo).length
+  const contributors  = [...new Set(playbookAll.map(s=>s.addedBy).filter(Boolean))]
 
   return (
     <div style={{padding:'16px 16px 96px'}}>
@@ -1686,14 +1716,41 @@ function ScriptLibrary({dealer}) {
           [visible.length,'Scripts',C.white],
           [visible.filter(s=>s.dept==='sales').length,'Sales',C.blueBright],
           [visible.filter(s=>s.dept==='service').length,'Service',C.green],
-          playbookCount>0 ? [playbookCount,'Our Playbook',C.green] : [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
-        ].map(([n,l,c])=>(
-          <div key={l} style={{background:'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${C.border}`,borderRadius:12,padding:'10px 6px',textAlign:'center'}}>
+          playbookCount>0 ? [playbookCount,'Our Playbook',C.green,true] : [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
+        ].map(([n,l,c,isPb])=>(
+          <div key={l} onClick={()=>{ if(isPb) setPlaybookOnly(v=>!v) }}
+            style={{background: (isPb&&playbookOnly) ? 'linear-gradient(135deg, rgba(184,255,60,0.18) 0%, rgba(5,13,31,0.95) 100%)' : 'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${(isPb&&playbookOnly)?'rgba(184,255,60,0.6)':C.border}`,borderRadius:12,padding:'10px 6px',textAlign:'center',cursor:isPb?'pointer':'default'}}>
             <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:c,lineHeight:1}}>{n}</div>
             <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:3}}>{l}</div>
           </div>
         ))}
       </div>
+      {playbookOnly && (
+        <div style={{background:'linear-gradient(135deg, rgba(184,255,60,0.13) 0%, rgba(5,13,31,0.92) 100%)',border:'1px solid rgba(184,255,60,0.4)',borderLeft:`4px solid ${C.green}`,borderRadius:12,padding:'14px 16px',marginBottom:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:4}}>★ Our Playbook</div>
+              <div style={{fontFamily:fH,fontSize:26,fontWeight:900,color:C.white,lineHeight:1,marginBottom:6}}>
+                {playbookCount} objection{playbookCount===1?'':'s'}
+              </div>
+              <div style={{fontSize:12,color:C.lightText,lineHeight:1.6}}>
+                Objections your dealership added — the ones your customers actually throw.
+                {playbookMonth>0 && <> <span style={{color:C.green,fontWeight:700}}>{playbookMonth} added this month.</span></>}
+              </div>
+              {contributors.length>0 && (
+                <div style={{marginTop:9,display:'flex',flexWrap:'wrap',gap:5,alignItems:'center'}}>
+                  <span style={{fontSize:10,fontFamily:fH,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray}}>Added by</span>
+                  {contributors.slice(0,6).map(n=>(
+                    <span key={n} style={{background:'rgba(255,255,255,0.06)',border:`1px solid ${C.border}`,color:C.lightText,fontSize:11,padding:'3px 9px',borderRadius:100}}>{n}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={()=>setPlaybookOnly(false)}
+              style={{background:'transparent',border:`1px solid ${C.border}`,color:C.gray,fontFamily:fH,fontWeight:700,fontSize:10,letterSpacing:1,textTransform:'uppercase',padding:'6px 11px',borderRadius:6,cursor:'pointer',flexShrink:0}}>Show all</button>
+          </div>
+        </div>
+      )}
       <ScriptFilterBar dept={filterDept} setDept={setFilterDept} cat={cat} setCat={setCat} search={search} setSearch={setSearch} lockDept={lockDept} pool={visible} compact/>
       {(()=>{
         const renderCard = (s) => (
@@ -1731,8 +1788,22 @@ function ScriptLibrary({dealer}) {
         )
         // Search or a category filter = the person is hunting: show a flat list.
         // Browsing all = accordion by category so the library reads as an index.
-        const flatMode = cat!=='all' || search.trim()!==''
-        if(flatMode) return <div style={{display:'flex',flexDirection:'column',gap:8}}>{filtered.map(renderCard)}</div>
+        const flatMode = playbookOnly || cat!=='all' || search.trim()!==''
+        if(flatMode) {
+          // Newest first in the playbook view so the most recent additions —
+          // the proof the library is growing — lead.
+          const list = playbookOnly
+            ? [...filtered].sort((a,b)=>(b.addedAt||0)-(a.addedAt||0))
+            : filtered
+          if(!list.length) return (
+            <div style={{textAlign:'center',padding:'34px 20px',color:C.gray,fontSize:13,lineHeight:1.65}}>
+              {playbookOnly
+                ? 'No objections in your playbook yet. When a manager hears one that is not in the library, Ask Coach it and tap Save to Playbook.'
+                : 'No scripts match that filter.'}
+            </div>
+          )
+          return <div style={{display:'flex',flexDirection:'column',gap:8}}>{list.map(renderCard)}</div>
+        }
         const groups = []
         filtered.forEach(s=>{ const g=groups.find(x=>x.c===s.category); if(g) g.items.push(s); else groups.push({c:s.category, d:s.dept, items:[s]}) })
         return (
