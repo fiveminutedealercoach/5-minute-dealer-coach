@@ -402,6 +402,47 @@ export async function onRequest(context) {
       return ok({ success: true, custom_scripts: next })
     }
 
+    // ── MANAGER CONTACTS ──────────────────────────────────────
+    // GM + sales manager + service manager, with emails. Deliberately kept
+    // separate from `reps`: that array drives login, the roster picker,
+    // assignments and leaderboards, so restructuring it is the risky change —
+    // and for three named contacts it buys nothing. Turnover is just an edit.
+    if (action === 'saveManagerContacts') {
+      const code = String(dealerId || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (!code) return err('No dealership code', 400)
+      const c = data?.contacts || {}
+      const clean = (x) => {
+        const name  = String((x && x.name)  || '').trim().slice(0, 80)
+        const email = String((x && x.email) || '').trim().toLowerCase().slice(0, 160)
+        // Store a contact only if the email is usable — a name with no address
+        // can't be routed to, and a half-filled slot silently swallows alerts.
+        if (!email || email.indexOf('@') < 1) return null
+        return { name, email }
+      }
+      const next = {}
+      const gm = clean(c.gm), sm = clean(c.salesMgr), sv = clean(c.svcMgr)
+      if (gm) next.gm = gm
+      if (sm) next.salesMgr = sm
+      if (sv) next.svcMgr = sv
+
+      const rows = await sb(`/dealers?code=eq.${code}&select=code`)
+      if (!rows.length) return err('Dealer not found', 404)
+      await sb(`/dealers?code=eq.${code}`, 'PATCH', { manager_contacts: next })
+      return ok({ success: true, contacts: next })
+    }
+
+    if (action === 'getManagerContacts') {
+      const code = String(dealerId || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (!code) return err('No dealership code', 400)
+      const rows = await sb(`/dealers?code=eq.${code}&select=manager_contacts,recap_enabled,alerts_enabled`)
+      if (!rows.length) return ok({ contacts: {} })
+      return ok({
+        contacts: rows[0].manager_contacts || {},
+        recapEnabled:  rows[0].recap_enabled !== false,
+        alertsEnabled: rows[0].alerts_enabled !== false,
+      })
+    }
+
     // ── GET SETTINGS ──────────────────────────────────────────
     // KV replacement. Returns { value } — null when the key is unset, which is
     // what the app checks before showing an assignment card.
@@ -488,6 +529,11 @@ export async function onRequest(context) {
             plannedTeam: dealerData.planned_team || [],
             seatLimit: dealerData.seat_limit == null ? 15 : dealerData.seat_limit,
             notes: dealerData.notes || '',
+            // Manager contacts + email switches, so the operator console can
+            // show and edit alert routing without a second round-trip.
+            managerContacts: dealerData.manager_contacts || {},
+            recapEnabled:  dealerData.recap_enabled  !== false,
+            alertsEnabled: dealerData.alerts_enabled !== false,
             totalDrills: acts.length,
             weekDrills: weekActs.length,
             weekHuddles: weekActs.filter(a => a.type === 'huddle').length,
