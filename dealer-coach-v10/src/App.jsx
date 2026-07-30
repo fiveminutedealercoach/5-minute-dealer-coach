@@ -2414,6 +2414,12 @@ function AskCoach({onDrill, dept, mode, dealer}) {
 
 function VoiceDrill({onLog,dealer,preloadScript,onClearPreload}) {
   useAllScripts()  // custom objections appear in the drill picker on load
+  // Post-drill "add this to your playbook" prompt. A manager who types an
+  // objection into Ask Coach, drills it and gets a good result has just proved
+  // it is worth keeping — but the objection evaporates unless they remembered to
+  // hit Save BEFORE drilling. Catch it at the moment it is proven instead.
+  const [pbState, setPbState] = useState('idle')   // idle | saving | saved | error
+  const [pbErr, setPbErr]     = useState('')
   const dept     = roleDept(dealer?.role||'both')
   const lockDept = dept==='both'?null:dept
   const [filterDept,setFilterDept] = useState(lockDept||'all')
@@ -3796,6 +3802,40 @@ RETURN ONLY valid JSON:
           {modelSpeaking ? '⏹ Stop Reading' : '🔊 Hear Your Coaching Report'}
         </button>
         <PDFBtn onClick={exportFeedbackPDF} label="📄 Save Coaching Report PDF"/>
+
+        {/* Add-to-playbook prompt: only for a manager, only for an ad-hoc Ask
+            Coach objection that is not already saved. */}
+        {isManager(dealer?.role) && activeS && !activeS.custom
+          && String(activeS.id||'').indexOf('askcoach-')===0
+          && pbState!=='saved' && (
+          <div style={{background:'linear-gradient(135deg, rgba(184,255,60,0.10) 0%, rgba(5,13,31,0.9) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderRadius:12,padding:'14px 16px',marginBottom:16}}>
+            <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:5}}>★ Add to your playbook</div>
+            <div style={{fontSize:13,color:C.lightText,lineHeight:1.6,marginBottom:10}}>
+              Keep this one so your whole team can drill it. It'll sit alongside your other objections in the Script Library.
+            </div>
+            {pbErr && <div style={{fontSize:12,color:C.red,marginBottom:8}}>{pbErr}</div>}
+            <button disabled={pbState==='saving'} onClick={async()=>{
+              setPbState('saving'); setPbErr('')
+              const res = await dealerSync('saveCustomScript', dealer?.dealerId, '', {script:{
+                objection: tidyObjection(activeS.objection||''),
+                dept: activeS.dept==='service' ? 'service' : 'sales',
+                category: (activeS.category && activeS.category!=='Custom Objection') ? activeS.category : 'Handling Objections & Value Selling',
+                script: activeS.script||'', followup: activeS.followup||'',
+                situation: activeS.situation||'', mistake: activeS.mistake||'',
+                addedBy: dealer?.repName||'',
+              }})
+              if(res && res.success && Array.isArray(res.custom_scripts)){ setCustomScripts(res.custom_scripts); setPbState('saved') }
+              else { setPbErr(res?.error || 'Could not save. Check your connection.'); setPbState('error') }
+            }} style={{width:'100%',background:C.green,color:C.navy,fontFamily:fH,fontWeight:900,fontSize:13,letterSpacing:1,textTransform:'uppercase',border:'none',padding:'12px',borderRadius:8,cursor:'pointer',opacity:pbState==='saving'?0.6:1}}>
+              {pbState==='saving' ? 'Saving…' : '★ Save to Our Playbook'}
+            </button>
+          </div>
+        )}
+        {pbState==='saved' && (
+          <div style={{background:'rgba(184,255,60,0.10)',border:'1px solid rgba(184,255,60,0.4)',borderRadius:10,padding:'11px 14px',marginBottom:16,fontFamily:fH,fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,textAlign:'center'}}>
+            ✓ Saved to your playbook
+          </div>
+        )}
 
         {/* Grade + persona */}
         <div style={{background:'linear-gradient(135deg,rgba(184,255,60,0.08),rgba(184,255,60,0.03))',border:'1px solid rgba(184,255,60,0.25)',borderRadius:12,padding:16,marginBottom:14,animation:'scaleIn 0.5s ease both'}}>
@@ -6785,19 +6825,30 @@ function MasterDashboard({adminKey,onExit}) {
   // ElevenLabs: $22/month flat split across dealers
   // Current stack per voice drill: Claude Haiku (~$0.02) + ElevenLabs TTS (~$0.28).
   // Speech recognition is browser-native = $0. Estimates until usage metering lands.
-  const MONTHLY_REVENUE   = 997
+  // Current stack per voice drill: Claude Haiku (~$0.02) + ElevenLabs TTS (~$0.28).
+  // Speech recognition is browser-native = $0. Estimates until usage metering lands.
   const VOICE_DRILL_COST  = 0.30
   const OTHER_AI_PER_DRILL = 0.01
+  const DEFAULT_MRR       = 997
 
   const dealerCosts = dealers.map(d=>{
     const vDrills   = d.voiceDrills||0
-    const totalCost = vDrills * VOICE_DRILL_COST + (d.totalDrills||0) * OTHER_AI_PER_DRILL
-    const margin    = MONTHLY_REVENUE - totalCost
-    return { ...d, estCost:totalCost, estMargin:margin, liveSessions:vDrills }
+    // Cost was LIFETIME drills compared against ONE MONTH of revenue, which made
+    // every long-lived rooftop look unprofitable. Use the 30-day figures the
+    // backend already returns so both sides of the margin cover the same window.
+    const monthVoice = (d.monthVoiceDrills != null) ? d.monthVoiceDrills : vDrills
+    const monthTotal = (d.monthDrills != null) ? d.monthDrills : (d.totalDrills||0)
+    const totalCost  = monthVoice * VOICE_DRILL_COST + monthTotal * OTHER_AI_PER_DRILL
+    // Read the real MRR rather than assuming everyone pays 997 (Lake Auto is $0).
+    const mrr        = (d.status === 'suspended') ? 0
+                     : (typeof d.mrr === 'number' ? d.mrr : DEFAULT_MRR)
+    return { ...d, estCost:totalCost, estMargin:(mrr - totalCost), estMrr:mrr, liveSessions:vDrills }
   })
   const totalEstCost   = dealerCosts.reduce((a,d)=>a+d.estCost,0)
-  const totalEstMargin = dealers.length * MONTHLY_REVENUE - totalEstCost
-  const totalRevenue   = dealers.length * MONTHLY_REVENUE
+  const totalRevenue   = dealerCosts.reduce((a,d)=>a+d.estMrr,0)
+  const totalEstMargin = totalRevenue - totalEstCost
+  // Any per-dealer cost under $0.50 used to render as "$0" because of toFixed(0).
+  const money = n => (n >= 100 ? '$'+Math.round(n).toLocaleString() : '$'+Number(n).toFixed(2))
 
   const exportMasterPDF = () => {
     const rows = sorted.map(d=>`
@@ -6903,12 +6954,12 @@ function MasterDashboard({adminKey,onExit}) {
             </div>
             <div style={{background:'rgba(255,107,107,0.06)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
               <div style={{fontSize:16,marginBottom:3}}>⚡</div>
-              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.orange||'#ff9f43',lineHeight:1}}>${totalEstCost.toFixed(0)}</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.orange||'#ff9f43',lineHeight:1}}>{money(totalEstCost)}</div>
               <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.orange||'#ff9f43',marginTop:3}}>Est. API Cost</div>
             </div>
             <div style={{background:'rgba(26,107,255,0.06)',border:'1px solid rgba(26,107,255,0.2)',borderRadius:10,padding:'10px 8px',textAlign:'center'}}>
               <div style={{fontSize:16,marginBottom:3}}>📈</div>
-              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.blueBright,lineHeight:1}}>${totalEstMargin.toFixed(0)}</div>
+              <div style={{fontFamily:fH,fontSize:20,fontWeight:900,color:C.blueBright,lineHeight:1}}>{money(totalEstMargin)}</div>
               <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginTop:3}}>Est. Net Margin</div>
             </div>
           </div>
@@ -7035,12 +7086,12 @@ function MasterDashboard({adminKey,onExit}) {
                         </div>
                         <div style={{background:'rgba(255,107,107,0.05)',border:'1px solid rgba(255,107,107,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
                           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'#ff9f43',marginBottom:3}}>Est. Cost</div>
-                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:'#ff9f43'}}>${dc.estCost.toFixed(0)}</div>
+                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:'#ff9f43'}}>{money(dc.estCost)}</div>
                           <div style={{fontSize:9,color:C.gray,marginTop:2}}>{dc.liveSessions} voice drills × ~$0.30</div>
                         </div>
                         <div style={{background:'rgba(26,107,255,0.05)',border:'1px solid rgba(26,107,255,0.15)',borderRadius:8,padding:'8px 10px',textAlign:'center'}}>
                           <div style={{fontFamily:fH,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.blueBright,marginBottom:3}}>Net Margin</div>
-                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:dc.estMargin>800?C.green:dc.estMargin>600?C.yellow:'#ff9f43'}}>${dc.estMargin.toFixed(0)}</div>
+                          <div style={{fontFamily:fH,fontSize:18,fontWeight:900,color:dc.estMargin>800?C.green:dc.estMargin>600?C.yellow:'#ff9f43'}}>{money(dc.estMargin)}</div>
                         </div>
                       </div>
 
