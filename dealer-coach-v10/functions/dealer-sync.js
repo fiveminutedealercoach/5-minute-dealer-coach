@@ -1,4 +1,18 @@
 // Cloudflare Pages Function — Dealer data sync via Supabase
+// v7 — Two routing/age fixes on top of v6.
+//      • registerDealer now SEEDS manager_contacts.gm from the same GM name and
+//        email the onboard form already collects. The mailer reads
+//        manager_contacts, never gm_email, so before this a brand-new rooftop had
+//        no alert recipients: never_started (the alert built precisely for
+//        brand-new rooftops) evaluated true, resolved to an empty To list, and
+//        was silently skipped by `if (!to.length) continue`. It could only ever
+//        reach anyone if an operator separately opened Managers & Alert Routing.
+//      • getMasterDashboard now reads created_at from `dealers`, not
+//        `dealer_index`. Both tables carry their own copy and they can drift;
+//        the mailer reads dealers.created_at, so the console was free to report
+//        an age the alert logic disagreed with ("Created Today" on a rooftop the
+//        mailer correctly saw as 5 days old).
+//
 // v6 — Restores the five KV-era actions the app still calls.
 //      • verifyOperator  — lets the console check the admin key WITHOUT the key
 //                          ever being written into the console HTML.
@@ -113,6 +127,17 @@ export async function onRequest(context) {
       const contactName  = gmName  || repName || ''
       const contactEmail = gmEmail || email   || ''
 
+      // Seed alert routing from those same details. gm_name/gm_email are display
+      // columns; the mailer routes on manager_contacts alone. Cleaning matches
+      // saveManagerContacts exactly (trim, lowercase, length caps, and an email
+      // that actually contains an @) so the two write paths can't diverge — a
+      // name with no usable address is dropped rather than stored as a contact
+      // that silently swallows alerts.
+      const seedEmail = String(contactEmail || '').trim().toLowerCase().slice(0, 160)
+      const seedContacts = (seedEmail.indexOf('@') > 0)
+        ? { gm: { name: String(contactName || '').trim().slice(0, 80), email: seedEmail } }
+        : {}
+
       await sb('/dealers', 'POST', {
         code,
         name: dealerName,
@@ -125,6 +150,7 @@ export async function onRequest(context) {
         planned_team: Array.isArray(plannedTeam) ? plannedTeam : [],
         seat_limit: seatLimit == null ? 15 : seatLimit,
         created_at: Date.now(),
+        manager_contacts: seedContacts,
         reps: []
       })
 
@@ -500,7 +526,12 @@ export async function onRequest(context) {
           const monthActs = acts.filter(a => a.timestamp > monthAgo)
           const reps = [...new Set(acts.map(a => a.rep_name))].filter(Boolean)
           const won = acts.filter(a => a.result === 'won' || a.result?.startsWith('A') || a.result?.startsWith('B')).length
-          const lastActive = acts[0]?.timestamp || d.created_at
+          // dealer_index and dealers each carry their own created_at, so the two
+          // can drift. The mailer's never_started alert reads dealers.created_at,
+          // so read the same one here — otherwise the console can report an age
+          // the alert logic disagrees with.
+          const createdAt = dealerData.created_at || d.created_at
+          const lastActive = acts[0]?.timestamp || createdAt
           const daysSinceActive = Math.floor((Date.now() - lastActive) / (1000 * 60 * 60 * 24))
 
           let health = 0
@@ -523,7 +554,7 @@ export async function onRequest(context) {
             gmRole: dealerData.gm_role || 'gm',
             mrr: d.mrr == null ? (dealerData.mrr == null ? 997 : dealerData.mrr) : d.mrr,
             status: d.status || dealerData.status || 'active',
-            created: d.created_at,
+            created: createdAt,
             reps: reps.length,
             teamMembers: dealerData.reps || [],
             plannedTeam: dealerData.planned_team || [],
