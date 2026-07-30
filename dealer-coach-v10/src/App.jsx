@@ -982,7 +982,7 @@ function Home({onNav,dealer,stats,results,streak,milestone,onDrillNow,onHuddleNo
 // ══════════════════════════════════════════════════════════════
 // MANAGER HOME — huddle launcher + team momentum + quick actions
 // ══════════════════════════════════════════════════════════════
-function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillScript}) {
+function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillScript, onOpenPlaybook}) {
   const role = dealer?.role || 'sales_mgr'
   const firstName = dealer?.repName?.split(' ')[0] || 'Coach'
   const isSvcMgr = role === 'svc_mgr'
@@ -1187,7 +1187,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
         const monthAgo = Date.now() - 30*24*60*60*1000
         const added = pb.filter(s=>(s.addedAt||0)>monthAgo).length
         return (
-          <div onClick={()=>onNav('scripts')} style={{background:'linear-gradient(135deg, rgba(184,255,60,0.12) 0%, rgba(5,13,31,0.92) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderLeft:`4px solid ${C.green}`,borderRadius:12,padding:'14px 16px',marginBottom:16,cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
+          <div onClick={()=>onOpenPlaybook&&onOpenPlaybook()} style={{background:'linear-gradient(135deg, rgba(184,255,60,0.12) 0%, rgba(5,13,31,0.92) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderLeft:`4px solid ${C.green}`,borderRadius:12,padding:'14px 16px',marginBottom:16,cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
             <div>
               <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:3}}>★ Our Playbook</div>
               <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:C.white,lineHeight:1}}>{pb.length} objection{pb.length===1?'':'s'}</div>
@@ -1238,7 +1238,7 @@ function ManagerHome({dealer, stats, results, streak, onNav, onNavSub, onDrillSc
 // ══════════════════════════════════════════════════════════════
 // REP HOME — focused drill launcher with streak + progress rings
 // ══════════════════════════════════════════════════════════════
-function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
+function RepHome({dealer, stats, results, streak, onDrill, onBrowse, onOpenPlaybook}) {
   useAllScripts()
   const role = dealer?.role || 'sales_rep'
   const dept = roleDept(role)
@@ -1520,6 +1520,25 @@ function RepHome({dealer, stats, results, streak, onDrill, onBrowse}) {
         Browse All Scripts
       </button>
 
+      {/* Our Playbook — for a rep this is not a growth stat, it is a shortcut to
+          the objections their own rooftop actually hears. Framed accordingly. */}
+      {(()=>{
+        const pb = allScripts().filter(s=>s.custom && (dept==='both'||s.dept===dept))
+        if(!pb.length) return null
+        return (
+          <div onClick={()=>onOpenPlaybook&&onOpenPlaybook()} style={{background:'linear-gradient(135deg, rgba(184,255,60,0.12) 0%, rgba(5,13,31,0.92) 100%)',border:'1px solid rgba(184,255,60,0.35)',borderLeft:`4px solid ${C.green}`,borderRadius:12,padding:'14px 16px',marginBottom:16,cursor:'pointer',display:'flex',alignItems:'center',gap:14}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:fH,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:3}}>★ Our Playbook</div>
+              <div style={{fontFamily:fH,fontSize:24,fontWeight:900,color:C.white,lineHeight:1}}>{pb.length} objection{pb.length===1?'':'s'}</div>
+              <div style={{fontSize:11,color:C.gray,marginTop:4,lineHeight:1.5}}>
+                The ones your customers actually throw at this store. Drill these.
+              </div>
+            </div>
+            <div style={{color:C.green,fontSize:20,flexShrink:0}}>→</div>
+          </div>
+        )
+      })()}
+
       {/* Ask Coach — a tool the rep acts on, so it sits above the drill history.
           History grows over time and was pushing this off the bottom of Home. */}
       <AskCoach dealer={dealer} dept={dept} mode={"objection"} onDrill={onDrill}/>
@@ -1653,7 +1672,7 @@ function CategoryPicker({value, onChange, dept}) {
   )
 }
 
-function ScriptLibrary({dealer}) {
+function ScriptLibrary({dealer, openPlaybook, onConsumePlaybook}) {
   useAllScripts()  // re-render when the dealership's custom library loads
   // Best grade ever earned per script (from voice drill history) - read once on mount
   const [bestGrades] = useState(()=>{
@@ -1680,7 +1699,10 @@ function ScriptLibrary({dealer}) {
   // Filing custom objections into real topics made them findable for a rep, but
   // invisible as a COLLECTION — and the collection is the story a GM tells.
   // This is a filter, not a re-filing: same data, gathered for the pitch.
-  const [playbookOnly,setPlaybookOnly] = useState(false)
+  const [playbookOnly,setPlaybookOnly] = useState(!!openPlaybook)
+  useEffect(()=>{
+    if(openPlaybook){ setPlaybookOnly(true); onConsumePlaybook && onConsumePlaybook() }
+  },[openPlaybook])
   const [editing,setEditing]     = useState(null)  // custom script being edited
   const [confirmDel,setConfirmDel] = useState(null) // custom script being deleted
   const [busy,setBusy]           = useState(false)
@@ -1719,9 +1741,27 @@ function ScriptLibrary({dealer}) {
           playbookCount>0 ? [playbookCount,'Our Playbook',C.green,true] : [visible.filter(s=>bestGrades[s.id]).length,'Drilled',C.yellow],
         ].map(([n,l,c,isPb])=>(
           <div key={l} onClick={()=>{ if(isPb) setPlaybookOnly(v=>!v) }}
-            style={{background: (isPb&&playbookOnly) ? 'linear-gradient(135deg, rgba(184,255,60,0.18) 0%, rgba(5,13,31,0.95) 100%)' : 'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',border:`1px solid ${(isPb&&playbookOnly)?'rgba(184,255,60,0.6)':C.border}`,borderRadius:12,padding:'10px 6px',textAlign:'center',cursor:isPb?'pointer':'default'}}>
+            style={{position:'relative',
+              // Three of these tiles are pure data; this one is a control. Give it
+              // a persistent green border, a chevron and an explicit on-state so it
+              // reads as pressable — there is no hover to discover it on mobile.
+              background: (isPb&&playbookOnly)
+                ? 'linear-gradient(135deg, rgba(184,255,60,0.22) 0%, rgba(5,13,31,0.95) 100%)'
+                : isPb
+                  ? 'linear-gradient(135deg, rgba(184,255,60,0.08) 0%, rgba(5,13,31,0.95) 100%)'
+                  : 'linear-gradient(135deg, rgba(26,107,255,0.08) 0%, rgba(5,13,31,0.95) 100%)',
+              border:`1px solid ${(isPb&&playbookOnly)?'rgba(184,255,60,0.75)':isPb?'rgba(184,255,60,0.42)':C.border}`,
+              boxShadow: (isPb&&playbookOnly) ? '0 0 0 2px rgba(184,255,60,0.18)' : 'none',
+              borderRadius:12,padding:'10px 6px',textAlign:'center',
+              cursor:isPb?'pointer':'default', userSelect:'none'}}>
             <div style={{fontFamily:fH,fontSize:22,fontWeight:900,color:c,lineHeight:1}}>{n}</div>
-            <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.gray,marginTop:3}}>{l}</div>
+            <div style={{fontFamily:fH,fontSize:8,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:isPb?C.green:C.gray,marginTop:3,display:'flex',alignItems:'center',justifyContent:'center',gap:3}}>
+              {isPb && <span style={{fontSize:9}}>{playbookOnly?'✕':'▸'}</span>}
+              {isPb ? (playbookOnly?'Showing':l) : l}
+            </div>
+            {isPb && !playbookOnly && (
+              <div style={{fontFamily:fH,fontSize:7,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'rgba(184,255,60,0.65)',marginTop:2}}>Tap to view</div>
+            )}
           </div>
         ))}
       </div>
@@ -7251,6 +7291,10 @@ export default function App() {
 
   const [dealer,setDealer]     = useState(()=>loadJSON('5md-dealer',null))
   const [staleSession,setStaleSession] = useState(false)
+  // One-shot: set when a Home card deep-links into the playbook so Scripts opens
+  // already filtered. Cleared after use, otherwise every later visit to Scripts
+  // would come up filtered.
+  const [openPlaybook,setOpenPlaybook] = useState(false)
   // Load this dealership's custom objection library once per session and feed
   // the merged script pool. localStorage already seeded the store synchronously
   // above, so the UI shows the last-known library instantly; this refreshes it.
@@ -7551,7 +7595,7 @@ export default function App() {
 
       <div style={{paddingBottom:72}}>
         {/* Role-based home screens */}
-        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}} onBrowse={()=>setTab('scripts')}/>}
+        {tab==='home' && !isMgr && <RepHome dealer={dealer} stats={stats} results={results} streak={streak} onDrill={s=>{setPreloadDrill(s||'random');setTab('drill')}} onBrowse={()=>setTab('scripts')} onOpenPlaybook={()=>{setOpenPlaybook(true);setTab('scripts')}}/>}
         {tab==='home' && isMgr && contactEmails!==null && contactEmails.length===0 && (
           <div onClick={()=>setShowDealerSettings(true)}
             style={{margin:'12px 16px 0',background:'rgba(255,201,71,0.1)',border:'1px solid rgba(255,201,71,0.35)',
@@ -7564,14 +7608,14 @@ export default function App() {
             <span style={{color:C.yellow,fontSize:16}}>→</span>
           </div>
         )}
-        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}} onDrillScript={(script)=>{setPreloadDrill(script);setTab('drill')}}/>}
+        {tab==='home' && isMgr && <ManagerHome dealer={dealer} stats={stats} results={results} streak={streak} onNav={setTab} onNavSub={(sub)=>{setCoachingInitialTab(sub||'shop');setTab('coaching')}} onDrillScript={(script)=>{setPreloadDrill(script);setTab('drill')}} onOpenPlaybook={()=>{setOpenPlaybook(true);setTab('scripts')}}/>}
         {/* Rep tabs */}
         {tab==='drill'   &&<VoiceDrill onLog={logResult} dealer={dealer} preloadScript={preloadDrill} onClearPreload={()=>setPreloadDrill(null)}/>}
         {tab==='tracker' &&<TrackDash results={results} onRemove={removeResult} onLog={logResult} dealer={dealer} preloadScript={preloadTracker} onClearPreload={()=>setPreloadTracker('')}/>}
         {/* Manager tabs */}
         {tab==='huddle'  &&isMgr&&<HuddleTimer onLog={logResult} dealer={dealer} preloadScript={preloadHuddle} onClearPreload={()=>setPreloadHuddle(null)}/>}
         {tab==='coaching'&&isMgr&&<ManagerHub initialTab={coachingInitialTab} onClearInitial={()=>setCoachingInitialTab('grid')}/>}
-        {tab==='scripts' &&<ScriptLibrary dealer={dealer}/>}
+        {tab==='scripts' &&<ScriptLibrary dealer={dealer} openPlaybook={openPlaybook} onConsumePlaybook={()=>setOpenPlaybook(false)}/>}
       </div>
 
       {/* Role-based bottom nav */}
